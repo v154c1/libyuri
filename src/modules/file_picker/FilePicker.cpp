@@ -110,6 +110,7 @@ bool test_file(const std::string& filename)
 }
 void FilePicker::run()
 {
+	index_t max_index = 0;
 	if (scan_total_) {
 		auto idx = index_;
 		while (test_file(get_filename(idx, pattern_detail_))) {
@@ -118,6 +119,7 @@ void FilePicker::run()
 		emit_event("max", idx);
 		emit_event("last", idx>0?idx-1:0);
 		emit_event("total", (idx-index_));
+		max_index = 0;
 	}
 
 	raw_format_ = false;
@@ -128,10 +130,20 @@ void FilePicker::run()
 		}
 	}
 
-
+	auto frame_duration = fps_>0.0?1_s/fps_:0_s;
+	auto next_time = timestamp_t{};
 	while (still_running()) {
 		wait_for_events(get_latency());
 		process_events();
+		if (fps_ > 0.0) {
+			if (timestamp_t{} > next_time) {
+				if (!max_index || index_ < (max_index-1)) {
+					next_time = next_time+frame_duration;
+					++index_;
+					changed_ = true;
+				}
+			}
+		}
 		if (changed_) {
 			emit_event("index",index_);
 			std::string filename = get_filename(index_, pattern_detail_);
