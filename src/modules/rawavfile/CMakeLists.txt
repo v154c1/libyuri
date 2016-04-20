@@ -6,8 +6,11 @@ SET (SRC RawAVFile.cpp
 		 RawAVFile.h)
 
 
-
+SET(CMAKE_REQUIRED_LIBRARIES ${libavutil_LIBRARIES})
+SET(CMAKE_REQUIRED_FLAGS "${CMAKE_C_FLAGS}")
 check_library_exists(avcodec av_frame_get_channels ${libavcodec_LIBDIR} HAVE_FRAME_GET_CHANNELS)
+SET(CMAKE_REQUIRED_LIBRARIES )
+SET(CMAKE_REQUIRED_FLAGS "")
 if (NOT HAVE_FRAME_GET_CHANNELS)
     add_definitions(-DBROKEN_FFMPEG)
 endif()
