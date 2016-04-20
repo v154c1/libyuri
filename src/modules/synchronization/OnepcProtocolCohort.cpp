@@ -46,7 +46,7 @@ void OnepcProtocolCohort::run()
             changed_ = false;
             //wait_for_events(10_ms);
             auto f = pop_frame(0);
-             log[log::info] << "Has frame "<<&f<<" "<<f;
+             log[log::verbose_debug] << "Has frame "<<&f<<" "<<f;
             if(!f) continue;
             if(fps_ < fps_tolerance ) set_fps(f);
 
@@ -58,7 +58,7 @@ void OnepcProtocolCohort::run()
             exp_delay = get_delay();
             global_frame_no_ += exp_delay;
 
-            log[log::info] << "Shows frame "<<local_frame_no_ <<", coordinator  "<<global_frame_no_ <<" delay was "<< exp_delay;
+            log[log::debug] << "Shows frame "<<local_frame_no_ <<", coordinator  "<<global_frame_no_ <<" delay was "<< exp_delay;
 
             if(use_index_frame_){
                local_frame_no_=f->get_index();
