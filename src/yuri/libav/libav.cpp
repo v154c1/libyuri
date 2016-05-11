@@ -87,7 +87,14 @@ std::unordered_map<format_t, AVPixelFormat> yuri_pixel_map = {
 
 using namespace yuri::core::raw_audio_format;
 std::unordered_map<format_t, AVSampleFormat> yuri_audio_format_map = {
-		{signed_16bit, 				AV_SAMPLE_FMT_S16}
+		{signed_16bit, 				AV_SAMPLE_FMT_S16},
+		{unsigned_8bit,				AV_SAMPLE_FMT_U8},
+		{float_32bit,				AV_SAMPLE_FMT_FLT},
+		{float_64bit,				AV_SAMPLE_FMT_DBL},
+		{signed_16bit_planar,		AV_SAMPLE_FMT_S16P},
+		{unsigned_8bit_planar,		AV_SAMPLE_FMT_U8P},
+		{float_32bit_planar,		AV_SAMPLE_FMT_FLTP},
+		{float_64bit_planar,		AV_SAMPLE_FMT_DBLP},
 };
 
 
