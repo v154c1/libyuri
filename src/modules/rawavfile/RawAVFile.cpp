@@ -451,7 +451,7 @@ void RawAVFile::run()
 	empty_packet.size = 0;
 	bool keep_packet = false;
 	bool finishing = false;
-	AVFrame *av_frame = avcodec_alloc_frame();
+	AVFrame *av_frame = av_frame_alloc();
 
 	next_times_.resize(video_streams_.size(),timestamp_t{});
 
