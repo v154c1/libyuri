@@ -105,7 +105,8 @@ RawAVFile::RawAVFile(const log::Log &_log, core::pwThreadBase parent, const core
 	video_format_out_(0),
 	audio_format_out_(0),
 	decode_(true),fps_(0.0),max_video_streams_(1),max_audio_streams_(1),
-    loop_(true),reset_(false),allow_empty_(false),enable_experimental_(true), ignore_timestamps_(false)
+    loop_(true),reset_(false),allow_empty_(false),enable_experimental_(true),
+	ignore_timestamps_(false), paused_(false)
 {
 	IOTHREAD_INIT(parameters)
 	set_latency (10_us);
@@ -476,7 +477,7 @@ void RawAVFile::run()
 			}
 		}
 
-		if (!push_ready_frames()) {
+		if (paused_ || !push_ready_frames()) {
 			sleep(get_latency());
 			continue;
 		}
@@ -562,6 +563,29 @@ bool RawAVFile::do_process_event(const std::string& event_name, const event::pBa
         (reset_, "reset")
 		(ignore_timestamps_, "ignore_timestamps"))
 		return true;
+	if (event_name == "pause" || event_name == "pause_toggle") {
+		bool new_state = paused_;
+		if (event_name == "pause") {
+			new_state = event::lex_cast_value<bool>(event);
+		} else if (event_name == "pause_toggle") {
+			new_state = !paused_;
+		}
+
+		if (new_state != paused_) {
+			paused_ = new_state;
+			if (new_state) {
+				pause_start_ = timestamp_t{};
+			} else {
+				auto current_time = timestamp_t{};
+				auto delta = current_time - pause_start_;
+				log[log::info] << "Continuing after pause of " << delta;
+				for (auto& t: next_times_) {
+					t += delta;
+				}
+			}
+		}
+	}
+
 	// Compatibility with old name
 	if (event_name == "observe_timestamp") {
 		ignore_timestamps_ = !event::lex_cast_value<bool>(event);

@@ -76,6 +76,9 @@ private:
 	bool				allow_empty_;
 	bool				enable_experimental_;
 	bool				ignore_timestamps_;
+
+	bool				paused_;
+	timestamp_t			pause_start_;
 };
 
 } /* namespace video */
