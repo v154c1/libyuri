@@ -30,6 +30,7 @@ void init_libav();
 
 AVPixelFormat avpixelformat_from_yuri(yuri::format_t format);
 AVCodecID avcodec_from_yuri_format(yuri::format_t codec);
+AVSampleFormat avsampleformat_from_yuri(yuri::format_t format);
 
 yuri::format_t yuri_pixelformat_from_av(AVPixelFormat format);
 yuri::format_t yuri_format_from_avcodec(AVCodecID codec);

@@ -128,6 +128,11 @@ AVCodecID avcodec_from_yuri_format(yuri::format_t codec)
 	return (it==yuri_codec_map.end())?AV_CODEC_ID_NONE:it->second;
 }
 
+AVSampleFormat avsampleformat_from_yuri(yuri::format_t format)
+{
+	auto it = yuri_audio_format_map.find(format);
+	return (it==yuri_audio_format_map.end())?AV_SAMPLE_FMT_NONE:it->second;
+}
 
 yuri::format_t yuri_pixelformat_from_av(AVPixelFormat format)
 {
