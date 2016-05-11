@@ -87,7 +87,7 @@ public:
 	template<class Deleter>
 	static  pRawAudioFrame create_empty(format_t format, size_t channel_count, size_t sampling_frequency, uint8_t* data, size_t size, Deleter deleter)
 	{
-		return create_empty(format, channel_count, sampling_frequency, std::move(uvector<uint8_t>{data, size, deleter}));
+		return create_empty(format, channel_count, sampling_frequency, uvector<uint8_t>{data, size, deleter});
 	}
 
 	template<class T>
