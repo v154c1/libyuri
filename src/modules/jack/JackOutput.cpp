@@ -252,11 +252,12 @@ core::pFrame JackOutput::do_special_single_step(core::pRawAudioFrame frame)
 int JackOutput::process_audio(jack_nframes_t nframes)
 {
 	std::unique_lock<std::mutex> lock(data_mutex_);
-	size_t copy_count = std::min<size_t>(buffers_[0].size(), nframes);
+	const size_t copy_count = std::min<size_t>(buffers_[0].size(), nframes);
 	for (size_t i=0;i<buffers_.size();++i) {
 		if (!ports_[i]) continue;
 		jack_default_audio_sample_t* data = reinterpret_cast<jack_default_audio_sample_t *>(jack_port_get_buffer (ports_[i].get(), nframes));
 		buffers_[i].pop(data,copy_count);
+		std::fill(data+copy_count, data+nframes, 0.0f);
 	}
 	return 0;
 }
