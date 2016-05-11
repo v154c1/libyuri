@@ -31,6 +31,7 @@ format_info_map_t raw_audio_formats_info = {
 		{unsigned_48bit, {unsigned_48bit, "Unsigned 48bit (little endian)", {"u48","u48_le"}, 48}},
 		{signed_48bit, {signed_48bit, "Signed 148bit (little endian)", {"s48","s48_le"}, 48}},
 		{float_32bit, {float_32bit, "Float 32 bit (little endian)", {"f32","f32_le"}, 32}},
+		{float_64bit, {float_64bit, "Float 64 bit (little endian)", {"f64","f64_le"}, 64}},
 
 		{unsigned_16bit_be, {unsigned_16bit_be, "Unsigned 16bit (big endian)", {"u16_be"}, 16, false}},
 		{signed_16bit_be, {signed_16bit_be, "Signed 16bit (big endian)", {"s16_be"}, 16, false}},
@@ -41,6 +42,9 @@ format_info_map_t raw_audio_formats_info = {
 		{unsigned_48bit_be, {unsigned_48bit_be, "Unsigned 48bit (big endian)", {"u48_be"}, 48, false}},
 		{signed_48bit_be, {signed_48bit_be, "Signed 148bit (big endian)", {"s48_be"}, 48, false}},
 		{float_32bit_be, {float_32bit_be, "Float 32 bit (big endian)", {"f32_be"}, 32, false}},
+		{float_64bit_be, {float_64bit, "Float 64 bit (big endian)", {"f64_be"}, 64, false}},
+
+
 };
 
 }

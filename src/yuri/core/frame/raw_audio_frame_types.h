@@ -28,6 +28,7 @@ const format_t unsigned_32bit 	= 0x20006;
 const format_t signed_48bit 	= 0x20007;
 const format_t unsigned_48bit 	= 0x20008;
 const format_t float_32bit 	 	= 0x20009;
+const format_t float_64bit 	 	= 0x2000a;
 
 const format_t signed_16bit_be 	= 0x20011;
 const format_t unsigned_16bit_be= 0x20012;
@@ -38,6 +39,21 @@ const format_t unsigned_32bit_be= 0x20016;
 const format_t signed_48bit_be 	= 0x20017;
 const format_t unsigned_48bit_be= 0x20018;
 const format_t float_32bit_be 	= 0x20019;
+const format_t float_64bit_be 	= 0x2000a;
+
+const format_t unsigned_8bit_planar
+								= 0x20030;
+const format_t signed_16bit_planar
+								= 0x20031;
+
+const format_t signed_32bit_planar
+								= 0x20035;
+
+const format_t float_32bit_planar
+								= 0x20039;
+const format_t float_64bit_planar
+								= 0x2003a;
+
 }
 }
 }
