@@ -50,9 +50,6 @@ private:
 	core::utils::managed_resource<AVFormatContext>
 						fmtctx_;
 
-
-
-
 	std::string 		filename_;
 	std::string 		next_filename_;
 
@@ -63,6 +60,7 @@ private:
 
 	format_t 			format_out_;
 	format_t 			video_format_out_;
+	format_t			audio_format_out_;
 	bool				decode_;
 	double 				fps_;
 	std::vector<timestamp_t>
@@ -72,6 +70,7 @@ private:
 	size_t 				max_video_streams_;
 	size_t 				max_audio_streams_;
 
+	int 				audio_sample_rate_;
 	bool 				loop_;
 	bool				reset_;
 	bool				allow_empty_;

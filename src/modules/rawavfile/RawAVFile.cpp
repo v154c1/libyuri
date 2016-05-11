@@ -15,6 +15,7 @@
 #include "yuri/core/frame/raw_frame_types.h"
 #include "yuri/core/frame/raw_frame_params.h"
 #include "yuri/core/frame/raw_audio_frame_types.h"
+#include "yuri/core/frame/raw_audio_frame_params.h"
 #include "yuri/core/frame/CompressedVideoFrame.h"
 #include "yuri/core/frame/compressed_frame_types.h"
 #include "yuri/core/frame/compressed_frame_params.h"
@@ -23,6 +24,12 @@
 #include <cassert>
 #include "libavcodec/version.h"
 #include "yuri/event/EventHelpers.h"
+
+extern "C" {
+#include <libswresample/swresample.h>
+#include "libavutil/opt.h"
+}
+
 namespace yuri {
 namespace rawavfile {
 
@@ -51,14 +58,24 @@ namespace {
 
 struct RawAVFile::stream_detail_t {
 		stream_detail_t(AVStream* stream=nullptr, AVCodec* codec = nullptr, format_t fmt = 0, format_t fmt_out = 0)
-		:stream(stream),ctx(stream?stream->codec:nullptr),codec(codec),format(fmt),format_out(fmt_out) {}
+		:stream(stream),ctx(stream?stream->codec:nullptr),codec(codec),swr_ctx(nullptr),format(fmt),format_out(fmt_out),
+		 sample_rate(0)
+		 {}
+		~stream_detail_t() {
+			if (swr_ctx) {
+				swr_close(swr_ctx);
+				swr_free(&swr_ctx);
+			}
+		}
 		AVStream* stream;
 		AVCodecContext *ctx;
 		AVCodec* codec;
+		SwrContext* swr_ctx;
 		format_t format;
 		format_t format_out;
 		resolution_t resolution;
 		duration_t delta;
+		int sample_rate;
 	};
 
 core::Parameters RawAVFile::configure()
@@ -68,6 +85,7 @@ core::Parameters RawAVFile::configure()
 	p["filename"]["File to open"]="";
 	p["decode"]["Decode the stream and push out raw video"]=true;
 	p["format"]["Format to decode to"]="YUV422";
+	p["audio_format"]["Format to decode audio to"]="s16";
 	p["fps"]["Override framerate. Specify 0 to use original, or negative value to maximal speed."]=0;
 	p["max_video"]["Maximal number of video streams to process"]=1;
 	p["max_audio"]["Maximal number of audio streams to process"]=0;
@@ -75,6 +93,7 @@ core::Parameters RawAVFile::configure()
 	p["allow_empty"]["Allow empty input file"]=false;
 	p["enable_experimental"]["Enable experimental codecs"]=true;
     p["ignore_timestamps"]["Ignore fps (similar to fps < 0), switchable at runtime"]=false;
+    p["audio_sample_rate"]["Force audio sample rate (0 for original)"]=0;
 	return p;
 }
 
@@ -82,7 +101,9 @@ core::Parameters RawAVFile::configure()
 RawAVFile::RawAVFile(const log::Log &_log, core::pwThreadBase parent, const core::Parameters &parameters)
     :IOThread(_log,parent,0,1024,"RawAVSource"),
 	 BasicEventConsumer(log),
-	fmtctx_(nullptr,[](AVFormatContext* ctx){avformat_close_input(&ctx);}),video_format_out_(0),
+	fmtctx_(nullptr,[](AVFormatContext* ctx){avformat_close_input(&ctx);}),
+	video_format_out_(0),
+	audio_format_out_(0),
 	decode_(true),fps_(0.0),max_video_streams_(1),max_audio_streams_(1),
     loop_(true),reset_(false),allow_empty_(false),enable_experimental_(true), ignore_timestamps_(false)
 {
@@ -91,7 +112,7 @@ RawAVFile::RawAVFile(const log::Log &_log, core::pwThreadBase parent, const core
 #ifdef BROKEN_FFMPEG
 // We probably using BROKEN fork of ffmpeg (libav) or VERY old ffmpeg.
 	if (max_audio_streams_ > 0) {
-		log[log::warning] << "Using unsupported version of FFMPEG, probably the FAKE libraries distributed by libav project. Audio suport disabled";
+		log[log::warning] << "Using unsupported version of FFMPEG, probably the FAKE libraries distributed by libav project. Audio support disabled";
 		max_audio_streams_ = 0;
 	}
 #endif
@@ -212,8 +233,22 @@ bool RawAVFile::open_file(const std::string& filename)
 				throw exception::InitializationFailed("Failed to open codec!");
 			}
 			audio_streams_[i].format = libav::yuri_format_from_avcodec(audio_streams_[i].ctx->codec_id);
-			audio_streams_[i].format_out = libav::yuri_audio_from_av(audio_streams_[i].ctx->sample_fmt);
+			auto fmt_out = libav::yuri_audio_from_av(audio_streams_[i].ctx->sample_fmt);
+			audio_streams_[i].sample_rate = audio_sample_rate_>0?audio_sample_rate_:audio_streams_[i].ctx->sample_rate;
+			if (fmt_out != audio_format_out_ || audio_streams_[i].sample_rate != audio_streams_[i].ctx->sample_rate) {
+				auto audio_fmt_libav = libav::avsampleformat_from_yuri(audio_format_out_);
+				audio_streams_[i].swr_ctx = swr_alloc();
+				av_opt_set_sample_fmt(audio_streams_[i].swr_ctx, "in_sample_fmt",  audio_streams_[i].ctx->sample_fmt, 0);
+				av_opt_set_sample_fmt(audio_streams_[i].swr_ctx, "out_sample_fmt", audio_fmt_libav,  0);
+				av_opt_set_int(audio_streams_[i].swr_ctx, "in_channel_layout",  audio_streams_[i].ctx->channel_layout, 0);
+				av_opt_set_int(audio_streams_[i].swr_ctx, "out_channel_layout",  audio_streams_[i].ctx->channel_layout, 0);
+				av_opt_set_int(audio_streams_[i].swr_ctx, "in_sample_rate",  audio_streams_[i].ctx->sample_rate, 0);
+				av_opt_set_int(audio_streams_[i].swr_ctx, "out_sample_rate",  audio_streams_[i].sample_rate, 0);
+				swr_init(audio_streams_[i].swr_ctx);
+			}
+			audio_streams_[i].format_out = audio_format_out_;
 			log[log::info] << "Found audio stream, format:" << audio_streams_[i].format << " to " << audio_streams_[i].format_out;
+			log[log::info] << "Orig fmt: " << audio_streams_[i].ctx->sample_fmt;
 		}
 	}
 
@@ -371,13 +406,25 @@ bool RawAVFile::decode_audio_frame(index_t idx, const AVPacket& packet, AVFrame*
 		keep_packet = true;
 		log[log::debug] << "Used only " << decoded_size << " bytes out of " << packet.size;
 	}
-	size_t data_size = av_frame->nb_samples * av_frame_get_channels(av_frame) * 2 ;
-	auto f = core::RawAudioFrame::create_empty(audio_streams_[idx].format_out, av_frame_get_channels(av_frame), av_frame->sample_rate, av_frame->data[0], data_size);
-	if (!f) {
-		log[log::warning] << "Failed to convert avframe, probably unsupported pixelformat";
-		return false;
+	if (!audio_streams_[idx].swr_ctx) {
+		size_t data_size = av_frame->nb_samples * av_frame_get_channels(av_frame) * 2 ;
+		auto f = core::RawAudioFrame::create_empty(audio_streams_[idx].format_out, av_frame_get_channels(av_frame), av_frame->sample_rate, av_frame->data[0], data_size);
+		if (!f) {
+			log[log::warning] << "Failed to convert avframe, probably unsupported pixelformat";
+			return false;
+		}
+		push_frame(idx + max_video_streams_, std::move(f));
+	} else {
+		auto output_sample_count =  av_rescale_rnd(av_frame->nb_samples, audio_streams_[idx].sample_rate, audio_streams_[idx].ctx->sample_rate, AV_ROUND_UP);
+		auto f = core::RawAudioFrame::create_empty(audio_streams_[idx].format_out, av_frame_get_channels(av_frame), audio_streams_[idx].sample_rate, output_sample_count);
+		auto out_buffer = f->data();
+		const uint8_t** in_buffer = const_cast<const uint8_t**>(av_frame->data);
+		auto ret = swr_convert(audio_streams_[idx].swr_ctx, &out_buffer, av_frame->nb_samples, in_buffer, av_frame->nb_samples);
+		auto real_buffer_size = av_samples_get_buffer_size(nullptr, av_frame_get_channels(av_frame), ret, libav::avsampleformat_from_yuri(audio_streams_[idx].format_out), 1);
+		log[log::verbose_debug] << "Received " << av_frame->nb_samples << " samples, expected to convert to " << output_sample_count << ", actually got " << ret << " stored in " << f->size() << " bytes, real size: " << real_buffer_size;
+		f->resize(real_buffer_size);
+		push_frame(idx + max_video_streams_, std::move(f));
 	}
-	push_frame(idx + max_video_streams_, std::move(f));
 	return true;
 #endif
 }
@@ -488,13 +535,16 @@ bool RawAVFile::set_param(const core::Parameter &parameter)
 			(decode_, 			"decode")
 			.parsed<std::string>
 				(video_format_out_, "format", core::raw_format::parse_format)
+			.parsed<std::string>
+				(audio_format_out_, "audio_format", core::raw_audio_format::parse_format)
 			(fps_, 				"fps")
 			(max_video_streams_,"max_video")
 			(max_audio_streams_,"max_audio")
 			(loop_, 			"loop")
 			(allow_empty_,		"allow_empty")
 			(enable_experimental_,"enable_experimental")
-            (ignore_timestamps_, "ignore_timestamps"))
+            (ignore_timestamps_, "ignore_timestamps")
+			(audio_sample_rate_, "audio_sample_rate"))
 		return true;
 	return IOThread::set_param(parameter);
 }
