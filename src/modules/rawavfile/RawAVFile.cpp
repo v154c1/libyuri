@@ -51,6 +51,10 @@ namespace {
 			return core::compressed_frame::get_format_name(fmt);
 		}
 		catch(std::exception&){}
+		try {
+			return core::raw_audio_format::get_format_name(fmt);
+		}
+		catch(std::exception&){}
 		return unknown_format;
 	}
 
@@ -248,8 +252,8 @@ bool RawAVFile::open_file(const std::string& filename)
 				swr_init(audio_streams_[i].swr_ctx);
 			}
 			audio_streams_[i].format_out = audio_format_out_;
-			log[log::info] << "Found audio stream, format:" << audio_streams_[i].format << " to " << audio_streams_[i].format_out;
-			log[log::info] << "Orig fmt: " << audio_streams_[i].ctx->sample_fmt;
+			log[log::info] << "Found audio stream, format:" << get_format_name_no_throw(audio_streams_[i].format) << ", decoding to " << get_format_name_no_throw(audio_streams_[i].format_out);
+			log[log::debug] << "Orig fmt: " << audio_streams_[i].ctx->sample_fmt;
 		}
 	}
 
@@ -529,6 +533,12 @@ void RawAVFile::run()
 	av_free_packet(&empty_packet);
 }
 
+void RawAVFile::jump_times(const duration_t& delta)
+{
+	for (auto& t: next_times_) {
+		t += delta;
+	}
+}
 bool RawAVFile::set_param(const core::Parameter &parameter)
 {
 	if (assign_parameters(parameter)
@@ -579,13 +589,15 @@ bool RawAVFile::do_process_event(const std::string& event_name, const event::pBa
 				auto current_time = timestamp_t{};
 				auto delta = current_time - pause_start_;
 				log[log::info] << "Continuing after pause of " << delta;
-				for (auto& t: next_times_) {
-					t += delta;
-				}
+				jump_times(delta);
 			}
 		}
 	}
-
+	duration_t skip_time;
+	if (assign_events(event_name, event)
+			(skip_time, "skip", "skip_time")) {
+		jump_times(-skip_time);
+	}
 	// Compatibility with old name
 	if (event_name == "observe_timestamp") {
 		ignore_timestamps_ = !event::lex_cast_value<bool>(event);

@@ -47,6 +47,7 @@ private:
 	bool				process_undecoded_frame(index_t idx, const AVPacket& packet);
 	bool				decode_video_frame(index_t idx, AVPacket& packet, AVFrame* av_frame, bool& keep_packet);
 	bool				decode_audio_frame(index_t idx, const AVPacket& packet, AVFrame* av_frame, bool& keep_packet);
+	void				jump_times(const duration_t& delta);
 	core::utils::managed_resource<AVFormatContext>
 						fmtctx_;
 
