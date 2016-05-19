@@ -15,7 +15,7 @@ namespace synchronization {
 
 core::Parameters OnepcProtocolCoordinator::configure()
 {
-    core::Parameters p = core::IOThread::configure();
+    core::Parameters p = core::IOFilter::configure();
     p["frame_index"]["Using default frame index."]=false;
     return p;
 }
@@ -24,7 +24,7 @@ core::Parameters OnepcProtocolCoordinator::configure()
 IOTHREAD_GENERATOR(OnepcProtocolCoordinator)
 
 OnepcProtocolCoordinator::OnepcProtocolCoordinator(log::Log &log_, core::pwThreadBase parent,const core::Parameters &parameters):
-    core::IOThread(log_,parent,1,1,std::string("onepc_protocol_coordinator")), event::BasicEventProducer(log),
+    core::IOFilter(log_, parent, std::string("onepc_protocol_coordinator")), event::BasicEventProducer(log),
     gen_(std::random_device()()), dis_(1,999999), id_(dis_(gen_)), frame_no_(1), use_index_frame_(true)
 {
     IOTHREAD_INIT(parameters)
@@ -33,19 +33,15 @@ OnepcProtocolCoordinator::OnepcProtocolCoordinator(log::Log &log_, core::pwThrea
 OnepcProtocolCoordinator::~OnepcProtocolCoordinator() noexcept{}
 
 
-void OnepcProtocolCoordinator::run()
+core::pFrame OnepcProtocolCoordinator::do_simple_single_step(core::pFrame frame)
 {
-    while(still_running()){
-        auto f = pop_frame(0);
-        if(!f) continue;
-        if(use_index_frame_){
-            emit_event("perform", prepare_event(id_, f->get_index()));
-        } else {
-            emit_event("perform", prepare_event(id_, frame_no_));
-            ++frame_no_;
-        }
-        push_frame(0, f);
-    }
+	if(use_index_frame_){
+		emit_event("perform", prepare_event(id_, frame->get_index()));
+	} else {
+		emit_event("perform", prepare_event(id_, frame_no_));
+		++frame_no_;
+	}
+	return std::move(frame);
 }
 
 event::pBasicEvent OnepcProtocolCoordinator::prepare_event(const uint64_t& id_sender, const index_t& data){
@@ -60,7 +56,7 @@ bool OnepcProtocolCoordinator::set_param(const core::Parameter &parameter)
     if(assign_parameters(parameter)
             (use_index_frame_, "frame_index"))
         return true;
-    return core::IOThread::set_param(parameter);
+    return core::IOFilter::set_param(parameter);
 }
 
 

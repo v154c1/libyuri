@@ -11,13 +11,14 @@
 #define ONEPCPROTOCOLCOORDINATOR_H_
 
 #include "yuri/core/Module.h"
+#include "yuri/core/thread/IOFilter.h"
 #include "yuri/event/BasicEventProducer.h"
 
 namespace yuri {
 namespace synchronization {
 
 class OnepcProtocolCoordinator:
-        public yuri::core::IOThread,
+        public yuri::core::IOFilter,
         public event::BasicEventProducer {
 public:
 
@@ -30,7 +31,7 @@ public:
      */
     static core::Parameters configure();
 
-    virtual  void run() override;
+    core::pFrame do_simple_single_step(core::pFrame frame) override;
 
     /**
      * Set parameters from the command-line and XML file
