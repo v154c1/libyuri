@@ -37,7 +37,7 @@ bool SizeLimitedPolicy<false>::impl_push_frame(const pFrame &frame)
 	actual_size_+=frame->get_size();
 	while (actual_size_>max_size_) {
 		assert(frames_.size());
-		pFrame f = frames_.front();
+		pFrame f = std::move(frames_.front());
 		frames_.pop_front();
 		actual_size_-=f->get_size();
 		drop_frame(f);
