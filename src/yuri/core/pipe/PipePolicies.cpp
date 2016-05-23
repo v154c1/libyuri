@@ -68,7 +68,9 @@ bool CountLimitedPolicy<false>::impl_push_frame(const pFrame &frame)
 {
 	assert(count_ <= max_count_);
 	if (count_ >= max_count_) {
+		drop_frame(frames_[first_index_]);
 		frames_[first_index_++]=frame;
+		if (first_index_>=max_count_) first_index_ = 0;
 	} else {
 		frames_[get_next_position(first_index_, count_, max_count_)]=frame;
 		++count_;
