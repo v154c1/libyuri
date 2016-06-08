@@ -40,6 +40,7 @@ core::Parameters GlxWindow::configure()
 	p["delta_y"]["Vertical correction (-1.0, 1.0)"]=0.0f;
 	p["show_cursor"]["Enable or disable cursor in the window"]=true;
 	p["on_top"]["Stay on top"]=false;
+	p["pbo"]["Use PBO to update display (larger latency, faster update"]=false;
 	return p;
 }
 
@@ -509,6 +510,7 @@ bool GlxWindow::set_param(const core::Parameter& param)
 			(delta_y_, "delta_y")
 			(display_str_, "display")
 			(show_cursor_, "show_cursor")
+			(gl_.use_pbo, "pbo")
 			(stereo_mode_, "stereo", [](const core::Parameter& p){return get_mode(p.get<std::string>());}))
 		return true;
 
