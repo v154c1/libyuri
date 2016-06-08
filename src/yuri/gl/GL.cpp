@@ -167,7 +167,8 @@ GL::GL(log::Log &log_):log(log_),
 		corners{{-1.0f, -1.0f,
 				1.0f, -1.0f,
 				1.0f, 1.0f,
-				-1.0f, 1.0f}}
+				-1.0f, 1.0f}},
+		use_pbo(false)
 {
 	log.set_label("[GL] ");
 }
@@ -209,6 +210,11 @@ void GL::generate_texture(index_t tid, const core::pFrame& gframe, bool flip_x, 
 	if (textures[tid].tid[0]==static_cast<GLuint>(-1)) {
 		textures[tid].gen_texture(0);
 		log[log::info] << "Generated texture " << textures[tid].tid[0];
+	}
+
+	if (use_pbo && (textures[tid].pbo[0] == static_cast<GLuint>(-1))) {
+		textures[tid].gen_buffer(0);
+		log[log::info] << "Generated PBO " << textures[tid].pbo[0];
 	}
 
 	GLuint &tex = textures[tid].tid[0];
@@ -295,7 +301,7 @@ void GL::generate_texture(index_t tid, const core::pFrame& gframe, bool flip_x, 
 				prepare_texture(tid, 0, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w/2, h}, GL_RGBA, GL_RGBA, true);
 				prepare_texture(tid, 1, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w, h}, GL_LUMINANCE8_ALPHA8, GL_LUMINANCE_ALPHA, true);
 			}
-			fs_color_get = std::move(get_yuv_shader(frame_format));
+			fs_color_get = get_yuv_shader(frame_format);
 		}break;
 
 
@@ -569,7 +575,13 @@ bool GL::prepare_texture(index_t tid, unsigned texid, const uint8_t *data, size_
 {
 	GLenum err;
 	glGetError();
-	if (!update) textures[tid].gen_texture(texid);
+	if (!update) {
+		textures[tid].gen_texture(texid);
+		if (use_pbo) {
+			textures[tid].gen_buffer(texid);
+			log[log::info] << "PBO id: " << textures[tid].pbo[texid];
+		}
+	}
 	glBindTexture(GL_TEXTURE_2D, textures[tid].tid[texid]);
 	err = glGetError();
 	if (err) {
@@ -584,16 +596,30 @@ bool GL::prepare_texture(index_t tid, unsigned texid, const uint8_t *data, size_
 		}
 	}
 
+	if (use_pbo) {
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, textures[tid].pbo[texid]);
+		if (auto e = glGetError()) log[log::error]<< __LINE__ << "Error " << e;
+		if (!update) {
+			glBufferData(GL_PIXEL_UNPACK_BUFFER, data_size, nullptr, GL_STREAM_DRAW);
+			if (!update) {
+				textures[tid].pbo_valid[texid]=false;
+				glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+			}
+		}
+
+	}
 	if (!update) {
-		glTexImage2D(GL_TEXTURE_2D, 0, tex_mode, resolution.width, resolution.height, 0, data_mode, data_type, 0);
+		glTexImage2D(GL_TEXTURE_2D, 0, tex_mode, resolution.width, resolution.height, 0, data_mode, data_type, nullptr);
 	} else {
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, resolution.width, resolution.height, data_mode, data_type, data);
+		if (!use_pbo || textures[tid].pbo_valid[texid])
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, resolution.width, resolution.height, data_mode, data_type, use_pbo?nullptr:data);
 	}
 	err = glGetError();
 	if (err) {
 		log[log::error] << "Error " << err /*<< ":" << glGetString(err) */<< " uploading tex. data";
 		return false;
 	}
+
 	if (!update) {
 		glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -605,6 +631,44 @@ bool GL::prepare_texture(index_t tid, unsigned texid, const uint8_t *data, size_
 			log[log::error] << "Error " << err << " setting texture params";
 			return false;
 		}
+	}
+	if (use_pbo) {
+//		log[log::info] << "Binding buffer " << textures[tid].pbo[texid];
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, textures[tid].pbo[texid]);
+		if (auto e = glGetError()) {
+			log[log::error]<< __LINE__ << "Error " << e;
+			textures[tid].pbo_valid[texid]=false;
+			return false;
+		}
+		glBufferData(GL_PIXEL_UNPACK_BUFFER, data_size, 0, GL_STREAM_DRAW);
+		if (auto e = glGetError()) {
+			log[log::error]<< __LINE__ << "Error " << e;
+			textures[tid].pbo_valid[texid]=false;
+			return false;
+		}
+		auto ptr = reinterpret_cast<uint8_t*>(glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY));
+		if (auto e = glGetError()) {
+			log[log::error]<< __LINE__ << "Error " << e;
+			textures[tid].pbo_valid[texid]=false;
+			return false;
+		}
+		if(ptr) {
+			std::copy(data, data+data_size, ptr);
+			glUnmapBufferARB(GL_PIXEL_UNPACK_BUFFER);
+			if (auto e = glGetError()) {
+				log[log::error]<< __LINE__ << "Error " << e;
+				textures[tid].pbo_valid[texid]=false;
+				return false;
+			}
+		}
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+		if (auto e = glGetError()) {
+			log[log::error]<< __LINE__ << "Error " << e;
+			textures[tid].pbo_valid[texid]=false;
+			return false;
+		}
+		textures[tid].pbo_valid[texid]=true;
+
 	}
 	return true;
 }

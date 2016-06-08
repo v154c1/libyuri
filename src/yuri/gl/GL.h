@@ -13,8 +13,11 @@
 #include <map>
 #include <vector>
 #include <array>
+#define GL_GLEXT_PROTOTYPES
 #include "GLProgram.h"
 #include <GL/gl.h>
+
+#include <GL/glext.h>
 #include "yuri/core/forward.h"
 #include "yuri/core/frame/VideoFrame.h"
 #include "yuri/core/frame/raw_frame_types.h"
@@ -43,11 +46,15 @@ struct texture_info_t {
 	GLint uniform_tx, uniform_ty, uniform_dx, uniform_dy, uniform_flip_x, uniform_flip_y;
 	size_t wh;
 	projection_t projection_type;
+	GLuint pbo[8];
+	bool pbo_valid[8];
 	texture_info_t():tx(0.0f),ty(0.0f),dx(0.0), dy(0.0), flip_x(false),
 			flip_y(false),keep_aspect(false),format(0),wh(0),
 			projection_type(projection_t::perspective) {
 		for (int i=0;i<8;++i) {
 			tid[i]=static_cast<GLuint>(-1);
+			pbo[i]=static_cast<GLuint>(-1);
+			pbo_valid[i]=false;
 			texture_units[i]=-1;
 		}
 	}
@@ -82,9 +89,12 @@ struct texture_info_t {
 	}
 
 	inline void gen_texture(int id) {
-		if (tid[id]==static_cast<GLuint>(-1)) glGenTextures(1,tid+id);
+		if (tid[id]==static_cast<GLuint>(-1)) glGenTextures(1, tid+id);
 	}
 
+	inline void gen_buffer(int id) {
+		if (pbo[id]==static_cast<GLuint>(-1)) glGenBuffers(1, pbo+id);
+	}
 	void set_tex_coords(double  *v) {
 		glTexCoord4dv(v);
 		for (int i=0;i<8;++i) {
@@ -147,7 +157,7 @@ public:
 	std::array<float,8> corners;
 	static mutex big_gpu_lock;
 	static std::vector<format_t> get_supported_formats();
-
+	bool use_pbo;
 };
 
 }
