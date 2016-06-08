@@ -13,8 +13,8 @@
 #include "yuri/core/thread/IOThread.h"
 #include "yuri/event/BasicEventConsumer.h"
 #include "yuri/event/BasicEventProducer.h"
-#include "GL/glx.h"
 #include "yuri/gl/GL.h"
+#include "GL/glx.h"
 namespace yuri {
 namespace glx_window {
 
@@ -87,6 +87,8 @@ private:
 	bool 					needs_move_;
 	bool					show_cursor_;
 	bool					needs_redraw_;
+	timestamp_t				counter_start_;
+	size_t					counter_;
 };
 
 } /* namespace glx_window */

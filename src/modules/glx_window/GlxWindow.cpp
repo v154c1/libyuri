@@ -91,7 +91,8 @@ screen_number_{0},attributes_{GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, No
 geometry_{800,600,0,0},visual_{nullptr},flip_x_{false},flip_y_{false},
 read_back_{false},stereo_mode_{stereo_mode_t::none},decorations_{false},
 on_top_{false},swap_eyes_{false},delta_x_{0.0},delta_y_{0.0},needs_move_{false},
-show_cursor_{true}
+show_cursor_{true},
+counter_(0)
 {
 	set_latency(100_ms);
 	IOTHREAD_INIT(parameters)
@@ -448,6 +449,16 @@ bool GlxWindow::redraw_display()
 
 bool GlxWindow::display_frames_impl(const std::vector<core::pFrame>& frames)
 {
+	timestamp_t now{};
+	auto delta = now - counter_start_;
+	++counter_;
+	if (delta > 5_s) {
+		auto fps = 1000.0 * 1_s * counter_ / delta / 1000.0;
+		log[log::info] << "FPS: " << fps;
+		counter_ = 0;
+		counter_start_ = now;
+	}
+
 	glDrawBuffer(GL_BACK_LEFT);
 	gl_.clear();
 	gl_.set_texture_delta(0,  delta_x_,  delta_y_);
