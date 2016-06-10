@@ -28,6 +28,7 @@
 #include <exception>
 
 #include "yuri/core/frame/raw_frame_types.h"
+#include "yuri/core/utils/string_generator.h"
 #ifdef HAVE_BOOST_PROGRAM_OPTIONS
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
@@ -133,7 +134,8 @@ int main(int argc, char**argv)
 
 	auto date_time_flags = (show_date?log::show_date:log::silent)|(show_time?log::show_time:log::silent);
 	if (!logfile.empty()) {
-		logf.open(logfile, std::ios::out|std::ios::app);
+		const auto logfile_parsed = core::utils::generate_string(logfile, 0, {});
+		logf.open(logfile_parsed, std::ios::out|std::ios::app);
 		logger = yuri::log::Log(logf);
 		logger.set_flags(log::info|log::show_level|date_time_flags);
 	} else {
