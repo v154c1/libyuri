@@ -143,8 +143,7 @@ int main(int argc, char**argv)
 	}
 	logger.set_label("[YURI2] ");
 
-	if (verbosity < -3) verbosity = -3;
-	if (verbosity >  4) verbosity =  4;
+	verbosity = clip_value(verbosity, -3, 4);
 	if (vm.count("quiet")) verbosity=-1;
 	else if (vm.count("verbose")) verbosity=1;
 
@@ -160,7 +159,7 @@ int main(int argc, char**argv)
 		return 1;
 	}
 	if (vm.count("list") || vm.count("class") || vm.count("input")) {
-		builder.reset(new core::XmlBuilder(logger, core::pwThreadBase(), filename, arguments, true ));
+		builder = std::make_shared<core::XmlBuilder>(logger, core::pwThreadBase(), filename, arguments, true );
 		log::Log l_(std::cout);
 		l_.set_flags(log::info);
 		l_.set_quiet(true);
@@ -177,7 +176,7 @@ int main(int argc, char**argv)
 		return 0;
 	}
 	if (vm.count("convert")) {
-		builder.reset(new core::XmlBuilder(logger, core::pwThreadBase(), filename, arguments, true ));
+		builder = std::make_shared<core::XmlBuilder>(logger, core::pwThreadBase(), filename, arguments, true );
 		log::Log l_(std::cout);
 		l_.set_flags(log::info);
 		l_.set_quiet(true);
@@ -203,7 +202,7 @@ int main(int argc, char**argv)
 				if (i<argc-1) {
 					list_what=argv[++i];
 				}
-				builder.reset(new core::XmlBuilder(logger, core::pwThreadBase(), filename, arguments, true ));
+				builder = std::make_shared<core::XmlBuilder>(logger, core::pwThreadBase(), filename, arguments, true );
 				log::Log l_(std::cout);
 				l_.set_flags(log::info);
 				l_.set_quiet(true);
@@ -228,7 +227,7 @@ int main(int argc, char**argv)
 
 	logger[log::debug] << "Loading file " << filename;
 	try {
-		builder.reset( new core::XmlBuilder (logger, core::pwThreadBase(),filename, arguments, show_info));
+		builder = std::make_shared<core::XmlBuilder>(logger, core::pwThreadBase(), filename, arguments, show_info );
 	}
 	catch (exception::Exception &e) {
 		logger[log::fatal] << "failed to initialize application: " << e.what();
@@ -250,7 +249,7 @@ int main(int argc, char**argv)
 		logger[log::fatal] <<"  ";
 		logger[log::fatal] << "Variables:";
 		for (const auto& var: vars) {
-			std::string filler(20-var.name.size(),' ');
+			std::string filler(clip_value(20-var.name.size(), 1, 20),' ');
 			logger[log::fatal] << var.name << ":" << filler << var.description
 					<< " [value: " << var.value << "]";
 		}
