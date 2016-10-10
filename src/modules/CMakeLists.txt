@@ -218,6 +218,10 @@ IF(NOT YURI_DISABLE_ULTRAGRID)
 ENDIF()
 #############
 
+find_package(CURL)
+IF(CURL_FOUND)
+    add_subdirectory(linky)
+ENDIF()
 
 ENDIF(YURI_BUILD_UNSTABLE_MODULES)
 
