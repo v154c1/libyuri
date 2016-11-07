@@ -16,7 +16,8 @@ namespace yuri {
 namespace linky {
 
 class LinkyOutput : public core::SpecializedIOFilter<core::RawVideoFrame> {
-	using base_type = core::SpecializedIOFilter<core::RawVideoFrame>;
+    using base_type = core::SpecializedIOFilter<core::RawVideoFrame>;
+
 public:
     IOTHREAD_GENERATOR_DECLARATION
     static core::Parameters configure();
@@ -30,6 +31,8 @@ private:
     std::string  api_path_;
     std::string  key_;
     resolution_t resolution_;
+    bool         use_rgbw_;
+    uint8_t      w_value_;
 };
 
 } /* namespace linky_output */

@@ -25,9 +25,11 @@ core::Parameters LinkyOutput::configure()
 {
     core::Parameters p = base_type::configure();
     p.set_description("LinkyOutput");
-    p["url"]["API url base path"]         = "https://service.iim.cz/linkyapi";
-    p["key"]["API key"]                   = "";
-    p["resolution"]["Display resolution"] = "5x204";
+    p["url"]["API url base path"]                 = "https://service.iim.cz/linkyapi";
+    p["key"]["API key"]                           = "";
+    p["resolution"]["Display resolution"]         = "5x204";
+    p["use_rgbw"]["Use RGBW values"]              = false;
+    p["w_value"]["Fixed W value for rgbw format"] = 0;
     return p;
 }
 
@@ -38,7 +40,7 @@ LinkyOutput::LinkyOutput(const log::Log& log_, core::pwThreadBase parent, const 
     : base_type(log_, parent, std::string("linky_output"))
 {
     IOTHREAD_INIT(parameters)
-	set_supported_formats({core::raw_format::rgb24});
+    set_supported_formats({ core::raw_format::rgb24 });
 }
 
 LinkyOutput::~LinkyOutput() noexcept
@@ -46,51 +48,81 @@ LinkyOutput::~LinkyOutput() noexcept
 }
 
 namespace {
-void write_4bit(char *p, int8_t value) {
-	value = value&0xf;
-	*p = value < 10?value+'0':value+'a'-10;
+void write_4bit(char* p, int8_t value)
+{
+    value = value & 0xf;
+    *p    = value < 10 ? value + '0' : value + 'a' - 10;
 }
-void write_8bit(char *p, int8_t value) {
-	write_4bit(p, value>> 4);
-	write_4bit(p + 1, value);
+void write_8bit(char* p, int8_t value)
+{
+    write_4bit(p, value >> 4);
+    write_4bit(p + 1, value);
+}
+
+std::string fill_rgb(const core::pRawVideoFrame& frame, const resolution_t& resolution)
+{
+    const auto res  = frame->get_resolution();
+    const auto dres = resolution_t{ std::min(res.width, resolution.width), std::min(res.height, resolution.height) };
+
+    auto data     = std::string(resolution.width * resolution.height * 6, '0');
+    auto pdata    = &data[0];
+    auto raw_data = PLANE_RAW_DATA(frame, 0);
+    for (auto y : irange(dres.height)) {
+        auto dstart = raw_data + y * PLANE_DATA(frame, 0).get_line_size();
+        for (auto x : irange(dres.width)) {
+            auto p = pdata + 6 * (x * resolution.height + y);
+            write_8bit(p + 0, *dstart++);
+            write_8bit(p + 2, *dstart++);
+            write_8bit(p + 4, *dstart++);
+        }
+    }
+    return data;
+}
+
+std::string fill_rgbw(const core::pRawVideoFrame& frame, const resolution_t& resolution, const uint8_t& w_value)
+{
+    const auto res  = frame->get_resolution();
+    const auto dres = resolution_t{ std::min(res.width, resolution.width), std::min(res.height, resolution.height) };
+
+    auto data     = std::string(resolution.width * resolution.height * 8, '0');
+    auto pdata    = &data[0];
+    auto raw_data = PLANE_RAW_DATA(frame, 0);
+    for (auto y : irange(dres.height)) {
+        auto dstart = raw_data + y * PLANE_DATA(frame, 0).get_line_size();
+        for (auto x : irange(dres.width)) {
+            auto p = pdata + 8 * (x * resolution.height + y);
+            write_8bit(p + 0, *dstart++);
+            write_8bit(p + 2, *dstart++);
+            write_8bit(p + 4, *dstart++);
+            write_8bit(p + 6, w_value);
+        }
+    }
+    return data;
 }
 }
 core::pFrame LinkyOutput::do_special_single_step(core::pRawVideoFrame frame)
 {
-	const auto res = frame->get_resolution();
-	const auto dres = resolution_t{	std::min(res.width, resolution_.width),
-									std::min(res.height, resolution_.height)};
+    auto data = use_rgbw_ ? fill_rgbw(frame, resolution_, w_value_) : fill_rgb(frame, resolution_);
 
-	auto data = std::string(resolution_.width * resolution_.height * 6, '0');
-	auto pdata = &data[0];
-	auto raw_data = PLANE_RAW_DATA(frame, 0);
-	for (auto y: irange(dres.height)) {
-		auto dstart = raw_data + y * PLANE_DATA(frame,0).get_line_size();
-		for (auto x: irange(dres.width)) {
-			auto p = pdata + 6 * (x * resolution_.height + y);
-			write_8bit(p+0, *dstart++);
-			write_8bit(p+2, *dstart++);
-			write_8bit(p+4, *dstart++);
-		}
-	}
-
-//	log[log::info] << data;
-	Json::Value root;
-	root["colourScheme"]="rgb";
-	root["colourDataType"]="many";
-	root["colourData"]=data;
-	std::stringstream ss;
-	ss << root;
-	upload_json(api_path_ + "/lights/all", ss.str(), key_);
+    //	log[log::info] << data;
+    Json::Value root;
+    root["colourScheme"]   = use_rgbw_ ? "rgbw" : "rgb";
+    root["colourDataType"] = "many";
+    root["colourData"]     = data;
+    std::stringstream ss;
+    ss << root;
+    upload_json(api_path_ + "/lights/all", ss.str(), key_);
     return {};
 }
 
 bool LinkyOutput::set_param(const core::Parameter& param)
 {
-    if (assign_parameters(param)
-    		(api_path_,		"url")
-			(key_, 			"key")
-			(resolution_, 	"resolution"))
+    if (assign_parameters(param)    //
+        (api_path_, "url")          //
+        (key_, "key")               //
+        (resolution_, "resolution") //
+        (use_rgbw_, "use_rgbw")     //
+        (w_value_, "w_value"))
         return true;
 
     return base_type::set_param(param);
