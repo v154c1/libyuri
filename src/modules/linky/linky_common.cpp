@@ -61,10 +61,11 @@ std::string download_url(const std::string& url, const std::string& api_key)
     try_execute(curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, reinterpret_cast<void*>(&data)), "Failed to set an option");
     try_execute(curl_easy_setopt(curl.get(), CURLOPT_URL, url.c_str()), "Failed to set an option");
     struct curl_slist* headers = nullptr;
-    const auto         key     = "api-key: " + api_key;
-//    std::cout << "header::: " << key << " :::\n";
-    headers = curl_slist_append(headers, key.c_str());
-    headers = curl_slist_append(headers, "aaa: bbb");
+    if (!api_key.empty()) {
+        const auto key = "api-key: " + api_key;
+        headers        = curl_slist_append(headers, key.c_str());
+    }
+
     try_execute(curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, headers), "Failed to set headers");
 //    try_execute(curl_easy_setopt(curl.get(), CURLOPT_VERBOSE, 1L), "faield to set verbose");
     try_execute(curl_easy_perform(curl.get()), "Failed to perform");
