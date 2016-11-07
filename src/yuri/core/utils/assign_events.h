@@ -104,6 +104,16 @@ struct assign_events {
 		return *this;
 	}
 	operator bool() { return assigned; }
+	template<class P, class T, class Str, class F>
+	assign_events&
+	parsed(T& target, Str&& name, F f)
+	{
+		if (!assigned && name == event_name) {
+			target = f(event::lex_cast_value<P>(event));
+			assigned = true;
+		}
+		return *this;
+	}
 private:
 	template<class It>
 	assign_events& vector_values_impl(It)
