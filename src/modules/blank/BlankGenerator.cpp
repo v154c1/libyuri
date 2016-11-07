@@ -129,7 +129,7 @@ void fill_plane(void* begin0, size_t lines, size_t linesize_bytes, const std::ar
 	auto begin = reinterpret_cast<T*>(begin0);
 	auto start = begin;
 	const auto end_line = begin + linesize;
-	while(start < (end_line - dim) ) {
+	while(start <= (end_line - dim) ) {
 		std::copy(colors.begin(), colors.end(), start);
 		start += dim;
 	}
