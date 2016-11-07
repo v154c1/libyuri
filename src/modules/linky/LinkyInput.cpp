@@ -12,6 +12,9 @@
 #include "yuri/core/Module.h"
 #include "yuri/core/frame/RawVideoFrame.h"
 #include "yuri/core/frame/raw_frame_types.h"
+#include "yuri/core/frame/CompressedVideoFrame.h"
+#include "yuri/core/frame/compressed_frame_types.h"
+
 #include "yuri/core/utils/irange.h"
 #include "linky_common.h"
 #include "json_helpers.h"
@@ -28,6 +31,7 @@ core::Parameters LinkyInput::configure()
     p["url"]["API url base path"]         = "https://service.iim.cz/linkyapi";
     p["key"]["API key"]                   = "";
     p["resolution"]["Display resolution"] = "5x204";
+    p["use_jpeg"]["Retrieve using JPEG"]  = false;
     return p;
 }
 
@@ -35,6 +39,10 @@ LinkyInput::LinkyInput(const log::Log& log_, core::pwThreadBase parent, const co
     : core::IOThread(log_, parent, 0, 1, std::string("linky_input"))
 {
     IOTHREAD_INIT(parameters)
+    if (!use_jpeg_ and key_.empty()) {
+        log[log::fatal] << "No API key provided. Either enable 'use_jpeg' or provide the API key";
+        throw exception::InitializationFailed("API key not provided");
+    }
 }
 
 LinkyInput::~LinkyInput() noexcept
@@ -44,61 +52,66 @@ LinkyInput::~LinkyInput() noexcept
 namespace {
 int8_t get_4bit_value(const char* p)
 {
-	const auto& c = *p;
-	if (c >= '0' && c <= '9') {
-		return c-'0';
-	}
-	if (c >= 'a' && c <= 'f') {
-		return 10 + c-'a';
-	}
-	if (c >= 'A' && c <= 'F') {
-		return 10 + c-'A';
-	}
-	return 0;
+    const auto& c = *p;
+    if (c >= '0' && c <= '9') {
+        return c - '0';
+    }
+    if (c >= 'a' && c <= 'f') {
+        return 10 + c - 'a';
+    }
+    if (c >= 'A' && c <= 'F') {
+        return 10 + c - 'A';
+    }
+    return 0;
 }
 int8_t get_8bit_value(const char* p)
 {
-	return (get_4bit_value(p) << 4) | get_4bit_value(p+1);
+    return (get_4bit_value(p) << 4) | get_4bit_value(p + 1);
 }
 }
 void LinkyInput::run()
 {
     while (still_running()) {
-    	sleep(10_ms);
-        auto data = download_url(api_path_ + "/lights", key_);
-//        log[log::info] << "Received " << data.size() << " bytes";
-        Json::Value root;
-        std::stringstream ss(data);
-        ss >> root;
-        const auto values = get_nested_value_or_default<std::string>(root, "nic", "data");
-        log[log::verbose_debug] << "Values (" << values.size() << "): " << values;
-        if (values.size() != resolution_.width * resolution_.height * 8) {
-        	log[log::error] << "Wrong dimensions from server, ignoring";
-        	continue;
+        sleep(10_ms);
+        if (!use_jpeg_) {
+            auto              data = download_url(api_path_ + "/lights", key_);
+            Json::Value       root;
+            std::stringstream ss(data);
+            ss >> root;
+            const auto values = get_nested_value_or_default<std::string>(root, "nic", "data");
+            log[log::verbose_debug] << "Values (" << values.size() << "): " << values;
+            if (values.size() != resolution_.width * resolution_.height * 8) {
+                log[log::error] << "Wrong dimensions from server, ignoring";
+                continue;
+            }
+            auto frame = yuri::core::RawVideoFrame::create_empty(yuri::core::raw_format::rgb24, resolution_);
+            auto fdata = PLANE_RAW_DATA(frame, 0);
+
+            for (auto y : irange(resolution_.height)) {
+                for (auto x : irange(resolution_.width)) {
+                    auto p   = values.data() + 8 * (resolution_.height * x + y);
+                    *fdata++ = get_8bit_value(p);
+                    *fdata++ = get_8bit_value(p + 2);
+                    *fdata++ = get_8bit_value(p + 4);
+                }
+            }
+
+            push_frame(0, frame);
+        } else {
+            auto data = download_url(api_path_ + "/lights/jpeg", key_);
+            auto frame
+                = yuri::core::CompressedVideoFrame::create_empty(core::compressed_frame::jpeg, resolution_, reinterpret_cast<uint8_t*>(&data[0]), data.size());
+            push_frame(0, frame);
         }
-        auto frame = yuri::core::RawVideoFrame::create_empty(yuri::core::raw_format::rgb24, resolution_);
-        auto fdata = PLANE_RAW_DATA(frame, 0);
-
-        for (auto y: irange(resolution_.height)) {
-        	for (auto x: irange(resolution_.width)) {
-        		auto p = values.data()+8*(resolution_.height * x + y);
-        		*fdata++ = get_8bit_value(p);
-        		*fdata++ = get_8bit_value(p+2);
-        		*fdata++ = get_8bit_value(p+4);
-        	}
-        }
-
-        push_frame(0, frame);
-
     }
 }
 
 bool LinkyInput::set_param(const core::Parameter& param)
 {
-    if (assign_parameters(param)
-    		(api_path_, "url")
-			(key_, "key")
-			(resolution_, "resolution"))
+    if (assign_parameters(param)(api_path_, "url") //
+        (key_, "key")                              //
+        (resolution_, "resolution")                //
+        (use_jpeg_, "use_jpeg"))
         return true;
 
     return core::IOThread::set_param(param);

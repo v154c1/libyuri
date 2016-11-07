@@ -29,6 +29,7 @@ private:
     std::string  api_path_;
     std::string  key_;
     resolution_t resolution_;
+    bool         use_jpeg_;
 };
 
 } /* namespace linky_input */
