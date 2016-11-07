@@ -13,6 +13,7 @@
 #include "yuri/core/frame/raw_frame_types.h"
 #include "yuri/core/frame/raw_frame_params.h"
 #include "yuri/core/utils/irange.h"
+#include "yuri/core/utils/assign_events.h"
 #include <functional>
 #include <iostream>
 namespace yuri {
@@ -39,6 +40,7 @@ core::Parameters BlankGenerator::configure()
 
 BlankGenerator::BlankGenerator(log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters):
 IOThread(log_, parent, 0, 1, "BlankGenerator"),
+BasicEventConsumer(log),
 fps_(25),resolution_{640,480},format_(core::raw_format::yuyv422),
 color_(core::color_t::create_rgb(0,0,0))
 {
@@ -318,6 +320,7 @@ void BlankGenerator::run()
 {
 	next_time_ = timestamp_t{};
 	while(still_running()) {
+		process_events();
 		const auto curtime = timestamp_t{};
 		if (next_time_ > curtime) {
 			sleep(std::min(get_latency(), next_time_ - curtime));
@@ -349,6 +352,23 @@ bool BlankGenerator::set_param(const core::Parameter &param)
 		return true;
 
 	return IOThread::set_param(param);
+}
+
+bool BlankGenerator::do_process_event(const std::string& event_name, const event::pBasicEvent& event)
+{
+	if (assign_events(event_name, event)
+			(resolution_, 	"resolution")
+			.parsed<std::string>
+				(format_, 	"format", core::raw_format::parse_format)
+			(color_, 		"color")) {
+		frame_cache_.reset();
+		return true;
+	}
+	if (assign_events(event_name, event)
+			(fps_, 			"fps")) {
+		return true;
+	}
+	return false;
 }
 
 }

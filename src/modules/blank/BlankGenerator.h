@@ -13,12 +13,13 @@
 
 #include "yuri/core/thread/IOThread.h"
 #include "yuri/core/frame/RawVideoFrame.h"
+#include "yuri/event/BasicEventConsumer.h"
 #include "yuri/core/utils/color.h"
 namespace yuri {
 
 namespace blank {
 
-class BlankGenerator: public core::IOThread {
+class BlankGenerator: public core::IOThread, public event::BasicEventConsumer {
 public:
 	IOTHREAD_GENERATOR_DECLARATION
 	static core::Parameters configure();
@@ -28,6 +29,7 @@ private:
 	void run() override;
 	bool set_param(const core::Parameter &p) override;
 	core::pRawVideoFrame generate_frame(format_t format, resolution_t resolution, core::color_t color);
+	virtual bool do_process_event(const std::string& event_name, const event::pBasicEvent& event) override;
 	timestamp_t next_time_;
 	float fps_;
 	resolution_t resolution_;
