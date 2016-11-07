@@ -31,6 +31,7 @@ core::Parameters LinkyOutput::configure()
     p["resolution"]["Display resolution"]         = "5x204";
     p["use_rgbw"]["Use RGBW values"]              = false;
     p["w_value"]["Fixed W value for rgbw format"] = 0;
+    p["alpha_as_white"]["Use RGBA format as RGBW"] = false;
     return p;
 }
 
@@ -41,7 +42,11 @@ LinkyOutput::LinkyOutput(const log::Log& log_, core::pwThreadBase parent, const 
     : base_type(log_, parent, std::string("linky_output")), event::BasicEventConsumer(log)
 {
     IOTHREAD_INIT(parameters)
-    set_supported_formats({ core::raw_format::rgb24 });
+	if (alpha_as_white_) {
+		set_supported_formats({ core::raw_format::rgb24, core::raw_format::rgba32 });
+	} else {
+		set_supported_formats({ core::raw_format::rgb24 });
+	}
 }
 
 LinkyOutput::~LinkyOutput() noexcept
@@ -100,15 +105,37 @@ std::string fill_rgbw(const core::pRawVideoFrame& frame, const resolution_t& res
     }
     return data;
 }
+std::string fill_rgbwa(const core::pRawVideoFrame& frame, const resolution_t& resolution)
+{
+    const auto res  = frame->get_resolution();
+    const auto dres = resolution_t{ std::min(res.width, resolution.width), std::min(res.height, resolution.height) };
+
+    auto data     = std::string(resolution.width * resolution.height * 8, '0');
+    auto pdata    = &data[0];
+    auto raw_data = PLANE_RAW_DATA(frame, 0);
+    for (auto y : irange(dres.height)) {
+        auto dstart = raw_data + y * PLANE_DATA(frame, 0).get_line_size();
+        for (auto x : irange(dres.width)) {
+            auto p = pdata + 8 * (x * resolution.height + y);
+            write_8bit(p + 0, *dstart++);
+            write_8bit(p + 2, *dstart++);
+            write_8bit(p + 4, *dstart++);
+            write_8bit(p + 6, *dstart++);
+        }
+    }
+    return data;
+}
 }
 core::pFrame LinkyOutput::do_special_single_step(core::pRawVideoFrame frame)
 {
 	process_events();
-    auto data = use_rgbw_ ? fill_rgbw(frame, resolution_, w_value_) : fill_rgb(frame, resolution_);
+	const bool rgba_input = frame->get_format() == core::raw_format::rgba32;
+	const bool rgbw = use_rgbw_ || rgba_input;
+    auto data = rgba_input ? fill_rgbwa(frame, resolution_) : use_rgbw_ ? fill_rgbw(frame, resolution_, w_value_) : fill_rgb(frame, resolution_);
 
     //	log[log::info] << data;
     Json::Value root;
-    root["colourScheme"]   = use_rgbw_ ? "rgbw" : "rgb";
+    root["colourScheme"]   = rgbw ? "rgbw" : "rgb";
     root["colourDataType"] = "many";
     root["colourData"]     = data;
     std::stringstream ss;
@@ -124,7 +151,8 @@ bool LinkyOutput::set_param(const core::Parameter& param)
         (key_, "key")               //
         (resolution_, "resolution") //
         (use_rgbw_, "use_rgbw")     //
-        (w_value_, "w_value"))
+        (w_value_, "w_value")//
+		(alpha_as_white_, "alpha_as_white"))
         return true;
 
     return base_type::set_param(param);
@@ -137,7 +165,8 @@ bool LinkyOutput::do_process_event(const std::string& event_name, const event::p
         (key_, "key")                    //
         (resolution_, "resolution")      //
         (use_rgbw_, "use_rgbw")          //
-        (w_value_, "w_value"))
+        (w_value_, "w_value")//
+		(alpha_as_white_, "alpha_as_white"))
         return true;
     return false;
 }

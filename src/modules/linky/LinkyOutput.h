@@ -35,6 +35,7 @@ private:
     resolution_t resolution_;
     bool         use_rgbw_;
     uint8_t      w_value_;
+    bool alpha_as_white_;
 };
 
 } /* namespace linky_output */
