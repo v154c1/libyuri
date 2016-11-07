@@ -12,6 +12,7 @@
 #include "yuri/core/Module.h"
 #include "yuri/core/frame/raw_frame_types.h"
 #include "yuri/core/utils/irange.h"
+#include "yuri/core/utils/assign_events.h"
 #include "linky_common.h"
 #include "json_helpers.h"
 #include <sstream>
@@ -37,7 +38,7 @@ namespace {
 }
 
 LinkyOutput::LinkyOutput(const log::Log& log_, core::pwThreadBase parent, const core::Parameters& parameters)
-    : base_type(log_, parent, std::string("linky_output"))
+    : base_type(log_, parent, std::string("linky_output")), event::BasicEventConsumer(log)
 {
     IOTHREAD_INIT(parameters)
     set_supported_formats({ core::raw_format::rgb24 });
@@ -102,6 +103,7 @@ std::string fill_rgbw(const core::pRawVideoFrame& frame, const resolution_t& res
 }
 core::pFrame LinkyOutput::do_special_single_step(core::pRawVideoFrame frame)
 {
+	process_events();
     auto data = use_rgbw_ ? fill_rgbw(frame, resolution_, w_value_) : fill_rgb(frame, resolution_);
 
     //	log[log::info] << data;
@@ -126,6 +128,18 @@ bool LinkyOutput::set_param(const core::Parameter& param)
         return true;
 
     return base_type::set_param(param);
+}
+
+bool LinkyOutput::do_process_event(const std::string& event_name, const event::pBasicEvent& event)
+{
+    if (assign_events(event_name, event) //
+        (api_path_, "url")               //
+        (key_, "key")                    //
+        (resolution_, "resolution")      //
+        (use_rgbw_, "use_rgbw")          //
+        (w_value_, "w_value"))
+        return true;
+    return false;
 }
 
 } /* namespace linky_output */
