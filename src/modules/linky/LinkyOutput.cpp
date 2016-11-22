@@ -26,12 +26,14 @@ core::Parameters LinkyOutput::configure()
 {
     core::Parameters p = base_type::configure();
     p.set_description("LinkyOutput");
-    p["url"]["API url base path"]                 = "https://service.iim.cz/linkyapi";
-    p["key"]["API key"]                           = "";
-    p["resolution"]["Display resolution"]         = "5x204";
-    p["use_rgbw"]["Use RGBW values"]              = false;
-    p["w_value"]["Fixed W value for rgbw format"] = 0;
-    p["alpha_as_white"]["Use RGBA format as RGBW"] = false;
+    p["url"]["API url base path"]                                                                                = "https://service.iim.cz/linkyapi";
+    p["key"]["API key"]                                                                                          = "";
+    p["resolution"]["Display resolution"]                                                                        = "5x204";
+    p["use_rgbw"]["Use RGBW values"]                                                                             = false;
+    p["w_value"]["Fixed W value for rgbw format"]                                                                = 0;
+    p["alpha_as_white"]["Use RGBA format as RGBW"]                                                               = false;
+    p["sample"]["Use sampling (true) or take first pixels (false)"]                                              = false;
+    p["sample_border"]["Width of border at each side relative to space between columns (only when sample=true)"] = 0.5;
     return p;
 }
 
@@ -42,11 +44,11 @@ LinkyOutput::LinkyOutput(const log::Log& log_, core::pwThreadBase parent, const 
     : base_type(log_, parent, std::string("linky_output")), event::BasicEventConsumer(log)
 {
     IOTHREAD_INIT(parameters)
-	if (alpha_as_white_) {
-		set_supported_formats({ core::raw_format::rgb24, core::raw_format::rgba32 });
-	} else {
-		set_supported_formats({ core::raw_format::rgb24 });
-	}
+    if (alpha_as_white_) {
+        set_supported_formats({ core::raw_format::rgb24, core::raw_format::rgba32 });
+    } else {
+        set_supported_formats({ core::raw_format::rgb24 });
+    }
 }
 
 LinkyOutput::~LinkyOutput() noexcept
@@ -65,73 +67,116 @@ void write_8bit(char* p, int8_t value)
     write_4bit(p + 1, value);
 }
 
-std::string fill_rgb(const core::pRawVideoFrame& frame, const resolution_t& resolution)
-{
-    const auto res  = frame->get_resolution();
-    const auto dres = resolution_t{ std::min(res.width, resolution.width), std::min(res.height, resolution.height) };
-
-    auto data     = std::string(resolution.width * resolution.height * 6, '0');
-    auto pdata    = &data[0];
-    auto raw_data = PLANE_RAW_DATA(frame, 0);
-    for (auto y : irange(dres.height)) {
-        auto dstart = raw_data + y * PLANE_DATA(frame, 0).get_line_size();
-        for (auto x : irange(dres.width)) {
-            auto p = pdata + 6 * (x * resolution.height + y);
-            write_8bit(p + 0, *dstart++);
-            write_8bit(p + 2, *dstart++);
-            write_8bit(p + 4, *dstart++);
-        }
+struct RGBKernel {
+    constexpr static size_t           width = 6;
+    constexpr static size_t           src_width = 3;
+    template <class Iter> static void write(char* p, Iter& dstart, uint8_t)
+    {
+        write_8bit(p + 0, *dstart++);
+        write_8bit(p + 2, *dstart++);
+        write_8bit(p + 4, *dstart++);
     }
-    return data;
-}
+};
 
-std::string fill_rgbw(const core::pRawVideoFrame& frame, const resolution_t& resolution, const uint8_t& w_value)
-{
-    const auto res  = frame->get_resolution();
-    const auto dres = resolution_t{ std::min(res.width, resolution.width), std::min(res.height, resolution.height) };
-
-    auto data     = std::string(resolution.width * resolution.height * 8, '0');
-    auto pdata    = &data[0];
-    auto raw_data = PLANE_RAW_DATA(frame, 0);
-    for (auto y : irange(dres.height)) {
-        auto dstart = raw_data + y * PLANE_DATA(frame, 0).get_line_size();
-        for (auto x : irange(dres.width)) {
-            auto p = pdata + 8 * (x * resolution.height + y);
-            write_8bit(p + 0, *dstart++);
-            write_8bit(p + 2, *dstart++);
-            write_8bit(p + 4, *dstart++);
-            write_8bit(p + 6, w_value);
-        }
+struct RGBWKernel {
+    constexpr static size_t           width = 8;
+    constexpr static size_t           src_width = 3;
+    template <class Iter> static void write(char* p, Iter& dstart, uint8_t w_value)
+    {
+        write_8bit(p + 0, *dstart++);
+        write_8bit(p + 2, *dstart++);
+        write_8bit(p + 4, *dstart++);
+        write_8bit(p + 6, w_value);
     }
-    return data;
-}
-std::string fill_rgbwa(const core::pRawVideoFrame& frame, const resolution_t& resolution)
-{
-    const auto res  = frame->get_resolution();
-    const auto dres = resolution_t{ std::min(res.width, resolution.width), std::min(res.height, resolution.height) };
+};
 
-    auto data     = std::string(resolution.width * resolution.height * 8, '0');
-    auto pdata    = &data[0];
-    auto raw_data = PLANE_RAW_DATA(frame, 0);
-    for (auto y : irange(dres.height)) {
-        auto dstart = raw_data + y * PLANE_DATA(frame, 0).get_line_size();
-        for (auto x : irange(dres.width)) {
-            auto p = pdata + 8 * (x * resolution.height + y);
-            write_8bit(p + 0, *dstart++);
-            write_8bit(p + 2, *dstart++);
-            write_8bit(p + 4, *dstart++);
-            write_8bit(p + 6, *dstart++);
-        }
+struct RGBAKernel {
+    constexpr static size_t           width = 8;
+    constexpr static size_t           src_width = 4;
+    template <class Iter> static void write(char* p, Iter& dstart, uint8_t)
+    {
+        write_8bit(p + 0, *dstart++);
+        write_8bit(p + 2, *dstart++);
+        write_8bit(p + 4, *dstart++);
+        write_8bit(p + 6, *dstart++);
     }
-    return data;
+};
+
+template <class Kernel> struct SimpleSampler {
+    SimpleSampler(const resolution_t& resolution, uint8_t w_value) : resolution(resolution), w_value(w_value) {}
+
+    resolution_t resolution;
+    uint8_t      w_value;
+
+    std::string fill(const core::pRawVideoFrame& frame)
+    {
+        const auto res  = frame->get_resolution();
+        const auto dres = resolution_t{ std::min(res.width, resolution.width), std::min(res.height, resolution.height) };
+
+        auto data     = std::string(resolution.width * resolution.height * Kernel::width, '0');
+        auto pdata    = &data[0];
+        auto raw_data = PLANE_RAW_DATA(frame, 0);
+        for (auto y : irange(dres.height)) {
+            auto dstart = raw_data + y * PLANE_DATA(frame, 0).get_line_size();
+            for (auto x : irange(dres.width)) {
+                auto p = pdata + 6 * (x * resolution.height + y);
+                Kernel::write(p, dstart, w_value);
+            }
+        }
+        return data;
+    }
+};
+
+template <class Kernel> struct IntervalSampler {
+    IntervalSampler(const resolution_t& resolution, uint8_t w_value, float sample_border)
+        : resolution(resolution), w_value(w_value), sample_border(sample_border)
+    {
+    }
+
+    resolution_t resolution;
+    uint8_t      w_value;
+    float        sample_border;
+
+    std::string fill(const core::pRawVideoFrame& frame)
+    {
+        const auto res  = frame->get_resolution();
+        const auto dres = resolution_t{ resolution.width, std::min(res.height, resolution.height) };
+
+        auto data     = std::string(resolution.width * resolution.height * Kernel::width, '0');
+        auto pdata    = &data[0];
+        auto raw_data = PLANE_RAW_DATA(frame, 0);
+        const auto column_width = res.width / (2.0f * sample_border + resolution.width - 1);
+        for (auto y : irange(dres.height)) {
+            auto dstart = raw_data + y * PLANE_DATA(frame, 0).get_line_size();
+            for (auto x : irange(dres.width)) {
+            	auto xstart = dstart + static_cast<size_t>((x+sample_border)*column_width)*Kernel::src_width;
+                auto p = pdata + 6 * (x * resolution.height + y);
+                Kernel::write(p, xstart, w_value);
+            }
+        }
+        return data;
+    }
+};
+
+template <class Kernel>
+std::string dispatch_sampler(const resolution_t& resolution, const uint8_t w_value, bool sample, float sample_border, const core::pRawVideoFrame& frame)
+{
+    if (!sample) {
+        return SimpleSampler<Kernel>(resolution, w_value).fill(frame);
+    } else {
+        return IntervalSampler<Kernel>(resolution, w_value, sample_border).fill(frame);
+    }
 }
 }
+
 core::pFrame LinkyOutput::do_special_single_step(core::pRawVideoFrame frame)
 {
-	process_events();
-	const bool rgba_input = frame->get_format() == core::raw_format::rgba32;
-	const bool rgbw = use_rgbw_ || rgba_input;
-    auto data = rgba_input ? fill_rgbwa(frame, resolution_) : use_rgbw_ ? fill_rgbw(frame, resolution_, w_value_) : fill_rgb(frame, resolution_);
+    process_events();
+    const bool rgba_input = frame->get_format() == core::raw_format::rgba32;
+    const bool rgbw       = use_rgbw_ || rgba_input;
+    auto       data       = rgba_input ? dispatch_sampler<RGBAKernel>(resolution_, w_value_, sample_, sample_border_, frame)
+                           : use_rgbw_ ? dispatch_sampler<RGBWKernel>(resolution_, w_value_, sample_, sample_border_, frame)
+                                       : dispatch_sampler<RGBKernel>(resolution_, w_value_, sample_, sample_border_, frame);
 
     //	log[log::info] << data;
     Json::Value root;
@@ -146,13 +191,15 @@ core::pFrame LinkyOutput::do_special_single_step(core::pRawVideoFrame frame)
 
 bool LinkyOutput::set_param(const core::Parameter& param)
 {
-    if (assign_parameters(param)    //
-        (api_path_, "url")          //
-        (key_, "key")               //
-        (resolution_, "resolution") //
-        (use_rgbw_, "use_rgbw")     //
-        (w_value_, "w_value")//
-		(alpha_as_white_, "alpha_as_white"))
+    if (assign_parameters(param)            //
+        (api_path_, "url")                  //
+        (key_, "key")                       //
+        (resolution_, "resolution")         //
+        (use_rgbw_, "use_rgbw")             //
+        (w_value_, "w_value")               //
+        (alpha_as_white_, "alpha_as_white") //
+        (sample_, "sample")                 //
+        (sample_border_, "sample_border"))
         return true;
 
     return base_type::set_param(param);
@@ -160,13 +207,15 @@ bool LinkyOutput::set_param(const core::Parameter& param)
 
 bool LinkyOutput::do_process_event(const std::string& event_name, const event::pBasicEvent& event)
 {
-    if (assign_events(event_name, event) //
-        (api_path_, "url")               //
-        (key_, "key")                    //
-        (resolution_, "resolution")      //
-        (use_rgbw_, "use_rgbw")          //
-        (w_value_, "w_value")//
-		(alpha_as_white_, "alpha_as_white"))
+    if (assign_events(event_name, event)    //
+        (api_path_, "url")                  //
+        (key_, "key")                       //
+        (resolution_, "resolution")         //
+        (use_rgbw_, "use_rgbw")             //
+        (w_value_, "w_value")               //
+        (alpha_as_white_, "alpha_as_white") //
+        (sample_, "sample")                 //
+        (sample_border_, "sample_border"))
         return true;
     return false;
 }

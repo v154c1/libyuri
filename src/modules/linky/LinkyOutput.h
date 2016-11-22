@@ -35,7 +35,9 @@ private:
     resolution_t resolution_;
     bool         use_rgbw_;
     uint8_t      w_value_;
-    bool alpha_as_white_;
+    bool         alpha_as_white_;
+    bool         sample_;
+    float        sample_border_;
 };
 
 } /* namespace linky_output */
