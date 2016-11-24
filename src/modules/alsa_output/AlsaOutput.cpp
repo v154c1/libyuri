@@ -87,11 +87,11 @@ namespace {
 const uint8_t* write_data(log::Log& log, const uint8_t* start, const uint8_t* end, snd_pcm_t* handle, int timeout, size_t frame_size)
 {
 	if (!snd_pcm_wait(handle, timeout)) {
-		log[log::warning] << "Device busy";
+		log[log::verbose_debug] << "Device busy";
 		return start;
 	}
-	snd_pcm_sframes_t avail_frames = (end - start) / frame_size;
-	snd_pcm_sframes_t frames_free = snd_pcm_avail(handle);
+	const snd_pcm_sframes_t avail_frames = (end - start) / frame_size;
+	const snd_pcm_sframes_t frames_free = snd_pcm_avail(handle);
 	snd_pcm_sframes_t write_frames = std::min(frames_free, avail_frames);
 	if (write_frames > 0) {
 		log[log::verbose_debug] << "Writing " << write_frames << " samples. Available was " << frames_free << ", I received " << avail_frames;
@@ -125,7 +125,7 @@ core::pFrame AlsaOutput::do_special_single_step(core::pRawAudioFrame frame)
 	if (is_different_format(frame)) {
 		if (!init_alsa(frame)) return {};
 	}
-
+	log[log::verbose_debug] << "Received frame with " << frame->get_sample_count() << " samples";
 	if (!handle_) return {};
 
 	const uint8_t* start = frame->data();
@@ -133,7 +133,6 @@ core::pFrame AlsaOutput::do_special_single_step(core::pRawAudioFrame frame)
 	while (start != end && still_running()) {
 		start = write_data(log, start, end, handle_, static_cast<int>(get_latency().value/1000), frame->get_sample_size()/8);
 	}
-
 	return {};
 }
 
