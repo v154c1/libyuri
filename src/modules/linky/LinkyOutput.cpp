@@ -25,7 +25,7 @@ IOTHREAD_GENERATOR(LinkyOutput)
 core::Parameters LinkyOutput::configure()
 {
     core::Parameters p = base_type::configure();
-    p.set_description("LinkyOutput");
+    p.set_description("Uploads images to Linky (Facade at FEE, CTU in Prague)");
     p["url"]["API url base path"]                                                                                = "https://service.iim.cz/linkyapi";
     p["key"]["API key"]                                                                                          = "";
     p["resolution"]["Display resolution"]                                                                        = "5x204";
@@ -72,7 +72,7 @@ void write_8bit(char* p, int8_t value)
 }
 
 struct RGBKernel {
-    constexpr static size_t           width = 6;
+    constexpr static size_t           width     = 6;
     constexpr static size_t           src_width = 3;
     template <class Iter> static void write(char* p, Iter& dstart, uint8_t)
     {
@@ -83,7 +83,7 @@ struct RGBKernel {
 };
 
 struct RGBWKernel {
-    constexpr static size_t           width = 8;
+    constexpr static size_t           width     = 8;
     constexpr static size_t           src_width = 3;
     template <class Iter> static void write(char* p, Iter& dstart, uint8_t w_value)
     {
@@ -95,7 +95,7 @@ struct RGBWKernel {
 };
 
 struct RGBAKernel {
-    constexpr static size_t           width = 8;
+    constexpr static size_t           width     = 8;
     constexpr static size_t           src_width = 4;
     template <class Iter> static void write(char* p, Iter& dstart, uint8_t)
     {
@@ -146,15 +146,15 @@ template <class Kernel> struct IntervalSampler {
         const auto res  = frame->get_resolution();
         const auto dres = resolution_t{ resolution.width, std::min(res.height, resolution.height) };
 
-        auto data     = std::string(resolution.width * resolution.height * Kernel::width, '0');
-        auto pdata    = &data[0];
-        auto raw_data = PLANE_RAW_DATA(frame, 0);
+        auto       data         = std::string(resolution.width * resolution.height * Kernel::width, '0');
+        auto       pdata        = &data[0];
+        auto       raw_data     = PLANE_RAW_DATA(frame, 0);
         const auto column_width = res.width / (2.0f * sample_border + resolution.width - 1);
         for (auto y : irange(dres.height)) {
             auto dstart = raw_data + y * PLANE_DATA(frame, 0).get_line_size();
             for (auto x : irange(dres.width)) {
-            	auto xstart = dstart + static_cast<size_t>((x+sample_border)*column_width)*Kernel::src_width;
-                auto p = pdata + 6 * (x * resolution.height + y);
+                auto xstart = dstart + static_cast<size_t>((x + sample_border) * column_width) * Kernel::src_width;
+                auto p      = pdata + 6 * (x * resolution.height + y);
                 Kernel::write(p, xstart, w_value);
             }
         }
