@@ -240,7 +240,7 @@ request_t WebServer::read_request(core::socket::pStreamSocket client)
 		}
 	}
 
-	boost::regex url_line("^GET (.*) HTTP/1.1\r?\n");
+	boost::regex url_line("^GET (.*) HTTP/1.[01]\r?\n");
 
 	boost::smatch what;
 	auto start = request_string.cbegin();
@@ -258,6 +258,7 @@ request_t WebServer::read_request(core::socket::pStreamSocket client)
 			++i;
 		}
 	} else {
+		log[log::warning] << "Failed request: " << request_string;
 		throw std::runtime_error("Failed to parse url");
 	}
 
