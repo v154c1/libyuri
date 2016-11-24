@@ -34,11 +34,20 @@ void write_into_header_16(std::vector<uint8_t>& header_, uint16_t position, uint
 	header_[position]=(value>>8)&0xFF;
 }
 
+void write_universe_into_header_16(std::vector<uint8_t>& header_, uint16_t position, uint16_t value)
+{
+	// Lower 8 bits first
+	header_[position]=value&0xFF;
+	// Followed by upper 7 bits
+	header_[position+1]=(value>>8)&0x7F;
+}
+
+
 }
 
 ArtNetPacket::ArtNetPacket(uint16_t universe):data_(default_artnet_header.begin(), default_artnet_header.end())
 {
-	write_into_header_16(data_, universe_offset, universe);
+	write_universe_into_header_16(data_, universe_offset, universe);
 }
 
 
