@@ -25,11 +25,14 @@ struct buffer_t {
 	size_t end;
 	buffer_t(size_t size):data(size,0),start(0),end(0) {}
 	~buffer_t() noexcept {}
-	size_t size() const {
+	size_t size() const noexcept {
 		if (end < start) {
-			return start + data.size() - end;
+			return end + data.size() - start;
 		}
 		return end - start;
+	}
+	size_t empty() const noexcept {
+		return data.size() - size();
 	}
 	inline void push(data_type value) {
 		if (end==data.size()) {
