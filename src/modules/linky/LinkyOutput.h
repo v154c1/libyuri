@@ -13,6 +13,7 @@
 #include "yuri/core/thread/SpecializedIOFilter.h"
 #include "yuri/core/frame/RawVideoFrame.h"
 #include "yuri/event/BasicEventConsumer.h"
+#include <future>
 namespace yuri {
 namespace linky {
 
@@ -30,14 +31,16 @@ private:
     virtual bool set_param(const core::Parameter& param) override;
     virtual bool do_process_event(const std::string& event_name, const event::pBasicEvent& event) override;
 
-    std::string  api_path_;
-    std::string  key_;
-    resolution_t resolution_;
-    bool         use_rgbw_;
-    uint8_t      w_value_;
-    bool         alpha_as_white_;
-    bool         sample_;
-    float        sample_border_;
+    std::string       api_path_;
+    std::string       key_;
+    resolution_t      resolution_;
+    bool              use_rgbw_;
+    uint8_t           w_value_;
+    bool              alpha_as_white_;
+    bool              sample_;
+    float             sample_border_;
+    int               async_;
+    std::future<void> async_result_;
 };
 
 } /* namespace linky_output */

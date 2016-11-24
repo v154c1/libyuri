@@ -34,6 +34,7 @@ core::Parameters LinkyOutput::configure()
     p["alpha_as_white"]["Use RGBA format as RGBW"]                                                               = false;
     p["sample"]["Use sampling (true) or take first pixels (false)"]                                              = false;
     p["sample_border"]["Width of border at each side relative to space between columns (only when sample=true)"] = 0.5;
+    p["async"]["Upload data asynchronously. Set to 0 for synchronous upload, 1 for asynchronous and 2 for aggressive asynchronous upload"] = 0;
     return p;
 }
 
@@ -53,6 +54,9 @@ LinkyOutput::LinkyOutput(const log::Log& log_, core::pwThreadBase parent, const 
 
 LinkyOutput::~LinkyOutput() noexcept
 {
+    if (async_result_.valid()) {
+        async_result_.wait_for(std::chrono::milliseconds(500));
+    }
 }
 
 namespace {
@@ -185,7 +189,15 @@ core::pFrame LinkyOutput::do_special_single_step(core::pRawVideoFrame frame)
     root["colourData"]     = data;
     std::stringstream ss;
     ss << root;
-    upload_json(api_path_ + "/lights/all", ss.str(), key_);
+    if (async_ < 2 && async_result_.valid()) {
+        async_result_.get();
+    }
+    if (async_ < 1) {
+        upload_json(api_path_ + "/lights/all", ss.str(), key_);
+    } else {
+        auto payload  = ss.str();
+        async_result_ = std::async(std::launch::async, [this, payload]() { upload_json(api_path_ + "/lights/all", payload, key_); });
+    }
     return {};
 }
 
@@ -199,7 +211,8 @@ bool LinkyOutput::set_param(const core::Parameter& param)
         (w_value_, "w_value")               //
         (alpha_as_white_, "alpha_as_white") //
         (sample_, "sample")                 //
-        (sample_border_, "sample_border"))
+        (sample_border_, "sample_border")   //
+        (async_, "async"))
         return true;
 
     return base_type::set_param(param);
@@ -215,7 +228,8 @@ bool LinkyOutput::do_process_event(const std::string& event_name, const event::p
         (w_value_, "w_value")               //
         (alpha_as_white_, "alpha_as_white") //
         (sample_, "sample")                 //
-        (sample_border_, "sample_border"))
+        (sample_border_, "sample_border")   //
+        (async_, "async"))
         return true;
     return false;
 }
