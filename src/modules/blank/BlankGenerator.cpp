@@ -327,7 +327,7 @@ void BlankGenerator::run()
 			continue;
 		}
 
-		if (!frame_cache_) {
+		if (!frame_cache_ && resolution_) {
 			Timer t0;
 			frame_cache_ = generate_frame(format_, resolution_, color_);
 			log[log::debug] << "Generated frame in " << t0.get_duration();
