@@ -21,42 +21,43 @@
 namespace yuri {
 namespace freetype {
 
-class RenderText: public core::SpecializedIOFilter<core::RawVideoFrame>,
-public event::BasicEventConsumer
-{
-	using base_type = core::SpecializedIOFilter<core::RawVideoFrame>;
+class RenderText : public core::SpecializedIOFilter<core::RawVideoFrame>, public event::BasicEventConsumer {
+    using base_type = core::SpecializedIOFilter<core::RawVideoFrame>;
+
 public:
-	IOTHREAD_GENERATOR_DECLARATION
-	static core::Parameters configure();
-	RenderText(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters);
-	virtual ~RenderText() noexcept;
-private:
-	virtual void run() override;
+    IOTHREAD_GENERATOR_DECLARATION
+    static core::Parameters configure();
+    RenderText(const log::Log& log_, core::pwThreadBase parent, const core::Parameters& parameters);
+    virtual ~RenderText() noexcept;
 
-	virtual core::pFrame do_special_single_step(core::pRawVideoFrame frame) override;
-	virtual bool set_param(const core::Parameter& param) override;
-	virtual bool do_process_event(const std::string& event_name, const event::pBasicEvent& event) override;
-	void draw_text(const std::string& text, core::pRawVideoFrame& frame);
 private:
-	FT_Library library_;
-	FT_Face face_;
-	FT_Face face2_;
+    virtual void run() override;
 
-	std::string font_file_;
-	std::string font_file2_;
-	size_t font_size_;
-	std::string text_;
-	resolution_t resolution_;
-	coordinates_t position_;
-	position_t char_spacing_;
-	position_t line_height_;
-	bool generate_;
-	bool kerning_;
-	double fps_;
-	bool edge_blend_;
-	bool modified_;
-	bool utf8_;
-	core::color_t color_;
+    virtual core::pFrame do_special_single_step(core::pRawVideoFrame frame) override;
+    virtual bool set_param(const core::Parameter& param) override;
+    virtual bool do_process_event(const std::string& event_name, const event::pBasicEvent& event) override;
+    void draw_text(const std::string& text, core::pRawVideoFrame& frame);
+
+private:
+    FT_Library library_;
+    FT_Face    face_;
+    FT_Face    face2_;
+
+    std::string   font_file_;
+    std::string   font_file2_;
+    size_t        font_size_;
+    std::string   text_;
+    resolution_t  resolution_;
+    coordinates_t position_;
+    position_t    char_spacing_;
+    position_t    line_height_;
+    bool          generate_;
+    bool          kerning_;
+    double        fps_;
+    bool          edge_blend_;
+    bool          modified_;
+    bool          utf8_;
+    core::color_t color_;
 };
 
 } /* namespace freetype */
