@@ -11,6 +11,7 @@
 #include "WebPageGenerator.h"
 #include "yuri/version.h"
 #include <boost/regex.hpp>
+#include "urlencode.h"
 namespace yuri {
 namespace webserver {
 
@@ -134,10 +135,7 @@ url_t parse_url(const std::string& uri, const std::string& host)
 		while (i != j) {
 			const auto& res = *i;
 			const std::string param_name (res[1].first, res[1].second);
-			url.params[param_name]=std::string(res[3].first,res[3].second);
-//			for (auto p:res) {
-//				std::cout << "match: " <<std::string(p.first,p.second) << "\n";
-//			}
+			url.params[param_name]=decode_html_entities(decode_urlencoded(std::string(res[3].first,res[3].second)));
 			++i;
 		}
 
