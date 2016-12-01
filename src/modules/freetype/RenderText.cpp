@@ -15,6 +15,7 @@
 #include "yuri/core/utils/irange.h"
 #include "yuri/core/utils/assign_events.h"
 #include "yuri/core/utils/string_generator.h"
+#include "yuri/core/utils/utf8.h"
 namespace yuri {
 namespace freetype {
 
@@ -462,47 +463,20 @@ core::pFrame RenderText::do_special_single_step(core::pRawVideoFrame frame)
 	return f;
 }
 
-namespace {
-
-
-uint32_t shift_byte(uint32_t v, int shift) {
-	return v << shift;
-}
-
-std::tuple<uint32_t, int> utf8_char(char c, uint32_t unicode_char, int remaining)
-{
-	if (!(c&0x80)) {
-		return std::make_tuple(c&0x7F, 0);
-	}
-	if ((c&0xC0)==0x80) {
-		return std::make_tuple(unicode_char|shift_byte(c&0x3F,(remaining-1)*6), remaining - 1);
-	}
-	if ((c&0xE0)==0xC0) {
-		return std::make_tuple(shift_byte(c&0x1F,6), 1);
-	}
-	if ((c&0xF0)==0xE0) {
-		return std::make_tuple(shift_byte(c&0x0F,12), 2);
-	}
-	if ((c&0xF8)==0xF0) {
-		return std::make_tuple(shift_byte(c&0x07, 18), 3);
-	}
-	return std::make_tuple(c&0x7F, 0);
-}
-}
 
 void RenderText::draw_text(const std::string& text, core::pRawVideoFrame& frame)
 {
 	coordinates_t position = position_;
 	double horiz_pos = 0.0;
-	uint32_t prev = 0;
+	char32_t prev = 0;
 	bool do_kerning = kerning_ && FT_HAS_KERNING(face_);
-	uint32_t unicode_character = 0;
+	char32_t unicode_character = 0;
 	int remaining = 0;
 	bool backslash = false;
 	for (auto c: text) {
 		//log[log::info] << "c: " << static_cast<uint8_t>(c);
 		if (utf8_) {
-			std::tie(unicode_character, remaining) = utf8_char(c, unicode_character, remaining);
+			std::tie(unicode_character, remaining) = utils::utf8_char(c, unicode_character, remaining);
 		} else {
 			unicode_character = c&0xFF;
 		}
