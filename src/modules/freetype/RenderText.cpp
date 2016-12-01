@@ -31,6 +31,7 @@ core::Parameters RenderText::configure()
 	core::Parameters p = base_type::configure();
 	p.set_description("RenderText");
 	p["font"]["Path to font file"]="/usr/share/fonts/corefonts/arial.ttf";
+	p["font2"]["Path to fallback font file"]="";
 	p["text"]["Text"]="Hello world";
 	p["size"]["Font size in pixels"]=64;
 	p["resolution"]["Image resolution for generated image"]=resolution_t{800,600};
@@ -58,11 +59,19 @@ modified_{true},utf8_{true},color_(core::color_t::create_rgb(0xFF,0xFF,0xFF))
 	IOTHREAD_INIT(parameters)
 	FT_Init_FreeType(&library_);
 	if (FT_New_Face(library_, font_file_.c_str(), 0, &face_)) {
-
 		throw exception::InitializationFailed("Failed to load font face");
 	}
 	log[log::info] << "Loaded font: " << face_->family_name << ", "<<  face_->style_name;
 	FT_Set_Pixel_Sizes(face_, font_size_, 0);
+	if (!font_file2_.empty()) {
+		if (FT_New_Face(library_, font_file2_.c_str(), 0, &face2_)) {
+			log[log::warning] << "Failed to load fallback font";
+			font_file2_.clear();
+		} else {
+			log[log::info] << "Loaded fallback font: " << face2_->family_name << ", "<<  face2_->style_name;
+			FT_Set_Pixel_Sizes(face2_, font_size_, 0);
+		}
+	}
 
 	if (kerning_ && !FT_HAS_KERNING(face_)) {
 		log[log::warning] << "Kerning requested but not supported by current font...";
@@ -504,8 +513,20 @@ void RenderText::draw_text(const std::string& text, core::pRawVideoFrame& frame)
 			}
 		}
 
-		FT_Load_Char(face_, unicode_character, FT_LOAD_RENDER);
-		auto& glyph = face_->glyph;
+		FT_GlyphSlot glyph = nullptr;
+		auto idx = FT_Get_Char_Index(face_, unicode_character);
+		if (idx == 0 && !font_file2_.empty()) {
+			idx = FT_Get_Char_Index(face2_, unicode_character);
+			if (idx == 0) {
+				log[log::debug] << "Unsupported character found";
+			}
+			FT_Load_Glyph(face2_, idx, FT_LOAD_RENDER);
+			glyph = face2_->glyph;
+		} else {
+			FT_Load_Glyph(face_, idx, FT_LOAD_RENDER);
+			glyph = face_->glyph;
+		}
+
 		if (do_kerning) {
 			uint32_t idx = FT_Get_Char_Index(face_, unicode_character);
 			if (prev) {
@@ -528,6 +549,7 @@ bool RenderText::set_param(const core::Parameter& param)
 {
 	if (assign_parameters(param)
 			(font_file_, 	"font")
+			(font_file2_, 	"font2")
 			(text_, 		"text")
 			(font_size_,	"size")
 			(position_, 	"position")

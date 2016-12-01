@@ -40,8 +40,10 @@ private:
 private:
 	FT_Library library_;
 	FT_Face face_;
+	FT_Face face2_;
 
 	std::string font_file_;
+	std::string font_file2_;
 	size_t font_size_;
 	std::string text_;
 	resolution_t resolution_;
