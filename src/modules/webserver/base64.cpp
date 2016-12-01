@@ -99,10 +99,10 @@ std::string decode(const std::string& encoded)
         text.push_back(static_cast<char>((num & 0x0000FF) >> 0));
         begin += 4;
     }
-    if (encoded.size() > 4) {
+    if (encoded.size() >= 4) {
         int padding = 0;
         if (*(begin - 1) == '=') {
-            if ((*begin - 2) == '=') {
+            if (*(begin - 2) == '=') {
                 padding = 2;
             } else {
                 padding = 1;
