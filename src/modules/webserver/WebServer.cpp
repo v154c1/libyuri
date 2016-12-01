@@ -218,7 +218,7 @@ bool data_finished(const std::string& data)
 }
 request_t WebServer::read_request(core::socket::pStreamSocket client)
 {
-    request_t         request{ {}, parameters_t{}, client };
+    request_t         request{ {}, parameters_t{}, {}, client };
     std::vector<char> data(0);
     data.resize(1024);
     std::string request_string;
@@ -232,14 +232,15 @@ request_t WebServer::read_request(core::socket::pStreamSocket client)
         }
     }
 
-    boost::regex url_line("^GET (.*) HTTP/1.[01]\r?\n");
+    boost::regex url_line("^([A-Z]+) (.*) HTTP/1.[01]\r?\n");
 
     boost::smatch what;
     auto          start = request_string.cbegin();
     const auto    end   = request_string.cend();
     if (regex_search(start, end, what, url_line, boost::match_default)) {
-        request.url = parse_url(std::string(what[1].first, what[1].second));
-        start       = what[0].second;
+        request.method = what[1].str();
+        request.url    = parse_url(std::string(what[2].first, what[2].second));
+        start          = what[0].second;
         boost::regex           param_line("([^:]+):([^\r\n]*)\r?\n");
         boost::sregex_iterator i(start, end, param_line, boost::match_default);
         boost::sregex_iterator j;

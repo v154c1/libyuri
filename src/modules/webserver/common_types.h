@@ -53,6 +53,7 @@ struct request_t
 {
 	url_t url;
 	parameters_t parameters;
+	std::string method;
 	core::socket::pStreamSocket client;
 };
 
