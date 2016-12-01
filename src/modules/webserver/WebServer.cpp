@@ -165,12 +165,27 @@ void WebServer::response_thread()
     log[log::info] << "Helper thread ending";
 }
 
+namespace {
+inline void fill_header_if_needed(response_t& response, const std::string& name, const std::string& value)
+{
+    auto it = response.parameters.find(name);
+    if (it == response.parameters.end()) {
+        response.parameters[name] = value;
+    }
+}
+}
+
 bool WebServer::process_request(core::socket::pStreamSocket client)
 {
     auto request = read_request(client);
     log[log::info] << "Requested URL: " << request.url.path;
 
     response_t response = auth_response(request);
+    if (request.method == "HEAD") {
+        // For HEAD request, there should be no body, but the Content-Length should be set
+        fill_header_if_needed(response, "Content-Length", std::to_string(response.data.size()));
+        response.data.clear();
+    }
     reply_to_client(request.client, std::move(response));
     return true;
 }
@@ -256,16 +271,6 @@ request_t WebServer::read_request(core::socket::pStreamSocket client)
     }
 
     return request;
-}
-
-namespace {
-inline void fill_header_if_needed(response_t& response, const std::string& name, const std::string& value)
-{
-    auto it = response.parameters.find(name);
-    if (it == response.parameters.end()) {
-        response.parameters[name] = value;
-    }
-}
 }
 
 bool WebServer::reply_to_client(core::socket::pStreamSocket& client, response_t response)
