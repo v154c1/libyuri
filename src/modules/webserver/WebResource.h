@@ -17,19 +17,19 @@
 namespace yuri {
 namespace webserver {
 
-class WebResource
-{
+class WebResource {
 public:
+    WebResource(const log::Log& log_);
+    virtual ~WebResource() noexcept;
+    webserver::response_t process_request(const webserver::request_t& request);
 
-	WebResource(const log::Log &log_);
-	virtual ~WebResource() noexcept;
-	webserver::response_t process_request(const webserver::request_t& request);
 protected:
-	bool register_to_server(const std::string& server_name, const std::string& routing_spec, pWebResource resource);
+    bool register_to_server(const std::string& server_name, const std::string& routing_spec, pWebResource resource);
+
 private:
-	log::Log log_res;
-	bool registered_;
-	virtual webserver::response_t do_process_request(const webserver::request_t& request) = 0;
+    log::Log                      log_res;
+    bool                          registered_;
+    virtual webserver::response_t do_process_request(const webserver::request_t& request) = 0;
 };
 
 } /* namespace webresource */

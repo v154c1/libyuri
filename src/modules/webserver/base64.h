@@ -22,6 +22,4 @@ std::string decode(const std::string&);
 }
 }
 
-
-
 #endif /* SRC_MODULES_WEBSERVER_BASE64_H_ */

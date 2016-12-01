@@ -17,23 +17,22 @@
 namespace yuri {
 namespace webserver {
 
-class WebStaticResource: public core::IOThread, public WebResource
-{
+class WebStaticResource : public core::IOThread, public WebResource {
 public:
-	IOTHREAD_GENERATOR_DECLARATION
-	static core::Parameters configure();
-	WebStaticResource(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters);
-	virtual ~WebStaticResource() noexcept;
+    IOTHREAD_GENERATOR_DECLARATION
+    static core::Parameters configure();
+    WebStaticResource(const log::Log& log_, core::pwThreadBase parent, const core::Parameters& parameters);
+    virtual ~WebStaticResource() noexcept;
+
 private:
-	
-	virtual void run() override;
-	virtual bool set_param(const core::Parameter& param) override;
-	virtual webserver::response_t do_process_request(const webserver::request_t& request) override;
-	std::string server_name_;
-	std::string path_;
-	std::string mime_type_;
-	std::string filename_;
-	std::string data_string_;
+    virtual void run() override;
+    virtual bool set_param(const core::Parameter& param) override;
+    virtual webserver::response_t do_process_request(const webserver::request_t& request) override;
+    std::string server_name_;
+    std::string path_;
+    std::string mime_type_;
+    std::string filename_;
+    std::string data_string_;
 };
 
 } /* namespace web_static */
