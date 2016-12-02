@@ -34,6 +34,7 @@ std::vector<std::pair<std::string, std::string>> test_cases_entities = {
 		{"Ahoj & &", "Ahoj &#38; &amp;"},
 		{"Neko\xe7\x8c\xab\xf0\x9f\x98\xb2", "Neko&#29483;&#128562;"},
 		{"Neko&#29483&#128562", "Neko&#29483&#128562"},
+		{"\xf0\x9f\x98\xb2\xf0\x9f\x98\xb2", "&#x1F632;&#128562;"}
 };
 
 
