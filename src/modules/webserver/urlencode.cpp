@@ -75,6 +75,15 @@ char32_t parse_numeric_entity(Iter start, Iter end)
     }
     return val;
 }
+template <class Iter>
+char32_t parse_hex_entity(Iter start, Iter end)
+{
+    char32_t val = 0;
+    while (start < end) {
+        val = val * 16 + utils::decode_hex(*start++);
+    }
+    return val;
+}
 
 char32_t parse_named_entity(const std::string& name)
 {
@@ -97,7 +106,13 @@ std::string decode_html_entities(std::string str)
         char32_t unicode = 0;
         if (*(m[1].first) == '#') {
             // Numeric entity
-            unicode = parse_numeric_entity(m[1].first + 1, m[1].second);
+        	if (*(m[1].first+1) == 'x') {
+        		// Hex
+        		unicode = parse_hex_entity(m[1].first + 2, m[1].second);
+        	} else {
+        		// Dec
+        		unicode = parse_numeric_entity(m[1].first + 1, m[1].second);
+        	}
         } else {
             // Named entity
             unicode = parse_named_entity(m[1].str());
