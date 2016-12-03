@@ -425,6 +425,11 @@ bool ThreadBase::set_params(const Parameters &parameters)
 	bool all_ok = true;
 	for (const auto& param_pair: parameters) {
 		const auto& parameter = param_pair.second;
+		if (!parameter.get_value()) {
+			// Parameter without value is not valid. This is not related to the value itself, only to it's presence/absence
+			log[log::error] << "No value for " << parameter.get_name();
+			continue;
+		}
 		try {
 			if (!set_param(parameter)) {
 				log[log::warning] << "Error setting parameter " << parameter.get_name();
