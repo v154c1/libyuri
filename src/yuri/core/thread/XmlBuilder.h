@@ -44,7 +44,7 @@ private:
 	std::string	filename_;
 	duration_t max_run_time_;
 	timestamp_t start_time_;
-
+	bool use_variable_events_;
 };
 }
 }

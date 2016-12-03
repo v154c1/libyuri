@@ -97,6 +97,7 @@ struct XmlBuilder::builder_pimpl_t{
 	void verify_node_class(const std::string& class_name);
 	void verify_link_class(const std::string& class_name);
 	void verify_links();
+	void add_variable_routes();
 
 	pIOThread get_node(const std::string& name);
 	log::Log& log;
@@ -299,6 +300,31 @@ void XmlBuilder::builder_pimpl_t::process_routing()
 	}
 }
 
+namespace {
+std::string escape_quotes(std::string str)
+{
+//	std::string::size_type pos = 0;
+//	while ((pos = str.find("\"", pos)) != std::string::npos) {
+// 		The correct solution would be to escape the quote character,
+//		but current parser doesn't support escape sequences. So let's simply delete all quotes.
+//		str.insert(pos, "\\");
+//		pos+=2;
+//		str.erase(pos);
+//	}
+	return str;
+}
+
+}
+
+void XmlBuilder::builder_pimpl_t::add_variable_routes()
+{
+	std::stringstream variable_routes_stream;
+	for (const auto& param: variables) {
+		variable_routes_stream << "route(pass(\""<<escape_quotes(param.second.get<std::string>()) << "\"))->@:"<<param.first << ";\n";
+	}
+	routing = variable_routes_stream.str() + routing;
+}
+
 void XmlBuilder::builder_pimpl_t::verify_links()
 {
 	using map_elem = std::pair<std::string, position_t>;
@@ -332,6 +358,7 @@ Parameters XmlBuilder::configure()
 	Parameters p = IOThread::configure();
 	p["filename"]["Path to  XML file."]="";
 	p["run_limit"]["Runtime limit in seconds"]=0.0;
+	p["variable_events"]["Send all variables as events at startup"]=true;
 	return p;
 }
 
@@ -361,6 +388,7 @@ XmlBuilder::XmlBuilder(const log::Log& log_, pwThreadBase parent, const Paramete
 	pimpl_->process_nodes(); // TODO process all nodes
 	pimpl_->process_links(); // TODO process all links
 	pimpl_->verify_links();
+	if (use_variable_events_) pimpl_->add_variable_routes();
 	log[log::debug] << "File seems to be parsed successfully";
 	set_graph(pimpl_->nodes, pimpl_->links, pimpl_->routing);
 
@@ -388,6 +416,7 @@ XmlBuilder::XmlBuilder(const log::Log& log_, pwThreadBase parent, const std::str
 	pimpl_->process_nodes(); // TODO process all nodes
 	pimpl_->process_links(); // TODO process all links
 	pimpl_->verify_links();
+	if (use_variable_events_) pimpl_->add_variable_routes();
 	log[log::debug] << "File seems to be parsed successfully";
 	set_graph(pimpl_->nodes, pimpl_->links, pimpl_->routing);
 }
@@ -399,7 +428,9 @@ bool XmlBuilder::set_param(const Parameter& parameter)
 {
 	if (assign_parameters(parameter)
 			(filename_, "filename")
-			(max_run_time_, "run_limit", [](const core::Parameter& p){return 1_s * p.get<double>();}))
+			(max_run_time_, "run_limit", [](const core::Parameter& p){return 1_s * p.get<double>();})
+			(use_variable_events_, "variable_events")
+			)
 	{
 		return true;
 	}
