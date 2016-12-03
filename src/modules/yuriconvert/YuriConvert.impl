@@ -574,8 +574,6 @@ void convert_line<core::raw_format::u8, core::raw_format::y8>
 (core::Plane::const_iterator src, core::Plane::iterator dest, size_t width)
 {
 	std::copy(src, src+width, dest);
-	src+=width;
-	dest+=width;
 }
 
 template<>
@@ -583,40 +581,30 @@ void convert_line<core::raw_format::v8, core::raw_format::y8>
 (core::Plane::const_iterator src, core::Plane::iterator dest, size_t width)
 {
 	std::copy(src, src+width, dest);
-	src+=width;
-	dest+=width;
 }
 template<>
 void convert_line<core::raw_format::r8, core::raw_format::y8>
 (core::Plane::const_iterator src, core::Plane::iterator dest, size_t width)
 {
 	std::copy(src, src+width, dest);
-	src+=width;
-	dest+=width;
 }
 template<>
 void convert_line<core::raw_format::g8, core::raw_format::y8>
 (core::Plane::const_iterator src, core::Plane::iterator dest, size_t width)
 {
 	std::copy(src, src+width, dest);
-	src+=width;
-	dest+=width;
 }
 template<>
 void convert_line<core::raw_format::b8, core::raw_format::y8>
 (core::Plane::const_iterator src, core::Plane::iterator dest, size_t width)
 {
 	std::copy(src, src+width, dest);
-	src+=width;
-	dest+=width;
 }
 template<>
 void convert_line<core::raw_format::depth8, core::raw_format::y8>
 (core::Plane::const_iterator src, core::Plane::iterator dest, size_t width)
 {
 	std::copy(src, src+width, dest);
-	src+=width;
-	dest+=width;
 }
 
 template<>
