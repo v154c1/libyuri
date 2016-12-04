@@ -9,7 +9,7 @@
 
 #include "common.h"
 #include "yuri/core/frame/raw_frame_types.h"
-
+#include <numeric>
 namespace yuri {
 namespace color_picker {
 
