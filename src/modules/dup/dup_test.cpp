@@ -7,7 +7,6 @@
  *
  */
 
-#define CATCH_CONFIG_MAIN
 #include "tests/catch.hpp"
 #include "yuri/core/pipe/SpecialPipes.h"
 #include "Dup.h"

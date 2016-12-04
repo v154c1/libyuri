@@ -44,10 +44,10 @@ YURI_INSTALL_MODULE(${MODULE})
 
 IF (NOT YURI_DISABLE_TESTS)
 	add_executable(module_onepc_protocol_test onepc_protocol_test.cpp  ${ONEPC_SRC} )
-	target_link_libraries (module_onepc_protocol_test ${LIBNAME} )
+	target_link_libraries (module_onepc_protocol_test ${LIBNAME} ${LIBNAME_TEST})
 	add_test (module_onepc_protocol_test ${EXECUTABLE_OUTPUT_PATH}/module_onepc_protocol_test)
 	
 	add_executable(module_twopc_protocol_test twopc_protocol_test.cpp  )
-	target_link_libraries (module_twopc_protocol_test ${LIBNAME} )
+	target_link_libraries (module_twopc_protocol_test ${LIBNAME} ${LIBNAME_TEST})
 	add_test (module_twopc_protocol_test ${EXECUTABLE_OUTPUT_PATH}/module_twopc_protocol_test)
 ENDIF()

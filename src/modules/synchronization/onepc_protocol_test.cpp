@@ -7,7 +7,6 @@
  *
  */
 
-#define CATCH_CONFIG_MAIN
 #include "tests/catch.hpp"
 #include "OnepcProtocolCoordinator.h"
 #include "OnepcProtocolCohort.h"

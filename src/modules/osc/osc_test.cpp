@@ -7,7 +7,6 @@
  *
  */
 
-#define CATCH_CONFIG_MAIN
 #include "tests/catch.hpp"
 #include "yuri/core/utils/irange.h"
 #include "OSC.h"

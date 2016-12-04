@@ -3,7 +3,7 @@ include( CTest )
 include_directories ( ${Boost_INCLUDE_DIRS} )
 link_directories (${Boost_LIBRARY_DIRS})
 
-add_library(yuri_test_main STATIC test_main.cpp)
+add_library(${LIBNAME_TEST} STATIC test_main.cpp)
 
 add_executable(yuri_test_suite  test_base.cpp
 								time_tests.cpp
@@ -20,11 +20,11 @@ add_executable(yuri_test_suite  test_base.cpp
 								test_state_table.cpp
 								)
 								
-target_link_libraries (yuri_test_suite yuri_test_main ${LIBNAME})
+target_link_libraries (yuri_test_suite ${LIBNAME_TEST} ${LIBNAME})
 
 add_executable(yuri_test_register test_register.cpp)
 								
-target_link_libraries (yuri_test_register yuri_test_main ${LIBNAME})
+target_link_libraries (yuri_test_register ${LIBNAME_TEST} ${LIBNAME})
 
 
 add_test (core_test ${EXECUTABLE_OUTPUT_PATH}/yuri_test_suite )
@@ -36,7 +36,7 @@ SET(CUDA_PROPAGATE_HOST_FLAGS OFF)
 list(APPEND CUDA_NVCC_FLAGS "-std=c++11;-O2")
 CUDA_INCLUDE_DIRECTORIES( ${CMAKE_SOURCE_DIR}/src )
 cuda_add_executable(yuri_test_cuda test_cuda.cu)
-target_link_libraries (yuri_test_cuda yuri_test_main ${LIBNAME} ${LIBNAME_HELPER_CUDA})
+target_link_libraries (yuri_test_cuda ${LIBNAME_TEST} ${LIBNAME} ${LIBNAME_HELPER_CUDA})
 
 add_test (cuda_test ${EXECUTABLE_OUTPUT_PATH}/yuri_test_cuda )
 endif()

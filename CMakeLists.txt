@@ -83,6 +83,7 @@ SET(LIBNAME 				${LIBNAME_PREFIX}_core)
 SET(LIBNAME_HELPER_LIBAV 	${LIBNAME_PREFIX}_helper_av)
 SET(LIBNAME_HELPER_CUDA 	${LIBNAME_PREFIX}_helper_cuda)
 SET(LIBNAME_HELPER_GL 		${LIBNAME_PREFIX}_helper_gl)
+SET(LIBNAME_TEST            yuri_test_main)
 
 #################################################################
 # Set prefix for modules
