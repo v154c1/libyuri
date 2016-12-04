@@ -13,7 +13,7 @@
 #include "yuri/core/Module.h"
 #include "yuri/core/thread/IOFilter.h"
 #include "yuri/event/BasicEventProducer.h"
-
+#include <random>
 namespace yuri {
 namespace synchronization {
 

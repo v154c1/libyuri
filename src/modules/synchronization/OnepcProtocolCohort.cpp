@@ -9,7 +9,7 @@
 
 #include "OnepcProtocolCohort.h"
 #include "yuri/event/EventHelpers.h"
-
+#include <cmath>
 namespace yuri {
 namespace synchronization {
 
@@ -108,7 +108,7 @@ bool OnepcProtocolCohort::do_process_event(const std::string& event_name, const 
         const int64_t value = event::lex_cast_value<int64_t>(event);
         if(fps_ > fps_tolerance) frame_delay_ = value * (fps_/1000.0);
             else frame_delay_ = static_cast<double>(value);
-        std::chrono::microseconds mc (static_cast<int>((ceil(frame_delay_)-frame_delay_)*10));
+        std::chrono::microseconds mc (static_cast<int>((std::ceil(frame_delay_)-frame_delay_)*10));
         wait_for(duration_t(mc));
         const int64_t key = static_cast<int64_t>(frame_delay_);
         auto search = delays_.find(key);

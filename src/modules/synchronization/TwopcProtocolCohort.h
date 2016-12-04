@@ -15,7 +15,7 @@
 #include "yuri/event/BasicEventProducer.h"
 #include "TwopcProtocol.h"
 #include "yuri/core/utils/StateTransitionTable.h"
-
+#include <random>
 namespace yuri {
 namespace synchronization {
 

@@ -41,7 +41,7 @@ core::pFrame OnepcProtocolCoordinator::do_simple_single_step(core::pFrame frame)
 		emit_event("perform", prepare_event(id_, frame_no_));
 		++frame_no_;
 	}
-	return std::move(frame);
+	return frame;
 }
 
 event::pBasicEvent OnepcProtocolCoordinator::prepare_event(const uint64_t& id_sender, const index_t& data){
