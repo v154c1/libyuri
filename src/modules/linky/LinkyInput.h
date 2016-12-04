@@ -23,7 +23,7 @@ public:
     virtual ~LinkyInput() noexcept;
 
 private:
-    virtual void run();
+    virtual void run() override;
     virtual bool set_param(const core::Parameter& param) override;
 
     std::string  api_path_;
