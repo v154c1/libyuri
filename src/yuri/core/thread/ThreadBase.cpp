@@ -206,7 +206,7 @@ bool ThreadBase::do_add_child(pThreadBase thread, bool spawn)
 	assert(thread.get());
 	if (spawn) {
 		try {
-			children_[thread] = std::move(ThreadChild(std::thread(ThreadSpawn(thread)), thread, spawn));
+			children_[thread] = ThreadChild(std::thread(ThreadSpawn(thread)), thread, spawn);
 		}
 		catch (std::runtime_error&) {
 			log[log::info] << "Failed to spawn thread!!";

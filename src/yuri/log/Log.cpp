@@ -189,7 +189,7 @@ LogProxy<char> Log::operator[](debug_flags f) const
 		}
 		lp << logger_name_;
 	}
-	return std::move(lp);
+	return lp;
 }
 
 

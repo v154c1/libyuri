@@ -10,6 +10,7 @@
 
 #include "BasicEventParser.h"
 #include "BasicEventConversions.h"
+#include "yuri/core/utils/make_unique.h"
 #include <iostream>
 #include <algorithm>
 #include <cassert>
@@ -629,7 +630,7 @@ namespace {
 				case parser::token_type_t::double_const: return process_const<parser::double_const_token, EventDouble>(ast);
 				case parser::token_type_t::bool_const: return process_const<parser::bool_const_token, EventBool>(ast);
 				case parser::token_type_t::string_const: return process_const<parser::string_const_token, EventString>(ast);
-				case parser::token_type_t::bang_const: return std::move(std::unique_ptr<bang_value>(new bang_value()));
+				case parser::token_type_t::bang_const: return make_unique<bang_value>();
 				// TODO: Implement other constants
 				case parser::token_type_t::spec: {
 //					std::cout << "Processing spec\n";
@@ -646,7 +647,7 @@ namespace {
 					const auto& token = std::dynamic_pointer_cast<parser::func_token>(ast);
 					std::unique_ptr<func_call> func {new func_call(token->fname, token->mode)};
 					for (const auto& arg: token->args) {
-						func->inputs.push_back(std::move(process_tree(arg)));
+						func->inputs.push_back(process_tree(arg));
 					}
 					return std::move(func);
 				}
@@ -655,7 +656,7 @@ namespace {
 					const auto& token = std::dynamic_pointer_cast<parser::vector_const_token>(ast);
 					std::unique_ptr<vec_value> vec {new vec_value()};
 					for (const auto& arg: token->members) {
-						vec->inputs.push_back(std::move(process_tree(arg)));
+						vec->inputs.push_back(process_tree(arg));
 					}
 					return std::move(vec);
 				}
@@ -663,7 +664,7 @@ namespace {
 					const auto& token = std::dynamic_pointer_cast<parser::dict_const_token>(ast);
 					std::unique_ptr<dict_value> dict {new dict_value()};
 					for (const auto& arg: token->members) {
-						dict->inputs[arg.first] = std::move(process_tree(arg.second));
+						dict->inputs[arg.first] = process_tree(arg.second);
 					}
 					return std::move(dict);
 				}
