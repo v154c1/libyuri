@@ -16,6 +16,7 @@
 #include "yuri/core/utils/assign_parameters.h"
 #include <deque>
 #include <cassert>
+#include <random>
 namespace yuri {
 namespace core {
 

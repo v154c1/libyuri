@@ -11,6 +11,7 @@
 #define SRC_YURI_CORE_UTILS_STRING_GENERATOR_H_
 #include "yuri/core/forward.h"
 #include <iomanip>
+#include <vector>
 namespace yuri {
 namespace core {
 namespace utils {
