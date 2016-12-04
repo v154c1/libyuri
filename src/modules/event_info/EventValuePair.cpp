@@ -57,7 +57,7 @@ std::string replace_value(std::string val, const std::string& from, const std::s
 		val.replace(idx, fsize, to);
 		idx = idx + tsize;
 	}
-	return std::move(val);
+	return val;
 }
 
 std::string fix_separator(std::string val)
@@ -72,7 +72,7 @@ std::string fix_separator(std::string val)
 	for (const auto&cc: control_characters) {
 		val = replace_value(std::move(val), cc.first, cc.second);
 	}
-	return std::move(val);
+	return val;
 }
 }
 bool EventValuePair::set_param(const core::Parameter& param)
