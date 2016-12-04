@@ -204,14 +204,14 @@ f_request_t WebServer::pop_request()
     if (!requests_.empty()) {
         auto r = std::move(requests_.front());
         requests_.pop_front();
-        return std::move(r);
+        return r;
     }
     // No data available, so wait for a notification or timeout
     request_notify_.wait_for(lock, std::chrono::microseconds(get_latency()));
     if (!requests_.empty()) {
         auto r = std::move(requests_.front());
         requests_.pop_front();
-        return std::move(r);
+        return r;
     }
     // No data even after timeout, nothing to return
     return {};
