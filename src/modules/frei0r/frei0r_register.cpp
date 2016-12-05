@@ -20,46 +20,7 @@ namespace yuri {
 namespace frei0r {
 
 namespace {
-void set_f0r_bool_param(core::Parameter& p, const f0r_param_t * value)
-{
-	const double d = *reinterpret_cast<const double*>(value);
-	p = d > 0.5;
-}
-void set_f0r_double_param(core::Parameter& p, const f0r_param_t * value)
-{
-	const double d = *reinterpret_cast<const double*>(value);
-	p = d;
-}
-void set_f0r_position_param_x(core::Parameter& p, const f0r_param_t * value)
-{
-	const auto& d = *reinterpret_cast<const f0r_param_position_t*>(value);
-	p = d.x;
-}
-void set_f0r_position_param_y(core::Parameter& p, const f0r_param_t * value)
-{
-	const auto& d = *reinterpret_cast<const f0r_param_position_t*>(value);
-	p = d.y;
-}
-void set_f0r_color_param_r(core::Parameter& p, const f0r_param_t * value)
-{
-	const auto& d = *reinterpret_cast<const f0r_param_color_t*>(value);
-	p = d.r;
-}
-void set_f0r_color_param_g(core::Parameter& p, const f0r_param_t * value)
-{
-	const auto& d = *reinterpret_cast<const f0r_param_color_t*>(value);
-	p = d.g;
-}
-void set_f0r_color_param_b(core::Parameter& p, const f0r_param_t * value)
-{
-	const auto& d = *reinterpret_cast<const f0r_param_color_t*>(value);
-	p = d.b;
-}
-void set_f0r_string_param(core::Parameter& p, const f0r_param_t * value)
-{
-	const auto c = *reinterpret_cast<const char*const*>(value);
-	p = c;
-}
+
 template<class T>
 std::function<decltype(T::configure())()> generate_configure(const std::string& name, const frei0r_module_t& module)
 {
@@ -79,27 +40,35 @@ std::function<decltype(T::configure())()> generate_configure(const std::string& 
 			module.get_param_info(&param, i);
 			if (!param.name) continue;
 			std::string desc = param.explanation?param.explanation:"";
-			f0r_param_t fp;
-			module.get_param_value(instance, &fp, i);
 			if (module.get_param_value) {
 				switch(param.type) {
-					case F0R_PARAM_DOUBLE:
-						set_f0r_double_param(p[param.name][desc], &fp);
-						break;
-					case F0R_PARAM_BOOL:
-						set_f0r_bool_param(p[param.name][desc], &fp);
-						break;
-					case F0R_PARAM_POSITION:
-						set_f0r_position_param_x(p[std::string(param.name)+"_x"][desc], &fp);
-						set_f0r_position_param_y(p[std::string(param.name)+"_y"][desc], &fp);
-						break;
-					case F0R_PARAM_COLOR:
-						set_f0r_color_param_r(p[std::string(param.name)+"_r"][desc], &fp);
-						set_f0r_color_param_g(p[std::string(param.name)+"_g"][desc], &fp);
-						set_f0r_color_param_b(p[std::string(param.name)+"_b"][desc], &fp);
-						break;
+					case F0R_PARAM_DOUBLE: {
+						f0r_param_double fp;
+						module.get_param_value(instance, &fp, i);
+						p[param.name][desc] = fp;
+					} break;
+					case F0R_PARAM_BOOL: {
+						f0r_param_bool fp;
+						module.get_param_value(instance, &fp, i);
+						p[param.name][desc] = fp > 0.5;
+					} break;
+					case F0R_PARAM_POSITION: {
+						f0r_param_position fp;
+						module.get_param_value(instance, &fp, i);
+						p[std::string(param.name)+"_x"][desc] = fp.x;
+						p[std::string(param.name)+"_y"][desc] = fp.y;
+					} break;
+					case F0R_PARAM_COLOR: {
+						f0r_param_color fp;
+						module.get_param_value(instance, &fp, i);
+						p[std::string(param.name)+"_r"][desc] = fp.r;
+						p[std::string(param.name)+"_g"][desc] = fp.g;
+						p[std::string(param.name)+"_b"][desc] = fp.b;
+					} break;
 					case F0R_PARAM_STRING:
-						set_f0r_string_param(p[param.name][desc], &fp);
+						f0r_param_string fp;
+						module.get_param_value(instance, &fp, i);
+						p[param.name][desc] = fp;
 						break;
 					default:
 						p[param.name][desc]="UNKNOWN";
