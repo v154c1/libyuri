@@ -35,6 +35,7 @@ core::Parameters LinkyOutput::configure()
     p["sample"]["Use sampling (true) or take first pixels (false)"]                                              = false;
     p["sample_border"]["Width of border at each side relative to space between columns (only when sample=true)"] = 0.5;
     p["async"]["Upload data asynchronously. Set to 0 for synchronous upload, 1 for asynchronous and 2 for aggressive asynchronous upload"] = 0;
+    p["enable_output"]["Enable output ot linky API"]                                                                                       = true;
     return p;
 }
 
@@ -192,11 +193,13 @@ core::pFrame LinkyOutput::do_special_single_step(core::pRawVideoFrame frame)
     if (async_ < 2 && async_result_.valid()) {
         async_result_.get();
     }
-    if (async_ < 1) {
-        upload_json(api_path_ + "/lights/all", ss.str(), key_);
-    } else {
-        auto payload  = ss.str();
-        async_result_ = std::async(std::launch::async, [this, payload]() { upload_json(api_path_ + "/lights/all", payload, key_); });
+    if (enable_output_) {
+        if (async_ < 1) {
+            upload_json(api_path_ + "/lights/all", ss.str(), key_);
+        } else {
+            auto payload  = ss.str();
+            async_result_ = std::async(std::launch::async, [this, payload]() { upload_json(api_path_ + "/lights/all", payload, key_); });
+        }
     }
     return {};
 }
@@ -212,7 +215,8 @@ bool LinkyOutput::set_param(const core::Parameter& param)
         (alpha_as_white_, "alpha_as_white") //
         (sample_, "sample")                 //
         (sample_border_, "sample_border")   //
-        (async_, "async"))
+        (async_, "async")                   //
+        (enable_output_, "enable_output"))
         return true;
 
     return base_type::set_param(param);
@@ -229,8 +233,11 @@ bool LinkyOutput::do_process_event(const std::string& event_name, const event::p
         (alpha_as_white_, "alpha_as_white") //
         (sample_, "sample")                 //
         (sample_border_, "sample_border")   //
-        (async_, "async"))
+        (async_, "async")                   //
+        (enable_output_, "enable_output")) {
+
         return true;
+    }
     return false;
 }
 

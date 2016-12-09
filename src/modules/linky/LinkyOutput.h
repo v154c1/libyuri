@@ -41,6 +41,7 @@ private:
     float             sample_border_;
     int               async_;
     std::future<void> async_result_;
+    bool			  enable_output_;
 };
 
 } /* namespace linky_output */
