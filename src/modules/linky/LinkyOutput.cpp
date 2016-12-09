@@ -150,7 +150,7 @@ template <class Kernel> struct IntervalSampler {
         auto       data         = std::string(resolution.width * resolution.height * Kernel::width, '0');
         auto       pdata        = &data[0];
         auto       raw_data     = PLANE_RAW_DATA(frame, 0);
-        const auto column_width = res.width / (2.0f * sample_border + resolution.width - 1);
+        const auto column_width = (res.width - 1) / (2.0f * sample_border + resolution.width - 1);
         for (auto y : irange(dres.height)) {
             auto dstart = raw_data + y * PLANE_DATA(frame, 0).get_line_size();
             for (auto x : irange(dres.width)) {
