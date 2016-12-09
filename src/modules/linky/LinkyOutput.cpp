@@ -73,9 +73,10 @@ void write_8bit(char* p, int8_t value)
 }
 
 struct RGBKernel {
-    constexpr static size_t           width     = 6;
-    constexpr static size_t           src_width = 3;
-    template <class Iter> static void write(char* p, Iter& dstart, uint8_t)
+    constexpr static size_t width     = 6;
+    constexpr static size_t src_width = 3;
+    template <class Iter>
+    static void write(char* p, Iter& dstart, uint8_t)
     {
         write_8bit(p + 0, *dstart++);
         write_8bit(p + 2, *dstart++);
@@ -84,9 +85,10 @@ struct RGBKernel {
 };
 
 struct RGBWKernel {
-    constexpr static size_t           width     = 8;
-    constexpr static size_t           src_width = 3;
-    template <class Iter> static void write(char* p, Iter& dstart, uint8_t w_value)
+    constexpr static size_t width     = 8;
+    constexpr static size_t src_width = 3;
+    template <class Iter>
+    static void write(char* p, Iter& dstart, uint8_t w_value)
     {
         write_8bit(p + 0, *dstart++);
         write_8bit(p + 2, *dstart++);
@@ -96,9 +98,10 @@ struct RGBWKernel {
 };
 
 struct RGBAKernel {
-    constexpr static size_t           width     = 8;
-    constexpr static size_t           src_width = 4;
-    template <class Iter> static void write(char* p, Iter& dstart, uint8_t)
+    constexpr static size_t width     = 8;
+    constexpr static size_t src_width = 4;
+    template <class Iter>
+    static void write(char* p, Iter& dstart, uint8_t)
     {
         write_8bit(p + 0, *dstart++);
         write_8bit(p + 2, *dstart++);
@@ -107,7 +110,8 @@ struct RGBAKernel {
     }
 };
 
-template <class Kernel> struct SimpleSampler {
+template <class Kernel>
+struct SimpleSampler {
     SimpleSampler(const resolution_t& resolution, uint8_t w_value) : resolution(resolution), w_value(w_value) {}
 
     resolution_t resolution;
@@ -132,7 +136,8 @@ template <class Kernel> struct SimpleSampler {
     }
 };
 
-template <class Kernel> struct IntervalSampler {
+template <class Kernel>
+struct IntervalSampler {
     IntervalSampler(const resolution_t& resolution, uint8_t w_value, float sample_border)
         : resolution(resolution), w_value(w_value), sample_border(sample_border)
     {
