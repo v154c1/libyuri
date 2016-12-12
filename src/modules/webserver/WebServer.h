@@ -75,6 +75,7 @@ private:
     std::string realm_;
     std::string user_;
     std::string pass_;
+    bool        cors_;
 
     core::socket::pStreamSocket socket_;
     std::vector<route_record>   routing_;

@@ -26,13 +26,14 @@ core::Parameters WebServer::configure()
 {
     core::Parameters p = core::IOThread::configure();
     p.set_description("WebServer");
-    p["socket"]["Socket implementation"]              = "yuri_tcp";
-    p["address"]["Server address"]                    = "0.0.0.0";
-    p["server_name"]["Server name"]                   = "webserver";
-    p["port"]["Server port"]                          = 8080;
-    p["realm"]["Realm for HTTP authentication"]       = "";
-    p["username"]["Username for HTTP authentication"] = "";
-    p["password"]["Password for HTTP authentication"] = "";
+    p["socket"]["Socket implementation"]                                            = "yuri_tcp";
+    p["address"]["Server address"]                                                  = "0.0.0.0";
+    p["server_name"]["Server name"]                                                 = "webserver";
+    p["port"]["Server port"]                                                        = 8080;
+    p["realm"]["Realm for HTTP authentication"]                                     = "";
+    p["username"]["Username for HTTP authentication"]                               = "";
+    p["password"]["Password for HTTP authentication"]                               = "";
+    p["cors"]["Disable CORS (adds Access-Control-Allow-Origin header:* when true)"] = true;
     return p;
 }
 
@@ -58,7 +59,12 @@ pwWebServer find_webserver(const std::string& name)
 }
 
 WebServer::WebServer(const log::Log& log_, core::pwThreadBase parent, const core::Parameters& parameters)
-    : core::IOThread(log_, parent, 1, 1, std::string("webserver")), server_name_("webserver"), socket_impl_("yuri_tcp"), address_("0.0.0.0"), port_(8080)
+    : core::IOThread(log_, parent, 1, 1, std::string("webserver")),
+      server_name_("webserver"),
+      socket_impl_("yuri_tcp"),
+      address_("0.0.0.0"),
+      port_(8080),
+      cors_(true)
 {
     IOTHREAD_INIT(parameters)
     socket_ = core::StreamSocketGenerator::get_instance().generate(socket_impl_, log);
@@ -277,7 +283,9 @@ bool WebServer::reply_to_client(core::socket::pStreamSocket& client, response_t 
 {
     fill_header_if_needed(response, "Content-Length", std::to_string(response.data.size()));
     fill_header_if_needed(response, "Server", std::string("yuri-") + yuri_version);
-
+    if (cors_) {
+        fill_header_if_needed(response, "Access-Control-Allow-Origin", "*");
+    }
     client->send_data(prepare_response_header(response.code));
     client->send_data(crlf);
     for (const auto& param : response.parameters) {
@@ -347,7 +355,8 @@ bool WebServer::set_param(const core::Parameter& param)
         (port_, "port")          //
         (user_, "username")      //
         (pass_, "password")      //
-        (realm_, "realm")) {
+        (realm_, "realm")        //
+        (cors_, "cors")) {
         return true;
     }
 
