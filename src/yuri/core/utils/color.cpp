@@ -9,6 +9,7 @@
 
 #include "color.h"
 #include <iostream>
+#include <cmath>
 namespace yuri {
 namespace core {
 
@@ -663,6 +664,35 @@ std::istream& operator>>(std::istream& is, color_t& col_out)
 	return is;
 }
 
+namespace {
+template <typename T>
+double ddiff(T v1, T v2)
+{
+    return std::pow(v1 < v2 ? v2 - v1 : v1 - v2, 2);
+}
+template <typename T, size_t N>
+double color_distance_impl(const std::array<T, N>& c1, const std::array<T, N>& c2)
+{
+    double sum = 0.0;
+    for (auto i = 0u; i < N; ++i) {
+        sum += ddiff(c1[i], c2[i]);
+    }
+    return std::sqrt(sum);
 }
 }
 
+double color_distance_rgb(const color_t& color1, const color_t& color2)
+{
+    const auto c1 = color1.get_rgba();
+    const auto c2 = color2.get_rgba();
+    return color_distance_impl(c1, c2);
+}
+
+double color_distance_yuv(const color_t& color1, const color_t& color2)
+{
+    const auto c1 = color1.get_yuva();
+    const auto c2 = color2.get_yuva();
+    return color_distance_impl(c1, c2);
+}
+}
+}

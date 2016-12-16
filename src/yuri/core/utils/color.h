@@ -197,6 +197,22 @@ private:
 std::ostream& operator<<(std::ostream& os, const color_t& col);
 std::istream& operator>>(std::istream& os, color_t& col);
 
+/*!
+ * Computes color difference as a distance in RGB colorspace
+ * @param color1
+ * @param color2
+ * @return difference of the two colors
+ */
+double color_distance_rgb(const color_t& color1, const color_t& color2);
+
+/*!
+ * Computes color difference as a distance in YUV colorspace (probably meaningless)
+ * @param color1
+ * @param color2
+ * @return difference of the two colors
+ */
+double color_distance_yuv(const color_t& color1, const color_t& color2);
+
 
 template<>
 inline color_t color_t::create_yuv<uint8_t, 3>(const std::array<uint8_t, 3>& col)
