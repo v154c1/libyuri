@@ -39,9 +39,12 @@ TEST_CASE("color", "" ) {
 		REQUIRE(color_t::create_yuv16(0,0x7FFF,0x7FFF) == black);
 		REQUIRE(black == color_t::create_rgb16(0,0,0));
 		REQUIRE(black == color_t::create_yuv16(0,0x7FFF,0x7FFF));
-		// This fails due to limited precision
-		//REQUIRE(white == yuv_white);
-		REQUIRE(yuv_white == white);
+		 // Exact comparison may fail due to limited precision
+        REQUIRE(color_distance_rgb(yuv_white, white) <= 2.01);
+        REQUIRE(color_distance_rgb(white, yuv_white) <= 2.01);
+
+        REQUIRE(color_distance_yuv(white, yuv_white) <= 2.01);
+        REQUIRE(color_distance_yuv(yuv_white, white) <= 2.01);
 
 
 		REQUIRE(red == red16);
