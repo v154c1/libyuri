@@ -155,7 +155,7 @@ void SDLWindow::run()
 			  (use_gl_?SDL_OPENGL:0)))) {
 		throw exception::InitializationFailed("Failed to set video mode");
 	}
-#ifdef YURI_LINUX
+#if defined(YURI_LINUX) && defined(SDL_VIDEO_DRIVER_X11)
 	if (position_.x != -1 && position_.y != -1) {
 		SDL_SysWMinfo info;
 		SDL_VERSION(&info.version);
