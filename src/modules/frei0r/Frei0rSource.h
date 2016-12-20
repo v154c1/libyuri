@@ -30,6 +30,7 @@ private:
 
 	resolution_t resolution_;
 	format_t format_;
+	float fps_;
 };
 
 } /* namespace frei0r */

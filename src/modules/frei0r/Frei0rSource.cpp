@@ -27,6 +27,7 @@ core::Parameters Frei0rSource::configure()
 	core::Parameters p = core::IOThread::configure();
 	p.set_description("Frei0rSource");
 	p["resolution"]["Source resolution"]=resolution_t{800,600};
+	p["fps"]["Framerate limit. Set to -1 to unlimited"]=-1;
 	return p;
 }
 
@@ -66,8 +67,18 @@ void Frei0rSource::run()
 		instance_ = module_->construct(resolution_.width, resolution_.height);
 		set_frei0r_params();
 	}
-
+	timestamp_t next_time;
+	const duration_t time_delta = fps_ > 0.0f ? 1_s / fps_ : 0_s;
 	while (still_running()) {
+		if (fps_ > 0.0) {
+			const timestamp_t now;
+			if (now < next_time) {
+				const auto nap = std::min(get_latency(), next_time - now);
+				sleep(nap);
+				continue;
+			}
+			next_time = next_time + time_delta;
+		}
 		auto outframe = core::RawVideoFrame::create_empty(format_, resolution_);
 		auto dur = timestamp_t{} - core::utils::get_global_start_time();
 		module_->update(instance_, dur.value/1.0e6, nullptr, reinterpret_cast<uint32_t*>(PLANE_RAW_DATA(outframe,0)));
@@ -81,7 +92,8 @@ bool Frei0rSource::set_param(const core::Parameter& param)
 		return true;
 	}
 	if (assign_parameters(param)
-			(resolution_, "resolution"))
+			(resolution_, "resolution")
+			(fps_, "fps"))
 		return true;
 	return core::IOThread::set_param(param);
 }
