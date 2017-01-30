@@ -258,6 +258,8 @@ FuncInitHelper fhelper_ {
 		 {"seconds", std::vector<event_type_t>({event_type_t::double_event}),event_type_t::duration_event, functions::seconds},
 		 {"seconds", std::vector<event_type_t>({event_type_t::duration_event}),event_type_t::duration_event, functions::seconds},
 
+		 {"generate", std::vector<event_type_t>({event_type_t::string_event}),event_type_t::string_event, functions::generate},
+
 
  };
 }

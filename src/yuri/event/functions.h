@@ -64,6 +64,8 @@ pBasicEvent 					microseconds(const std::vector<pBasicEvent>& events);
 pBasicEvent 					milliseconds(const std::vector<pBasicEvent>& events);
 pBasicEvent 					seconds(const std::vector<pBasicEvent>& events);
 
+pBasicEvent 					generate(const std::vector<pBasicEvent>& events);
+
 }
 
 

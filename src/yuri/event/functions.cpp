@@ -12,6 +12,7 @@
 #include "EventHelpers.h"
 #include <cmath>
 #include <cstdlib>
+#include "yuri/core/utils/string_generator.h"
 namespace yuri {
 namespace event {
 
@@ -413,6 +414,17 @@ pBasicEvent seconds(const std::vector<pBasicEvent>& events)
 
 	}
 	throw bad_event_cast("Unsupported type of parameter in seconds()");
+}
+
+pBasicEvent generate(const std::vector<pBasicEvent>& events) {
+	if (events.size() != 1) throw bad_event_cast("generate supports only one parameter");
+	const auto& event = events[0];
+	switch (event->get_type()) {
+		case event_type_t::string_event:
+			return std::make_shared<EventString>(core::utils::generate_string(get_value<EventString>(event)));
+		default: break;
+	}
+	throw bad_event_cast("Unsupported type of parameter in generate()");
 }
 
 }
