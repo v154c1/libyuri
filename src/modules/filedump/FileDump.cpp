@@ -17,6 +17,7 @@
 #include "yuri/core/frame/EventFrame.h"
 #include "yuri/core/utils/string_generator.h"
 #include "yuri/core/utils/DirectoryBrowser.h"
+#include "yuri/core/utils/assign_events.h"
 namespace yuri
 {
 namespace dump
@@ -67,6 +68,7 @@ std::string append_to_filename(const std::string& filename, const T& value, int 
 FileDump::FileDump(log::Log &log_,core::pwThreadBase parent, const core::Parameters &parameters):
 	IOFilter(log_,parent,"Dump"),
 	event::BasicEventProducer(log),
+	event::BasicEventConsumer(log),
 	dump_file(),filename(),seq_chars(0),seq_number(0),dumped_frames(0),
 	dump_limit(0),use_regex_(false),single_file_(true),append_(false)
 {
@@ -94,10 +96,7 @@ FileDump::FileDump(log::Log &log_,core::pwThreadBase parent, const core::Paramet
 	}
 
 	if (single_file_) {
-		core::filesystem::ensure_path_directory(filename);
-		auto flags = std::ios::binary | std::ios::out;
-		if (append_) flags|=std::ios::app;
-		dump_file.open(filename.c_str(), flags);
+		open_file(filename);
 	}
 }
 
@@ -106,6 +105,15 @@ FileDump::~FileDump() noexcept
 	if (dump_file.is_open()) dump_file.close();
 }
 
+bool FileDump::open_file(const std::string& fname)
+{
+	core::filesystem::ensure_path_directory(fname);
+	auto flags = std::ios::binary | std::ios::out;
+	if (append_) flags|=std::ios::app;
+	if (dump_file.is_open()) dump_file.close();
+	dump_file.open(fname.c_str(), flags);
+	return true;
+}
 std::string FileDump::generate_filename(const core::pFrame& frame)
 {
 	if (!use_regex_ && !single_file_) {
@@ -119,16 +127,14 @@ std::string FileDump::generate_filename(const core::pFrame& frame)
 
 core::pFrame FileDump::do_simple_single_step(core::pFrame frame)
 {
+	process_events();
 	if (dumped_frames >= dump_limit && dump_limit) {
 		return {};
 	}
 	if (!single_file_) {
 		const auto seq_filename = generate_filename(frame);
 		log[log::debug] << "New filename " << seq_filename;
-		core::filesystem::ensure_path_directory(seq_filename);
-		auto flags = std::ios::binary | std::ios::out;
-		if (append_) flags|=std::ios::app;
-		dump_file.open(seq_filename.c_str(), flags);
+		open_file(seq_filename);
 		emit_event("filename",seq_filename);
 	}
 	bool written = true;
@@ -186,6 +192,27 @@ bool FileDump::set_param(const core::Parameter &param)
 			(append_,		"append"))
 		return true;
 	return IOFilter::set_param(param);
+}
+
+bool FileDump::do_process_event(const std::string& event_name, const event::pBasicEvent& event)
+{
+	if (assign_events(event_name, event)
+		(filename, "filename")) {
+		auto s = core::utils::analyze_string_specifiers(filename);
+		use_regex_ = s.first;
+		single_file_ = !s.second;
+
+		if (single_file_) {
+			// The filename has to be generated beforehand, when single_file is enabled.
+			if (use_regex_) {
+				filename = generate_filename({});
+				use_regex_ = false;
+			}
+			open_file(filename);
+		}
+		return true;
+	}
+	return false;
 }
 
 }
