@@ -164,14 +164,12 @@ core::pFrame FileDump::do_simple_single_step(core::pFrame frame)
 	}
 	if (!single_file_) {
 		dump_file.close();
-		if (written) {
-			emit_event("sequence",seq_number);
-		}
-		++seq_number;
 	}
 	if (written) {
 		emit_event("frame");
+		emit_event("sequence",seq_number);
 	}
+	++seq_number;
 
 	// The comparison is evaluated FIRST in order to have dumped_frames counted even if dump_limit is zero
 	if (++dumped_frames >= dump_limit && dump_limit) {
@@ -209,6 +207,7 @@ bool FileDump::do_process_event(const std::string& event_name, const event::pBas
 				use_regex_ = false;
 			}
 			open_file(filename);
+			seq_number = 0;
 		}
 		return true;
 	}
