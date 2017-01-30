@@ -129,7 +129,7 @@ bool WebDirectoryResource::set_param(const core::Parameter& param)
     if (assign_parameters(param)      //
         (server_name_, "server_name") //
         (path_, "path")               //
-        (directory_, "directory")     //
+        (directory_, "dir")     //
         (index_file_, "index_file")) {
         if (path_.empty() || path_[path_.size() - 1] != '/') {
             path_ += "/";

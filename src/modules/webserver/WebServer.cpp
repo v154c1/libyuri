@@ -349,13 +349,14 @@ bool WebServer::verify_authentication(const request_t& request)
 
 bool WebServer::set_param(const core::Parameter& param)
 {
-    if (assign_parameters(param) //
-        (socket_impl_, "socket") //
-        (address_, "address")    //
-        (port_, "port")          //
-        (user_, "username")      //
-        (pass_, "password")      //
-        (realm_, "realm")        //
+    if (assign_parameters(param)      //
+        (socket_impl_, "socket")      //
+        (address_, "address")         //
+        (server_name_, "server_name") //
+        (port_, "port")               //
+        (user_, "username")           //
+        (pass_, "password")           //
+        (realm_, "realm")             //
         (cors_, "cors")) {
         return true;
     }
