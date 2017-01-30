@@ -134,6 +134,9 @@ bool IOThread::push_frame(position_t index, pFrame frame)
 	TRACE_METHOD
 	if (!frame) return true;
 	const auto cur_idx = frame->get_index();
+	if (static_cast<position_t>(next_indices_.size()) <= index) {
+		next_indices_.resize(index+1);
+	}
 	if (cur_idx == 0) {
 		const auto idx = next_indices_[index]++;
 		frame->set_index(idx);
