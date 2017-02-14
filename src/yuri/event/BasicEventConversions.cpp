@@ -47,7 +47,7 @@ pBasicEvent call(const std::string& fname, const std::vector<pBasicEvent>& event
 		candidates.push_back(&it->second);
 		for (size_t i=0;i<events.size();++i) {
 			assert(events[i]);
-			if (ptypes[i] != events[i]->get_type()) {
+			if (ptypes[i] != event_type_t::undetermined_event && ptypes[i] != events[i]->get_type()) {
 				ok = false;
 				break;
 			}
