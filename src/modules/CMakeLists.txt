@@ -300,6 +300,12 @@ IF (HAVE_LINUX_FB_H)
 	add_subdirectory(framebuffer)
 ENDIF()
 
+CHECK_INCLUDE_FILE_CXX(HCNetSDK.h HAVE_HCNET_H)
+CHECK_INCLUDE_FILE_CXX(PlayM4.h HAVE_PLAYM4_H)
+IF(HAVE_HCNET_H AND HAVE_PLAYM4_H)
+    add_subdirectory(hikvision)
+ENDIF()
+
 ENDIF(YURI_BUILD_EXPERIMENTAL_MODULES)
 
 #################################################################
