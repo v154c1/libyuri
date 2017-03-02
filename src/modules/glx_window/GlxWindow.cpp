@@ -10,10 +10,10 @@
 #include "GlxWindow.h"
 #include "yuri/core/Module.h"
 #include "yuri/core/utils/irange.h"
-#include <X11/Xatom.h>
 #include "yuri/core/thread/Convert.h"
 #include "yuri/core/utils/assign_events.h"
 #include <cstring>
+#include <poll.h>
 namespace yuri {
 namespace glx_window {
 
@@ -93,7 +93,8 @@ geometry_{800,600,0,0},visual_{nullptr},flip_x_{false},flip_y_{false},
 read_back_{false},stereo_mode_{stereo_mode_t::none},decorations_{false},
 on_top_{false},swap_eyes_{false},delta_x_{0.0},delta_y_{0.0},needs_move_{false},
 show_cursor_{true},
-counter_(0)
+counter_(0),
+wm_delete_window_(0)
 {
 	set_latency(100_ms);
 	IOTHREAD_INIT(parameters)
@@ -130,6 +131,8 @@ void GlxWindow::run()
 		log[log::info] << "Stereo method: " << get_mode_name(stereo_mode_);
 		show_cursor(show_cursor_);
 	}
+	wm_delete_window_ = XInternAtom(display_.get(), "WM_DELETE_WINDOW", false);
+	XSetWMProtocols(display_.get(), win_, &wm_delete_window_, 1);
 	while (still_running()) {
 		process_events();
 		if (needs_move_) {
@@ -255,13 +258,19 @@ bool GlxWindow::process_x11_events()
 {
 	XEvent event_;
 	bool processed_any = false;
-	while (XCheckWindowEvent(display_.get(),
-				win_,
-				StructureNotifyMask|KeyPressMask|KeyReleaseMask|
-				ButtonPressMask|ButtonReleaseMask|PointerMotionMask|
-				ExposureMask,
-				&event_))
-		{
+	auto x11_fd = ConnectionNumber(display_.get());
+	pollfd fds = {x11_fd, POLLIN, 0};
+	if (poll(&fds, 1, 0) <= 0) return false;
+	while (XPending(display_.get())) {
+//	while (XCheckWindowEvent(display_.get(),
+//				win_,
+//				StructureNotifyMask|KeyPressMask|KeyReleaseMask|
+//				ButtonPressMask|ButtonReleaseMask|PointerMotionMask|
+//				ExposureMask,
+//				&event_))
+//		{
+//			fds.revents = 0;
+			XNextEvent(display_.get(), &event_);
 			switch (event_.type) {
 			case DestroyNotify:
 				log[log::info] << "DestroyNotify received";
@@ -309,6 +318,12 @@ bool GlxWindow::process_x11_events()
 				} break;
 			case Expose:
 				needs_redraw_ = true;
+				break;
+			case ClientMessage:
+				if (static_cast<Atom>(event_.xclient.data.l[0]) == wm_delete_window_) {
+					log[log::info] << "Windows close message";
+					request_end(core::yuri_exit_interrupted);
+				}
 				break;
 			}
 			processed_any = true;

@@ -15,6 +15,7 @@
 #include "yuri/event/BasicEventProducer.h"
 #include "yuri/gl/GL.h"
 #include "GL/glx.h"
+#include <X11/Xatom.h>
 namespace yuri {
 namespace glx_window {
 
@@ -89,6 +90,7 @@ private:
 	bool					needs_redraw_;
 	timestamp_t				counter_start_;
 	size_t					counter_;
+	Atom					wm_delete_window_;
 };
 
 } /* namespace glx_window */
