@@ -66,6 +66,9 @@ pBasicEvent 					seconds(const std::vector<pBasicEvent>& events);
 
 pBasicEvent 					generate(const std::vector<pBasicEvent>& events);
 
+pBasicEvent 					append(const std::vector<pBasicEvent>& events);
+pBasicEvent 					slice(const std::vector<pBasicEvent>& events);
+
 }
 
 

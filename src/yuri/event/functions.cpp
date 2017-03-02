@@ -427,6 +427,53 @@ pBasicEvent generate(const std::vector<pBasicEvent>& events) {
 	throw bad_event_cast("Unsupported type of parameter in generate()");
 }
 
+pBasicEvent append(const std::vector<pBasicEvent>& events)
+{
+	if (events.size() != 2) throw bad_event_cast("append supports only two parameters");
+	const auto& event = events[0];
+	switch (event->get_type()) {
+		case event_type_t::vector_event: {
+			auto vec = std::dynamic_pointer_cast<EventVector>(events[0]->get_copy());
+			vec->push_back(events[1]);
+			return vec;
+		} break;
+			//return std::make_shared<EventString>(core::utils::generate_string(get_value<EventString>(event)));
+		default: break;
+	}
+	throw bad_event_cast("Unsupported type of parameter in append()");
+}
+
+
+pBasicEvent slice(const std::vector<pBasicEvent>& events)
+{
+	const auto ev_count = events.size();
+	if (ev_count != 2 && ev_count != 3) throw bad_event_cast("splice supports only two or three parameters");
+	if (events[0]->get_type() != event_type_t::vector_event) {
+		throw bad_event_cast("First parameter to slice has to be vector");
+	}
+	auto vec = std::dynamic_pointer_cast<EventVector>(events[0]);
+	if (vec->empty()) return vec;
+
+	auto new_vec = std::make_shared<EventVector>();
+	auto start = lex_cast_value<int>(events[1]);
+	if (start < 0) {
+		start = std::max<int>(vec->size() + start, 0);
+	}
+	int end = vec->size();
+	if (ev_count > 2) {
+		end = lex_cast_value<int>(events[2]);
+		if (end < 0) {
+			end = std::max<int>(vec->size() + end, 0);
+		}
+	}
+	if (end <= start) return new_vec;
+	for (int i = start; i < end; ++i) {
+		new_vec->push_back((*vec)[i]);
+	}
+	return new_vec;
+}
+
+
 }
 
 }
