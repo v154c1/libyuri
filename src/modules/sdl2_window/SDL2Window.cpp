@@ -17,6 +17,7 @@
 
 #include "yuri/version.h"
 #include <unordered_map>
+#include <numeric>
 
 namespace yuri {
 namespace sdl2_window {
