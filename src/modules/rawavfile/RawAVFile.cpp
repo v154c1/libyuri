@@ -195,6 +195,9 @@ bool RawAVFile::open_file(const std::string& filename)
 				log[log::error] << "Unknown format for video stream " << i;
 				return false;
 			}
+			video_streams_[i].resolution = resolution_t{
+									static_cast<dimension_t>(video_streams_[i].ctx->width),
+									static_cast<dimension_t>(video_streams_[i].ctx->height)};
 			log[log::info] << "Found video stream with format " << get_format_name_no_throw(video_streams_[i].format) <<
 			" and resolution " << video_streams_[i].ctx->width << "x" << video_streams_[i].ctx->height;
 		}
