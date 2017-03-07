@@ -289,6 +289,7 @@ bool RawAVFile::push_ready_frames()
 					next_times_[i] = next_times_[i]+video_streams_[i].delta;
 				}
 			}
+			frames_[i]->set_timestamp(timestamp_t{});
 			push_frame(i,std::move(frames_[i]));
 
 			frames_[i].reset();
