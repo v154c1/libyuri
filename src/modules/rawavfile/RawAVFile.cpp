@@ -35,10 +35,6 @@ namespace rawavfile {
 
 IOTHREAD_GENERATOR(RawAVFile)
 
-MODULE_REGISTRATION_BEGIN("rawavfile")
-	REGISTER_IOTHREAD("rawavsource",RawAVFile)
-MODULE_REGISTRATION_END()
-
 
 namespace {
 	const std::string unknown_format = "Unknown";

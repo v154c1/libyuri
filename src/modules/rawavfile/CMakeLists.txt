@@ -3,7 +3,8 @@ SET (MODULE rawavfile)
 
 # Set all source files module uses
 SET (SRC RawAVFile.cpp
-		 RawAVFile.h)
+		 RawAVFile.h
+		 register.cpp)
 
 
 SET(CMAKE_REQUIRED_LIBRARIES ${libavutil_LIBRARIES})
