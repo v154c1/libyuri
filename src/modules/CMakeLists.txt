@@ -306,6 +306,8 @@ IF(HAVE_HCNET_H AND HAVE_PLAYM4_H)
     add_subdirectory(hikvision)
 ENDIF()
 
+add_subdirectory(simple_rtp)
+
 ENDIF(YURI_BUILD_EXPERIMENTAL_MODULES)
 
 #################################################################
