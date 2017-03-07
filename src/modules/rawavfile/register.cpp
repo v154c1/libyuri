@@ -7,16 +7,13 @@
  *
  */
 
+#include "AVDecoder.h"
 #include "RawAVFile.h"
 #include "yuri/core/Module.h"
 namespace yuri {
 
 MODULE_REGISTRATION_BEGIN("avmodules")
-	REGISTER_IOTHREAD("rawavsource",rawavfile::RawAVFile)
+    REGISTER_IOTHREAD("rawavsource", rawavfile::RawAVFile)
+    REGISTER_IOTHREAD("avdecoder", avdecoder::AVDecoder)
 MODULE_REGISTRATION_END()
-
-
 }
-
-
-
