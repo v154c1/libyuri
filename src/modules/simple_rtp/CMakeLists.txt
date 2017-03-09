@@ -6,6 +6,10 @@ SET (SRC SimpleH264RtpSender.cpp
 		 SimpleH264RtpSender.h
          SimpleH264RtpReceiver.cpp
          SimpleH264RtpReceiver.h
+         SimpleH265RtpSender.cpp
+		 SimpleH265RtpSender.h
+         SimpleH265RtpReceiver.cpp
+         SimpleH265RtpReceiver.h
          register.cpp)
 
 
