@@ -74,7 +74,7 @@ void SimpleH264RtpReceiver::run()
             if (sequence_ != packet.get_sequence()) {
                 log[log::warning] << "Missing packet(s)! Expected sequence " << sequence_ << ", got " << packet.get_sequence();
             }
-            sequence_ = (packet.get_sequence() + 1) % 65535;
+            sequence_ = (packet.get_sequence() + 1) % 65536;
             if (last_timestamp_ != packet.get_timestamp()) {
                 // We assume that frames with the same timestamp should be merged together
                 if (!buffer.empty()) {
