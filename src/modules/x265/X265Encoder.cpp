@@ -61,7 +61,7 @@ std::map<format_t, int>supported_formats = {
 
 X265Encoder::X265Encoder(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters):
 base_type(log_,parent,std::string("x265")),encoder_(nullptr),
-frame_number_(0),preset_("ultrafast"),tune_("zerolatency"),profile_("baseline")
+frame_number_(0),preset_("ultrafast"),tune_("zerolatency"),profile_("main")
 {
 	IOTHREAD_INIT(parameters)
 	set_supported_formats(supported_formats);
