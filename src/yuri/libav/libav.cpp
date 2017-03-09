@@ -37,6 +37,7 @@ std::unordered_map<format_t, AVCodecID> yuri_codec_map = {
 		{mpeg2ts,					AV_CODEC_ID_MPEG2TS},
 		{mjpg,						AV_CODEC_ID_MJPEG},
 		{h264,						AV_CODEC_ID_H264},
+		{h265,						AV_CODEC_ID_H265},
 //		{YURI_VIDEO_FLASH,			CODEC_ID_FLASHSV2},
 //		{YURI_VIDEO_DIRAC,			CODEC_ID_DIRAC},
 //		{YURI_VIDEO_H263,			CODEC_ID_H263},
