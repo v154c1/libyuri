@@ -32,7 +32,7 @@ const format_t huffyuv		= 0x1000b;
 const format_t mpeg1		= 0x1000c;
 const format_t ogg			= 0x1000d;
 const format_t theora		= 0x1000e;
-const format_t h265			= 0x10004;
+const format_t h265			= 0x1000f;
 
 const format_t user_start 	= 0x11000;
 
