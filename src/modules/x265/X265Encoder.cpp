@@ -149,7 +149,7 @@ void X265Encoder::process_nal(x265_nal& nal)
 	auto frame = core::CompressedVideoFrame::create_empty(core::compressed_frame::h265,
 			resolution_t{static_cast<dimension_t>(params_.sourceWidth), static_cast<dimension_t>(params_.sourceHeight)},
 			nal.payload, nal.sizeBytes);
-	push_frame(0, frame);
+	push_frame(0, std::move(frame));
 }
 
 bool X265Encoder::set_param(const core::Parameter& param)
