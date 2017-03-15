@@ -161,7 +161,15 @@ core::pFrame SimpleH265RtpSender::do_special_single_step(core::pCompressedVideoF
 
 bool SimpleH265RtpSender::send_rtp_packet(const RTPPacket& packet)
 {
-    return socket_->send_datagram(packet.data) > 0;
+	int i = 0;
+	while(i++ < 5) {
+		auto s = socket_->send_datagram(packet.data);
+		if (s == packet.data.size()) {
+			return true;
+		}
+	}
+	log[log::error] << "Failed to send packet with " << packet.data.size() <<" bytes";
+	return false;
 }
 
 bool SimpleH265RtpSender::set_param(const core::Parameter& param)
