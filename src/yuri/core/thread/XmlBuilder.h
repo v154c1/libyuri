@@ -28,7 +28,7 @@ public:
 	EXPORT static Parameters configure();
 	IOTHREAD_GENERATOR_DECLARATION
 	EXPORT XmlBuilder(const log::Log& log_, pwThreadBase parent, const Parameters& parameters);
-	EXPORT XmlBuilder(const log::Log& log_, pwThreadBase parent, const std::string& filename, const std::vector<std::string>& argv, bool parse_only = false);
+	EXPORT XmlBuilder(const log::Log& log_, pwThreadBase parent, const std::string& filename, const std::vector<std::string>& argv, bool parse_only = false, std::string xml_text = {});
 	EXPORT ~XmlBuilder() noexcept;
 
 	EXPORT const std::string& get_app_name();

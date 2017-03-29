@@ -77,7 +77,9 @@ load_value(TiXmlElement* element, const std::string& name, T& value, const U& de
 }
 struct XmlBuilder::builder_pimpl_t{
 	builder_pimpl_t(log::Log& log_, XmlBuilder& builder):log(log_),builder(builder){}
-	void load_file(const std::string&);
+	void load_xml_file(const std::string&);
+	void load_xml_text(const std::string&);
+	void process_document();
 
 	void process_modules();
 	void process_module_dirs();
@@ -121,11 +123,26 @@ struct XmlBuilder::builder_pimpl_t{
 #define VALID(x,msg) if (!(x)) { log[log::error] << msg; throw exception::InitializationFailed(msg); }
 #define VALID_XML(x) VALID(x,"Invalid XML")
 
-void XmlBuilder::builder_pimpl_t::load_file(const std::string& file)
+void XmlBuilder::builder_pimpl_t::load_xml_file(const std::string& file)
 {
 
 	doc.reset(new TiXmlDocument());
 	VALID(doc->LoadFile(file),"Failed to load file " + file);
+	process_document();
+}
+
+void XmlBuilder::builder_pimpl_t::load_xml_text(const std::string& text)
+{
+
+	doc.reset(new TiXmlDocument());
+//	VALID(doc->LoadFile(file),"Failed to load file " + file);
+	doc->Parse(text.c_str(), 0, TIXML_ENCODING_UTF8);
+	process_document();
+}
+
+
+void XmlBuilder::builder_pimpl_t::process_document()
+{
 	root = doc->RootElement();
 	VALID_XML(root)
 	load_value(root, name_attrib, name, "yuri2.8");
@@ -369,7 +386,7 @@ XmlBuilder::XmlBuilder(const log::Log& log_, pwThreadBase parent, const Paramete
 	pimpl_.reset(new builder_pimpl_t(log,*this));
 	set_latency(10_ms);
 //	pimpl_->load_file(filename_);
-	pimpl_->load_file(parameters["filename"].get<std::string>());
+	pimpl_->load_xml_file(parameters["filename"].get<std::string>());
 
 	pimpl_->process_modules();
 	pimpl_->process_module_dirs();
@@ -393,14 +410,19 @@ XmlBuilder::XmlBuilder(const log::Log& log_, pwThreadBase parent, const Paramete
 	set_graph(pimpl_->nodes, pimpl_->links, pimpl_->routing);
 
 }
-XmlBuilder::XmlBuilder(const log::Log& log_, pwThreadBase parent, const std::string& filename, const std::vector<std::string>& argv, bool parse_only)
+XmlBuilder::XmlBuilder(const log::Log& log_, pwThreadBase parent, const std::string& filename, const std::vector<std::string>& argv, bool parse_only, std::string xml_text)
 :GenericBuilder(log_,parent,"XmlBuilder")
 {
 	pimpl_.reset(new builder_pimpl_t(log, *this));
 	set_latency(10_ms);
 	try {
-		filename_ = filename;
-		pimpl_->load_file(filename_);
+		if (!xml_text.empty()) {
+			filename_ = "none";
+			pimpl_->load_xml_text(xml_text);
+		} else {
+			filename_ = filename;
+			pimpl_->load_xml_file(filename_);
+		}
 		pimpl_->process_modules();
 		pimpl_->process_module_dirs();
 		pimpl_->process_argv(argv);
