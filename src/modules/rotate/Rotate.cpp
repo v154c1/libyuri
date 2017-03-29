@@ -58,10 +58,6 @@ core::pRawVideoFrame rotate(const core::pRawVideoFrame& frame, size_t angle) {
 				const size_t new_x = height-y-1;
 				const size_t new_y = x;
 				const size_t pos = 3*(new_y*height+new_x);
-				if(pos>=PLANE_SIZE(output,0)) {
-					std::cerr<<"Pos out of range! " << pos << " instead of " << PLANE_SIZE(output,0) <<
-							"x: " << x << ", y: " << y << ", new_x: " << new_x << ", new_y: " << new_y <<"\n";
-				}
 				std::copy(src,src+3,&dest[pos]);
 				src+=3;
 			}
