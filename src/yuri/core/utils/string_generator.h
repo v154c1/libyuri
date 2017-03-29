@@ -26,6 +26,7 @@ namespace utils {
  * 	%F - frame type (long)
  * 	%T - timestamp at the time of dump
  * 	%r - resolution of video frame
+ * 	%z - size of frame in bytes
  * 	%m - (*) milliseconds since start (from frame timestamp)
  * 	%M - (*) microseconds since start (from frame timestamp)
  * 	%o - (*) seconds since start (from frame timestamp)

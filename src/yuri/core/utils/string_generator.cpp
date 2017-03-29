@@ -48,7 +48,7 @@ bool is_extended_generator_supported()
 
 namespace {
 
-const boost::regex specifier_pattern ("%(0?\\d+[simMoeEcd]|[simMoeEcdntfFTrHDSOv%]|0?\\d?[lq][YMdDhHmstTx])");
+const boost::regex specifier_pattern ("%(0?\\d+[simMoeEcdz]|[simMoeEcdntfFTrHDSOv%]|0?\\d?[lq][YMdDhHmstTx])");
 
 template<class S1, class S2>
 std::string to_s(const std::pair<S1, S2>& p)
@@ -194,6 +194,7 @@ std::pair<bool, bool> analyze_string_specifiers(const std::string& pattern)
 				case 'M':
 				case 'o':
 				case 'r':
+				case 'z':
 					seq_spec = true;
 					break;
 				default:
@@ -305,6 +306,10 @@ std::string generate_string(const std::string& pattern, index_t sequence, const 
 					if (auto f = std::dynamic_pointer_cast<core::VideoFrame>(frame))
 						ss << f->get_resolution();
 					break;
+				case 'z':
+					if (frame)
+						ss << parse_and_replace(to_s(what[0]), frame->get_size());
+					break;
 				case '%':
 					ss << "%";
 					break;
@@ -328,6 +333,7 @@ const std::vector<string_generator_placeholder_info_t> specifier_list = {
 		{"F",	"frame type (long)", false},
 		{"T",	"timestamp at the time of dump", false},
 		{"r",	"resolution of video frame", false},
+		{"z",	"size of frame in bytes", true},
 		{"m",	"milliseconds since start (from frame timestamp)", true},
 		{"M",	"microseconds since start (from frame timestamp)", true},
 		{"o",	"seconds since start (from frame timestamp)", true},
