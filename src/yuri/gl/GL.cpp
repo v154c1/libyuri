@@ -189,22 +189,16 @@ void GL::generate_texture(index_t tid, const core::pFrame& gframe, bool flip_x, 
 
 	textures[tid].flip_x = flip_x;
 	textures[tid].flip_y = flip_y;
-	GLdouble &tx = textures[tid].tx;
-	GLdouble &ty = textures[tid].ty;
-	const resolution_t res = frame->get_resolution();
+	auto &tx = textures[tid].tx;
+	auto &ty = textures[tid].ty;
+
 	const yuri::size_t w = res.width;
 	const yuri::size_t h = res.height;
 
-	// TODO: This needs clean up!
-	yuri::size_t wh = w > h ? w : h;
-	for (yuri::size_t j = 128; j < 9000; j *= 2) {
-		if (wh <= j) {
-			wh = j;
-			break;
-		}
-	}
-	tx = static_cast<float>(w) / static_cast<float>(wh);
-	ty = static_cast<float>(h) / static_cast<float>(wh);
+	const auto tex_res = resolution_t{next_power_2(w), next_power_2(h)};
+
+	tx = static_cast<float>(w) / static_cast<float>(tex_res.width);
+	ty = static_cast<float>(h) / static_cast<float>(tex_res.height);
 
 
 	if (textures[tid].tid[0]==static_cast<GLuint>(-1)) {
@@ -266,9 +260,9 @@ void GL::generate_texture(index_t tid, const core::pFrame& gframe, bool flip_x, 
 			GLenum fmt_out = GL_RGB;
 			GLenum data_type = GL_UNSIGNED_BYTE;
 			std::tie(fmt_in, fmt_out, data_type) = get_rgb_format(frame_format);
-			if (wh != textures[tid].wh) {
-				prepare_texture(tid, 0, nullptr, 0, {wh, wh},fmt_out, fmt_in,false, data_type);
-				textures[tid].wh = wh;
+			if (tex_res != textures[tid].tex_res) {
+				prepare_texture(tid, 0, nullptr, 0, tex_res,fmt_out, fmt_in,false, data_type);
+				textures[tid].tex_res = tex_res;
 			}
 			prepare_texture(tid, 0, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w, h}, fmt_out, fmt_in, true, data_type);
 			fs_color_get = shaders::fs_get_rgb;
@@ -281,16 +275,16 @@ void GL::generate_texture(index_t tid, const core::pFrame& gframe, bool flip_x, 
 		case raw_format::uyvy422:
 		case raw_format::vyuy422:
 		{
-			if (wh != textures[tid].wh) {
+			if (tex_res != textures[tid].tex_res) {
 				if (frame_format==raw_format::yuv444) {
-					prepare_texture(tid, 0, nullptr, 0, {wh, wh}, GL_RGB, GL_RGB, false);
+					prepare_texture(tid, 0, nullptr, 0, tex_res, GL_RGB, GL_RGB, false);
 				} else if (frame_format==raw_format::yuva4444) {
-					prepare_texture(tid, 0, nullptr, 0, {wh, wh}, GL_RGB, GL_RGBA, false);
+					prepare_texture(tid, 0, nullptr, 0, tex_res, GL_RGB, GL_RGBA, false);
 				} else {
-					prepare_texture(tid, 0, nullptr, 0, {wh/2, wh}, GL_RGBA, GL_RGBA, false);
-					prepare_texture(tid, 1, nullptr, 0, {wh, wh}, GL_LUMINANCE8_ALPHA8, GL_LUMINANCE_ALPHA, false);
+					prepare_texture(tid, 0, nullptr, 0, {tex_res.width/2, tex_res.height}, GL_RGBA, GL_RGBA, false);
+					prepare_texture(tid, 1, nullptr, 0, tex_res, GL_LUMINANCE8_ALPHA8, GL_LUMINANCE_ALPHA, false);
 				}
-				textures[tid].wh = wh;
+				textures[tid].tex_res =tex_res;
 			}
 
 			if (frame_format ==raw_format::yuv444) {
@@ -309,11 +303,11 @@ void GL::generate_texture(index_t tid, const core::pFrame& gframe, bool flip_x, 
 		case raw_format::yuv411p:
 		case raw_format::yuv422p:
 		case raw_format::yuv444p:{
-			if (wh != textures[tid].wh) {
+			if (tex_res != textures[tid].tex_res) {
 				for (int i=0;i<3;++i) {
-					prepare_texture(tid,i,nullptr, 0, {wh/fi.planes[i].sub_x, wh/fi.planes[i].sub_y} ,GL_LUMINANCE8,GL_LUMINANCE,false);
+					prepare_texture(tid,i,nullptr, 0, {tex_res.width/fi.planes[i].sub_x, tex_res.height/fi.planes[i].sub_y} ,GL_LUMINANCE8,GL_LUMINANCE,false);
 				}
-				textures[tid].wh = wh;
+				textures[tid].tex_res = tex_res;
 			}
 			for (int i=0;i<3;++i) {
 				prepare_texture(tid,i,PLANE_RAW_DATA(frame,i), PLANE_SIZE(frame,i),{w/fi.planes[i].sub_x,

@@ -44,12 +44,15 @@ struct texture_info_t {
 	format_t format;
 	GLint texture_units[8];
 	GLint uniform_tx, uniform_ty, uniform_dx, uniform_dy, uniform_flip_x, uniform_flip_y;
-	size_t wh;
+	resolution_t tex_res;
 	projection_t projection_type;
 	GLuint pbo[8];
 	bool pbo_valid[8];
 	texture_info_t():tx(0.0f),ty(0.0f),dx(0.0), dy(0.0), flip_x(false),
-			flip_y(false),keep_aspect(false),format(0),wh(0),
+			flip_y(false),keep_aspect(false),format(0),
+			uniform_tx{0},uniform_ty{0},uniform_dx{0},uniform_dy{0},
+			uniform_flip_x{0},uniform_flip_y{0},
+			tex_res{0,0},
 			projection_type(projection_t::perspective) {
 		for (int i=0;i<8;++i) {
 			tid[i]=static_cast<GLuint>(-1);
