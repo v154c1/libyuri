@@ -142,6 +142,18 @@ T clip_value(T value, T2 min_value, T2 max_value)
 	return std::min<T>(std::max<T>(value, min_value), max_value);
 }
 
+template<typename T>
+typename std::enable_if<std::is_integral<T>::value, T>::type
+next_power_2(T value)
+{
+	if (value < 1) return 1;
+	--value;
+	for (auto i = 0; i < std::numeric_limits<T>::digits; ++i) {
+		value |= value >> i;
+	}
+	return ++value;
+}
+
 template<class T>
 class SingletonBase: public T {
 public:
