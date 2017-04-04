@@ -16,6 +16,7 @@ add_executable(yuri_test_suite  test_base.cpp
 								test_color.cpp
 								test_any.cpp
 								test_utf8.cpp
+								test_utils.cpp
 								
 								test_state_table.cpp
 								)
