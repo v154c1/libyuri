@@ -48,7 +48,7 @@ bool is_extended_generator_supported()
 
 namespace {
 
-const boost::regex specifier_pattern ("%(0?\\d+[simMoeEcdz]|[simMoeEcdntfFTrHDSOv%]|0?\\d?[lq][YMdDhHmstTx])");
+const boost::regex specifier_pattern ("%(0?\\d+[simMoeEcdz]|[simMoeEcdzntfFTrHDSOv%]|0?\\d?[lq][YMdDhHmstTx])");
 
 template<class S1, class S2>
 std::string to_s(const std::pair<S1, S2>& p)
