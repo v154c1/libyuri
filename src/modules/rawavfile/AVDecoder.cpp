@@ -11,6 +11,7 @@
 #include "yuri/core/Module.h"
 #include "yuri/libav/libav.h"
 #include "yuri/core/frame/RawVideoFrame.h"
+#include "yuri/core/frame/compressed_frame_types.h"
 
 namespace yuri {
 namespace avdecoder {
@@ -82,6 +83,11 @@ bool AVDecoder::reset_decoder(const core::pCompressedVideoFrame& frame)
     if (codec_->capabilities & CODEC_CAP_SLICE_THREADS) {
         ctx_->thread_type  = thread_type_ == thread_type_t::slice ? FF_THREAD_SLICE : FF_THREAD_FRAME;
         ctx_->thread_count = threads_;
+    }
+    if (format == core::compressed_frame::avc1) {
+    	ctx_->codec_tag = ('1'<<24) + ('C'<<16) + ('V'<<8) + 'A';
+    	libav::set_opt(ctx_->priv_data, "is_avc", 1);
+    	libav::set_opt(ctx_->priv_data, "nal_length_size", 4);
     }
     if (avcodec_open2(ctx_, codec_, 0) < 0) {
         log[log::error] << "Failed to open codec";
