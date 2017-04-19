@@ -69,6 +69,25 @@ get_opt(void* obj, const char* name, int flags = 0)
 	return val;
 }
 
+template<typename T>
+typename std::enable_if<std::is_integral<T>::value, bool>::type
+set_opt(void* obj, const char* name, T&& value, int flags = 0)
+{
+	if (!obj || av_opt_set_int(obj, name, static_cast<int64_t>(value), flags) < 0) {
+		return false;
+	}
+	return true;
+}
+template<typename T>
+typename std::enable_if<std::is_floating_point<T>::value, bool>::type
+set_opt(void* obj, const char* name, T&& value, int flags = 0)
+{
+	if (!obj || av_opt_set_double(obj, name, static_cast<double>(value), flags) < 0) {
+		return false;
+	}
+	return true;
+}
+
 }
 }
 
