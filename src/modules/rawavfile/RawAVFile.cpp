@@ -24,10 +24,9 @@
 #include <cassert>
 #include "libavcodec/version.h"
 #include "yuri/event/EventHelpers.h"
-
+#include "h264_helper.h"
 extern "C" {
 #include <libswresample/swresample.h>
-#include "libavutil/opt.h"
 }
 
 namespace yuri {
@@ -81,6 +80,7 @@ struct RawAVFile::stream_detail_t {
 core::Parameters RawAVFile::configure()
 {
     core::Parameters p                                                                             = IOThread::configure();
+    p.set_description("rawavsource reads video files using ffmpeg. It can decode the video or output the encoded frames.");
     p["block"]["Threat output pipes as blocking. Specify as max number of frames in output pipe."] = 0;
     p["filename"]["File to open"]                                                                  = "";
     p["decode"]["Decode the stream and push out raw video"]                                        = true;
@@ -94,6 +94,10 @@ core::Parameters RawAVFile::configure()
     p["enable_experimental"]["Enable experimental codecs"]                                         = true;
     p["ignore_timestamps"]["Ignore fps (similar to fps < 0), switchable at runtime"]               = false;
     p["audio_sample_rate"]["Force audio sample rate (0 for original)"]                             = 0;
+    p["emit_params_interval"]["Interval to resend SPS and PPS for h264 undecoded stream."
+							  "Set to 0 to emit only once at the beginning, "
+							  "negative values disables emiting completely."] = 1;
+	p["separate_extra_data"]["Send extradata for h264 (SPS, PPS) as separate frames instead of prepending them to IDR frames"]=false;
     return p;
 }
 
@@ -113,7 +117,9 @@ RawAVFile::RawAVFile(const log::Log& _log, core::pwThreadBase parent, const core
       allow_empty_(false),
       enable_experimental_(true),
       ignore_timestamps_(false),
-      paused_(false)
+	  emit_params_interval_{1},
+	  last_params_emitted_{-1},
+	  paused_(false)
 {
     IOTHREAD_INIT(parameters)
     set_latency(10_us);
@@ -194,9 +200,11 @@ bool RawAVFile::open_file(const std::string& filename)
     }
 
     frames_.resize(video_streams_.size());
-    if (!decode_) {
-        for (size_t i = 0; i < video_streams_.size(); ++i) {
-            video_streams_[i].format = libav::yuri_format_from_avcodec(video_streams_[i].ctx->codec_id);
+    for (size_t i = 0; i < video_streams_.size(); ++i) {
+	    video_streams_[i].format     = libav::yuri_format_from_avcodec(video_streams_[i].ctx->codec_id);
+	    // We have to initialize decoder for h264 even if decode ==false in order to distinguish h264 and avc1 later
+    	if (!decode_ && video_streams_[i].format != core::compressed_frame::h264) {
+
             if (video_streams_[i].format == 0) {
                 log[log::error] << "Unknown format for video stream " << i;
                 return false;
@@ -205,9 +213,8 @@ bool RawAVFile::open_file(const std::string& filename)
                 = resolution_t{ static_cast<dimension_t>(video_streams_[i].ctx->width), static_cast<dimension_t>(video_streams_[i].ctx->height) };
             log[log::info] << "Found video stream with format " << get_format_name_no_throw(video_streams_[i].format) << " and resolution "
                            << video_streams_[i].ctx->width << "x" << video_streams_[i].ctx->height;
-        }
-    } else {
-        for (size_t i = 0; i < video_streams_.size(); ++i) {
+
+    	} else {
             video_streams_[i].codec = avcodec_find_decoder(video_streams_[i].ctx->codec_id);
             if (!video_streams_[i].codec) {
                 log[log::error] << "Failed to find decoder for video stream " << i;
@@ -223,7 +230,7 @@ bool RawAVFile::open_file(const std::string& filename)
                 log[log::error] << "Failed to open codec for video stream " << i;
                 return false;
             }
-            video_streams_[i].format     = libav::yuri_format_from_avcodec(video_streams_[i].ctx->codec_id);
+
             video_streams_[i].format_out = libav::yuri_pixelformat_from_av(video_streams_[i].ctx->pix_fmt);
             video_streams_[i].resolution
                 = resolution_t{ static_cast<dimension_t>(video_streams_[i].ctx->width), static_cast<dimension_t>(video_streams_[i].ctx->height) };
@@ -231,6 +238,8 @@ bool RawAVFile::open_file(const std::string& filename)
             log[log::info] << "Found video stream with format " << get_format_name_no_throw(video_streams_[i].format) << " and resolution "
                            << video_streams_[i].resolution << ". Decoding to " << get_format_name_no_throw(video_streams_[i].format_out);
         }
+	}
+	if (decode_) {
         for (size_t i = 0; i < audio_streams_.size(); ++i) {
             audio_streams_[i].codec = avcodec_find_decoder(audio_streams_[i].ctx->codec_id);
             if (!audio_streams_[i].codec) {
@@ -315,11 +324,13 @@ bool RawAVFile::process_file_end()
         if (next_filename_.empty() && fmtctx_) {
             log[log::debug] << "Seeking to the beginning";
             av_seek_frame(fmtctx_, 0, 0, AVSEEK_FLAG_BACKWARD);
-            for (auto& s : video_streams_) {
-                avcodec_flush_buffers(s.ctx);
-            }
-            for (auto& s : audio_streams_) {
-                avcodec_flush_buffers(s.ctx);
+            if (decode_) {
+            	for (auto& s : video_streams_) {
+            		avcodec_flush_buffers(s.ctx);
+				}
+				for (auto& s : audio_streams_) {
+					avcodec_flush_buffers(s.ctx);
+				}
             }
         } else {
             log[log::info] << "Opening: " << next_filename_;
@@ -336,8 +347,61 @@ bool RawAVFile::process_file_end()
 
 bool RawAVFile::process_undecoded_frame(index_t idx, const AVPacket& packet)
 {
-    core::pCompressedVideoFrame f
-        = core::CompressedVideoFrame::create_empty(video_streams_[idx].format, video_streams_[idx].resolution, packet.data, packet.size);
+	format_t format = video_streams_[idx].format;
+	int nal_length_size = 4;
+	// Our AVC1 supports only 4 byte prefix. If the stream has different prefix length, we need to pad it with zeros)
+	// extra_bytes should contain number of padding bytes.
+	size_t extra_bytes = 0;
+	// libav wrapper can not distinguish between h264 and avc1. So we have to do it manually
+	if (format == core::compressed_frame::h264) {
+		if (libav::get_opt<bool>(video_streams_[idx].ctx->priv_data, "is_avc")) {
+			format = core::compressed_frame::avc1;
+			nal_length_size = libav::get_opt<int>(video_streams_[idx].ctx->priv_data, "nal_length_size");
+			if (nal_length_size > 4 || nal_length_size < 0) {
+				log[log::warning] << "Received invalid nal_length_size: " << nal_length_size << ", ignoring frame";
+				return false;
+			}
+			extra_bytes = 4 - nal_length_size;
+		}
+	}
+	size_t sps_pps_len = 0;
+
+	if (format == core::compressed_frame::h264 || format == core::compressed_frame::avc1) {
+		const auto type = packet.data[nal_length_size]&0x1f;
+		// We emit extra data only for IDR frames when !separate_extra_data
+		const bool frame_usable_for_extradata = separate_extra_data_ || type == 5;
+
+		if (frame_usable_for_extradata && ((last_params_emitted_ < 0)
+				|| (emit_params_interval_ > 0 && (++last_params_emitted_ == emit_params_interval_)))) {
+			if (separate_extra_data_) {
+				// find sps and pps and emit it as two separate frames
+				emit_extradata(idx, format);
+				last_params_emitted_ = 0;
+			} else {
+				// Reserve space for extradata
+				sps_pps_len = h264::h264_extradata_size(video_streams_[idx].ctx->extradata);
+				last_params_emitted_ = 0;
+				log[log::info] << "Prepending extra data!";
+			}
+		}
+	}
+
+    core::pCompressedVideoFrame f;
+    if ((extra_bytes + sps_pps_len) == 0) {
+        f = core::CompressedVideoFrame::create_empty(format, video_streams_[idx].resolution, packet.data, packet.size);
+	} else {
+		f = core::CompressedVideoFrame::create_empty(format, video_streams_[idx].resolution, packet.size + extra_bytes + sps_pps_len);
+		if (sps_pps_len > 0) {
+			h264::h264_fill_extradata(video_streams_[idx].ctx->extradata, f);
+		}
+		auto data_start = f->get_data().begin() + sps_pps_len;
+		if (extra_bytes > 0) {
+			std::fill(data_start, data_start + extra_bytes, 0);
+		}
+		std::copy(packet.data, packet.data + packet.size, data_start + extra_bytes);
+	}
+
+
     frames_[idx] = f;
     log[log::debug] << "Pushing packet with size: " << f->size();
     duration_t dur = 1_s * packet.duration * video_streams_[idx].stream->avg_frame_rate.den / video_streams_[idx].stream->avg_frame_rate.num;
@@ -349,6 +413,16 @@ bool RawAVFile::process_undecoded_frame(index_t idx, const AVPacket& packet)
     log[log::debug] << "num/den:" << video_streams_[idx].stream->avg_frame_rate.num << "/" << video_streams_[idx].stream->avg_frame_rate.den;
     log[log::debug] << "orig pts: " << packet.pts << ", dts: " << packet.dts << ", dur: " << packet.duration;
     return true;
+}
+
+bool RawAVFile::emit_extradata(index_t idx, format_t format)
+{
+	const auto d = video_streams_[idx].ctx->extradata;
+	auto fs = h264::get_extradata_frames(d, format, video_streams_[idx].resolution);
+	for (auto& f: fs) {
+		push_frame(idx, std::move(f));
+	}
+	return true;
 }
 
 /*
@@ -564,7 +638,10 @@ bool RawAVFile::set_param(const core::Parameter& parameter)
         (allow_empty_, "allow_empty")                                             //
         (enable_experimental_, "enable_experimental")                             //
         (ignore_timestamps_, "ignore_timestamps")                                 //
-        (audio_sample_rate_, "audio_sample_rate"))
+        (audio_sample_rate_, "audio_sample_rate")//
+		(emit_params_interval_, "emit_params_interval")//
+		(separate_extra_data_, "separate_extra_data")//
+    	)
         return true;
     return IOThread::set_param(parameter);
 }

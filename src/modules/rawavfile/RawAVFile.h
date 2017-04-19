@@ -45,6 +45,8 @@ private:
     bool process_undecoded_frame(index_t idx, const AVPacket& packet);
     bool decode_video_frame(index_t idx, AVPacket& packet, AVFrame* av_frame, bool& keep_packet);
     bool decode_audio_frame(index_t idx, const AVPacket& packet, AVFrame* av_frame, bool& keep_packet);
+
+    bool emit_extradata(index_t idx, format_t format);
     void jump_times(const duration_t& delta);
     core::utils::managed_resource<AVFormatContext> fmtctx_;
 
@@ -70,7 +72,9 @@ private:
     bool allow_empty_;
     bool enable_experimental_;
     bool ignore_timestamps_;
-
+    int  emit_params_interval_;
+    int last_params_emitted_;
+    bool separate_extra_data_;
     bool        paused_;
     timestamp_t pause_start_;
 };
