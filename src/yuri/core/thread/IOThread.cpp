@@ -38,7 +38,6 @@ IOThread::IOThread(const log::Log &log_,pwThreadBase parent, position_t inp, pos
 
 {
 	TRACE_METHOD
-	//params.merge(*configure());
 	log.set_label(get_node_name());
 	resize(inp,outp);
 }
@@ -52,7 +51,6 @@ IOThread::~IOThread() noexcept
 void IOThread::run()
 {
 	TRACE_METHOD
-//	IO_THREAD_PRE_RUN
 	try {
 		while (still_running()) {
 			if (!active_pipes_ /*&& in_ports_ */) {
@@ -61,7 +59,7 @@ void IOThread::run()
 			if (in_ports_ && !pipes_data_available()) {
 				wait_for(latency_);
 			}
-			log[log::verbose_debug] << "Stepping";
+//			log[log::verbose_debug] << "Stepping";
 			if (!step()) break;
 		}
 	}
@@ -70,8 +68,8 @@ void IOThread::run()
 	}
 
 	close_pipes();
-//	IO_THREAD_POST_RUN
 }
+
 // Dummy IOThread::step(), so inherited classes don't have to override it if not needed.
 bool IOThread::step()
 {
@@ -181,7 +179,7 @@ void IOThread::resize(position_t inp, position_t outp)
 	log[log::debug] << "Resizing to " << inp << " input ports and " << outp << " output ports.";
 	if (inp >= 0) in_ports_	= inp;
 	if (outp>= 0) out_ports_= outp;
-//	PipeConnector pc(dynamic_pointer_cast<PipeNotifiable>(get_this_ptr()));
+
 	in_.resize(in_ports_);
 	out_.resize(out_ports_);
 	streamed_frames_.resize(out_ports_,0);
@@ -214,55 +212,7 @@ bool IOThread::pipes_data_available()
 	return false;
 }
 
-/*pBasicFrame IOThread::timestamp_frame(pBasicFrame frame)
-{
-#ifndef YURI_USE_CXX11
-	if (pts_base==boost::posix_time::not_a_date_time) pts_base=boost::posix_time::microsec_clock::local_time();
-	boost::posix_time::time_duration pts = boost::posix_time::microsec_clock::local_time() - pts_base;
-	frame->set_time(pts.total_microseconds(),frame->get_dts(),frame->get_duration());
-#else
-	if (pts_base.time_since_epoch() == time_duration::zero()) {
-		pts_base = std::chrono::steady_clock::now();
-	}
-	time_duration pts = std::chrono::steady_clock::now() - pts_base;
-	frame->set_time(std::chrono::duration_cast<std::chrono::microseconds>(pts).count(),frame->get_dts(),frame->get_duration());
-#endif
-	return frame;
-}
-// TODO Stub, not implemented!!!!!!
-//pBasicFrame IOThread::get_frame_as(yuri::sint_t index, yuri::format_t format)
-//{
-//	pBasicFrame frame;
-//	if (index>=in_ports_ || !in_[index] || in_[index]->is_empty()) return frame;
-//	if (format == YURI_FMT_NONE) return in_[index]->pop_frame();
-//
-//	return pBasicFrame();
-//}
- * */
 
-//void IOThread::set_affinity(yuri::ssize_t affinity)
-//{
-//	cpu_affinity = affinity;
-//}
- /*
-bool IOThread::set_params(Parameters &parameters)
-{
-#ifndef YURI_USE_CXX11
-	std::pair<std::string,shared_ptr<Parameter> > par;
-	BOOST_FOREACH(par,(parameters.params)) {
-#else
-	for(auto& par: parameters.params) {
-#endif
-		if (par.second && !set_param(*(par.second))) return false;
-	}
-	return true;
-}*/
-/* Sets one parameter.
- *
- * @param:  parameter - parameter to set
- * @return false on error (like value can't be set) and true otherwise (even for unknown parameter)
- *
- */
 bool IOThread::set_param(const Parameter &parameter)
 {
 	if (assign_parameters(parameter)
@@ -270,56 +220,6 @@ bool IOThread::set_param(const Parameter &parameter)
 		return true;
 	return ThreadBase::set_param(parameter);
 }
-
-/*
-pBasicFrame IOThread::allocate_empty_frame(yuri::format_t format, yuri::size_t width, yuri::size_t height, bool large)
-{
-	pBasicFrame pic;
-	FormatInfo_t fmt = BasicPipe::get_format_info(format);
-	assert(fmt->planes && !fmt->compressed); // Just to make sure the format is valid
-	pic.reset(new BasicFrame(fmt->planes));
-	yuri::size_t bpplane = fmt->bpp;
-	for (yuri::size_t i = 0; i < fmt->planes; ++i) {
-		if (fmt->planes>1) bpplane = fmt->component_depths[i];
-		yuri::size_t planesize = width * height * bpplane / fmt->plane_x_subs[i] / fmt->plane_y_subs[i] / 8;
-		if (!large) {
-			pic->get_plane(i).resize(planesize);
-		} else {
-			FixedMemoryAllocator::memory_block_t block = FixedMemoryAllocator::get_block(planesize);
-			assert(block.first);
-			//std::copy(mem,mem+size,&block.first[0]);
-			pic->get_plane(i).set(block.first,planesize,block.second);
-		}
-		pic->get_plane(i).resize(planesize);
-	}
-	pic->set_parameters(format,width,height);
-	return pic;
-}
-pBasicFrame IOThread::allocate_empty_frame(size_t size, bool large)
-{
-	pBasicFrame frame = yuri::make_shared<BasicFrame>(1);
-	if (!large) {
-		frame->get_plane(0).resize(size);
-	} else {
-		FixedMemoryAllocator::memory_block_t block = FixedMemoryAllocator::get_block(size);
-		assert(block.first);
-		frame->get_plane(0).set(block.first,size,block.second);
-	}
-	return frame;
-}
-
-bool IOThread::connect_threads(shared_ptr<BasicIOThread> src, yuri::sint_t s_idx, shared_ptr<BasicIOThread> target, yuri::sint_t t_idx, Log &log,std::string name, shared_ptr<Parameters> params)
-{
-	shared_ptr<Parameters> p = BasicPipe::configure();
-	if (params) p->merge(*params);
-	shared_ptr<BasicPipe> pipe = BasicPipe::generator(log,name,*p);
-	target->connect_in(s_idx,pipe);
-	src->connect_out(t_idx,pipe);
-	return true;
-}
-
-*/
-
 
 }
 }
