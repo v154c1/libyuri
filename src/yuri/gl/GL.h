@@ -26,7 +26,6 @@
 namespace yuri {
 
 namespace gl {
-//typedef yuri::shared_ptr<class WindowBase> pWindowBase;
 
 enum class projection_t {
 	none,
@@ -34,26 +33,63 @@ enum class projection_t {
 //	quadlinerar
 };
 
+
+/*!
+ * Texture info.
+ *
+ */
+
 struct texture_info_t {
+	/// yuri format used for the texture
+	format_t format;
+
+	/// texture resolution (allocated texture on GPU)
+	resolution_t tex_res;
+
+	/// type of projection (unused?)
+	projection_t projection_type;
+
+	/// up to 8 allocated OpenGL textures. Unallocated slots are set to (GLuint)(-1)
 	GLuint tid[8];
-	GLdouble tx, ty, dx, dy;
+
+	/// flip the texture during rendering along X or Y axis.
 	bool flip_x, flip_y;
+
+	/// Keep aspect ration when rendering (unused?)
 	bool keep_aspect;
+
+	/// Offset of the image in either axis. (i.e. set to dx=0.1, to display skip first 10% of the image)
+	GLdouble dx, dy;
+
+	/// 2 points defining a rectangle in the image to be rendered. should be in <0.0, 1.0>
+	GLdouble tx0, tx1, ty0, ty1;
+
+	/// Instance of shader used to render this texture
 	std::shared_ptr<GLProgram> shader;
 
-	format_t format;
+	/// Uniform addresses for texture units
 	GLint texture_units[8];
-	GLint uniform_tx, uniform_ty, uniform_dx, uniform_dy, uniform_flip_x, uniform_flip_y;
-	resolution_t tex_res;
-	projection_t projection_type;
+
+	/// Uniform addresses of other parameters
+	GLint uniform_tx0,/* uniform_tx1, */uniform_ty0, /*uniform_ty1, */ uniform_tw, uniform_th;//, /* uniform_dx, uniform_dy, */ uniform_flip_x, uniform_flip_y;
+
+	/// Allocated PBOs for asynchronous operations
 	GLuint pbo[8];
+
+	/// FLags for each PBO to determine whether is valid
 	bool pbo_valid[8];
-	texture_info_t():tx(0.0f),ty(0.0f),dx(0.0), dy(0.0), flip_x(false),
-			flip_y(false),keep_aspect(false),format(0),
-			uniform_tx{0},uniform_ty{0},uniform_dx{0},uniform_dy{0},
-			uniform_flip_x{0},uniform_flip_y{0},
-			tex_res{0,0},
-			projection_type(projection_t::perspective) {
+
+	texture_info_t():
+		format{0},
+		tex_res{0, 0},
+		projection_type{projection_t::perspective},
+		flip_x{false}, flip_y{false},keep_aspect{false},
+		dx{0.0}, dy{0.0},
+		tx0{0.0}, tx1{1.0}, ty0{0.0}, ty1{1.0},
+		uniform_tx0{-1},
+		uniform_ty0{-1},
+		uniform_tw{-1},uniform_th{-1}
+			 {
 		for (int i=0;i<8;++i) {
 			tid[i]=static_cast<GLuint>(-1);
 			pbo[i]=static_cast<GLuint>(-1);
@@ -61,6 +97,10 @@ struct texture_info_t {
 			texture_units[i]=-1;
 		}
 	}
+
+	 /*!
+	  * Loads addresses of texture samplers ans uniforms
+	  */
 	void load_texture_units(){
 		char n[]="texX\0x00";
 		for (int i=0;i<8;++i) {
@@ -68,27 +108,36 @@ struct texture_info_t {
 			std::string name = std::string(n);
 			texture_units[i]=shader->get_uniform(name);
 		}
-		uniform_dx = shader->get_uniform("dx");
-		uniform_dy = shader->get_uniform("dy");
-		uniform_tx = shader->get_uniform("tx");
-		uniform_ty = shader->get_uniform("ty");
-		uniform_flip_x = shader->get_uniform("flip_x");
-		uniform_flip_y = shader->get_uniform("flip_y");
+		uniform_tx0 = shader->get_uniform("tx0");
+		uniform_ty0 = shader->get_uniform("ty0");
+		uniform_tw  = shader->get_uniform("tw");
+		uniform_th  = shader->get_uniform("th");
+
 	}
 	void bind_texture_units() {
 		for (int i=0;i<8;++i) {
 			if (texture_units[i]<0) continue;
 			glActiveTexture(GL_TEXTURE0+i);
 			glBindTexture(GL_TEXTURE_2D,tid[i]);
-			//std::cerr << "setting uniform " << texture_units[i] << " to " << i << endl;
 			shader->set_uniform_sampler(texture_units[i],i);
 		}
-		shader->set_uniform_float(uniform_dx, dx>0?dx*tx:0);
-		shader->set_uniform_float(uniform_dy, dy>0?dy*ty:0);
-		shader->set_uniform_float(uniform_tx, tx * (1.0 - std::fabs(dx)));
-		shader->set_uniform_float(uniform_ty, ty * (1.0 - std::fabs(dy)));
-		shader->set_uniform_int(uniform_flip_x, flip_x);
-		shader->set_uniform_int(uniform_flip_y, flip_y);
+
+		const auto width_full = tx1 - tx0;
+		const auto height_full  = ty1 - ty0;
+		const auto width_offset = width_full * std::abs(dx);
+		const auto height_offset = height_full * std::abs(dy);
+		const auto width = width_full - width_offset;
+		const auto height = height_full - height_offset;
+
+		const auto left = dx > 0.0?tx0+width_offset:tx0;
+		const auto right = left + width;
+		const auto bottom = dy > 0.0?ty0+height_offset:ty0;
+		const auto top = bottom + height;
+
+		shader->set_uniform_float(uniform_tx0, flip_x?right:left);
+		shader->set_uniform_float(uniform_ty0, flip_y?top:bottom);
+		shader->set_uniform_float(uniform_tw, flip_x?-width:width);
+		shader->set_uniform_float(uniform_th, flip_y?-height:height);
 	}
 
 	inline void gen_texture(int id) {
@@ -133,8 +182,10 @@ public:
 	GL(log::Log &log_);
 	virtual ~GL() noexcept;
 	std::map<uint,texture_info_t> textures;
-	void generate_texture(index_t tid, const core::pFrame& frame, bool flip_x = false, bool flip_y = false);
+	void generate_texture(index_t tid, const core::pFrame& gframe, bool flip_x = false, bool flip_y = false);
+	void generate_texture(index_t tid, const format_t frame_format, const resolution_t res, const core::pFrame& gframe, bool flip_x = false, bool flip_y = false, bool force_pow2 = true);
 	void generate_empty_texture(index_t tid, format_t fmt, resolution_t resolution);
+	void use_remote_texture(index_t tid, GLuint name, const format_t frame_format, const resolution_t res, bool flip_x = false, bool flip_y = false, float tx0 = 0.0f, float ty0 = 0.0f, float tx1 = 1.0f, float ty1 = 1.0f);
 	void setup_ortho(GLdouble left=-1.0, GLdouble right=1.0f,
 			GLdouble bottom=-1.0, GLdouble top=1.0,
 			GLdouble near=-100.0, GLdouble far=100.0);

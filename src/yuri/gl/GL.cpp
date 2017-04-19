@@ -179,24 +179,30 @@ GL::~GL() noexcept {
 
 void GL::generate_texture(index_t tid, const core::pFrame& gframe, bool flip_x, bool flip_y)
 {
-	using namespace yuri::core;
 	core::pRawVideoFrame frame = std::dynamic_pointer_cast<RawVideoFrame>(gframe);
 	if (!frame) return;
-
 	const format_t frame_format = frame->get_format();
+	const resolution_t res = frame->get_resolution();
+	generate_texture(tid, frame_format, res, gframe, flip_x, flip_y);
+}
 
+void GL::generate_texture(index_t tid, const format_t frame_format, const resolution_t res, const core::pFrame& gframe, bool flip_x, bool flip_y, bool force_pow2)
+{
+	using namespace yuri::core;
+	core::pRawVideoFrame frame = std::dynamic_pointer_cast<RawVideoFrame>(gframe);
 	std::string fs_color_get;
 
 	textures[tid].flip_x = flip_x;
 	textures[tid].flip_y = flip_y;
-	auto &tx = textures[tid].tx;
-	auto &ty = textures[tid].ty;
+
+	auto &tx = textures[tid].tx1;
+	auto &ty = textures[tid].ty1;
 
 	const yuri::size_t w = res.width;
 	const yuri::size_t h = res.height;
 
-	const auto tex_res = resolution_t{next_power_2(w), next_power_2(h)};
-
+	const auto tex_res = resolution_t{force_pow2?next_power_2(w):w, force_pow2?next_power_2(h):h};
+//	log[log::info] << "Textuire res: " << tex_res;
 	tx = static_cast<float>(w) / static_cast<float>(tex_res.width);
 	ty = static_cast<float>(h) / static_cast<float>(tex_res.height);
 
@@ -233,7 +239,7 @@ void GL::generate_texture(index_t tid, const core::pFrame& gframe, bool flip_x, 
 	glSampleCoverage(0.1f, GL_TRUE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	const raw_format::raw_format_t& fi = raw_format::get_format_info(frame->get_format());
+	const raw_format::raw_format_t& fi = raw_format::get_format_info(frame_format);
 	switch (frame_format) {
 		case raw_format::rgb24:
 		case raw_format::rgba32:
@@ -264,7 +270,9 @@ void GL::generate_texture(index_t tid, const core::pFrame& gframe, bool flip_x, 
 				prepare_texture(tid, 0, nullptr, 0, tex_res,fmt_out, fmt_in,false, data_type);
 				textures[tid].tex_res = tex_res;
 			}
-			prepare_texture(tid, 0, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w, h}, fmt_out, fmt_in, true, data_type);
+			if (frame) {
+				prepare_texture(tid, 0, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w, h}, fmt_out, fmt_in, true, data_type);
+			}
 			fs_color_get = shaders::fs_get_rgb;
 		}break;
 
@@ -286,14 +294,15 @@ void GL::generate_texture(index_t tid, const core::pFrame& gframe, bool flip_x, 
 				}
 				textures[tid].tex_res =tex_res;
 			}
-
-			if (frame_format ==raw_format::yuv444) {
-				prepare_texture(tid, 0, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w, h},GL_RGB,GL_RGB,true);
-			} else if (frame_format ==raw_format::yuva4444) {
-				prepare_texture(tid, 0, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w, h},GL_RGBA,GL_RGBA,true);
-			} else {
-				prepare_texture(tid, 0, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w/2, h}, GL_RGBA, GL_RGBA, true);
-				prepare_texture(tid, 1, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w, h}, GL_LUMINANCE8_ALPHA8, GL_LUMINANCE_ALPHA, true);
+			if (frame) {
+				if (frame_format ==raw_format::yuv444) {
+					prepare_texture(tid, 0, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w, h},GL_RGB,GL_RGB,true);
+				} else if (frame_format ==raw_format::yuva4444) {
+					prepare_texture(tid, 0, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w, h},GL_RGBA,GL_RGBA,true);
+				} else {
+					prepare_texture(tid, 0, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w/2, h}, GL_RGBA, GL_RGBA, true);
+					prepare_texture(tid, 1, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w, h}, GL_LUMINANCE8_ALPHA8, GL_LUMINANCE_ALPHA, true);
+				}
 			}
 			fs_color_get = get_yuv_shader(frame_format);
 		}break;
@@ -309,9 +318,11 @@ void GL::generate_texture(index_t tid, const core::pFrame& gframe, bool flip_x, 
 				}
 				textures[tid].tex_res = tex_res;
 			}
-			for (int i=0;i<3;++i) {
-				prepare_texture(tid,i,PLANE_RAW_DATA(frame,i), PLANE_SIZE(frame,i),{w/fi.planes[i].sub_x,
-						h/fi.planes[i].sub_y},GL_LUMINANCE8,GL_LUMINANCE,true);
+			if (frame) {
+				for (int i=0;i<3;++i) {
+					prepare_texture(tid,i,PLANE_RAW_DATA(frame,i), PLANE_SIZE(frame,i),{w/fi.planes[i].sub_x,
+							h/fi.planes[i].sub_y},GL_LUMINANCE8,GL_LUMINANCE,true);
+				}
 			}
 			fs_color_get = shaders::fs_get_yuv_planar;
 
@@ -396,8 +407,8 @@ void GL::generate_texture(index_t tid, const core::pFrame& gframe, bool flip_x, 
 	 */
 
 	if (!fs_color_get.empty()) {
-		if (textures[tid].shader_update_needed(frame->get_format())) {
-			textures[tid].finish_update(log, frame->get_format(),
+		if (textures[tid].shader_update_needed(frame_format)) {
+			textures[tid].finish_update(log, frame_format,
 								shaders::prepare_vs(shader_version_),
 								shaders::prepare_fs(fs_color_get, transform_shader, color_map_shader, shader_version_));
 		}
@@ -411,6 +422,18 @@ void GL::generate_empty_texture(index_t tid, yuri::format_t fmt, resolution_t re
 	core::pFrame dummy = core::RawVideoFrame::create_empty(fmt,resolution);
 	generate_texture(tid,dummy);
 }
+
+void GL::use_remote_texture(index_t tid, GLuint name, const format_t frame_format, const resolution_t res, bool flip_x, bool flip_y, float tx0, float ty0, float tx1, float ty1)
+{
+	textures[tid].tid[0] = name;
+	generate_texture(tid, frame_format, res, {}, flip_x, flip_y, false);
+	textures[tid].tx0 = tx0;
+	textures[tid].tx1 = tx1;
+	textures[tid].ty0 = ty0;
+	textures[tid].ty1 = ty1;
+
+}
+
 void GL::setup_ortho(GLdouble left, GLdouble right,	GLdouble bottom,
 		GLdouble top, GLdouble near, GLdouble far)
 {
@@ -554,6 +577,8 @@ void GL::clear()
 {
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 }
+
+
 /** \brief Sets quality of yuv422 texture rendering
  *
  * When set to 0, 422 image gets upsampled to 444 and then rendered. Highest quality.
