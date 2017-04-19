@@ -37,14 +37,14 @@ private:
     virtual bool step() override;
 
     bool reset_decoder(const core::pCompressedVideoFrame& frame);
-    format_t        last_format_;
-    format_t        format_;
-    int             threads_;
-    thread_type_t   thread_type_;
+    format_t                                      last_format_;
+    format_t                                      format_;
+    int                                           threads_;
+    thread_type_t                                 thread_type_;
     core::utils::managed_resource<AVCodecContext> ctx_;
-    AVCodec*        codec_;
-    AVFrame*        avframe;
-    AVPacket        avpkt_;
+    AVCodec*                                      codec_;
+    AVFrame*                                      avframe;
+    AVPacket                                      avpkt_;
 };
 }
 }

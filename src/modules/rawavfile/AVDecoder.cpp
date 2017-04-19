@@ -20,8 +20,7 @@ IOTHREAD_GENERATOR(AVDecoder)
 
 core::Parameters AVDecoder::configure()
 {
-    core::Parameters p = base_type::configure();
-    //    p["format"]["Output format. Set to 0 for autoselect"]          = 0;
+    core::Parameters p                                             = base_type::configure();
     p["threads"]["Number of threads. Set to 0 to auto select"]     = 0;
     p["thread_type"]["Type of threaded decoding - slice or frame"] = "slice";
     return p;
@@ -29,12 +28,12 @@ core::Parameters AVDecoder::configure()
 
 AVDecoder::AVDecoder(const log::Log& _log, core::pwThreadBase parent, const core::Parameters& parameters)
     : base_type(_log, parent, 1, 1, "avdecoder"),
-	  last_format_(0),
-	  format_(0),
-	  threads_(0),
-	  thread_type_(thread_type_t::slice),
-	  ctx_(nullptr, [](AVCodecContext* ctx){avcodec_free_context(&ctx);}),
-	  codec_(nullptr)
+      last_format_(0),
+      format_(0),
+      threads_(0),
+      thread_type_(thread_type_t::slice),
+      ctx_(nullptr, [](AVCodecContext* ctx) { avcodec_free_context(&ctx); }),
+      codec_(nullptr)
 {
     libav::init_libav();
     IOTHREAD_INIT(parameters)
@@ -45,7 +44,7 @@ AVDecoder::AVDecoder(const log::Log& _log, core::pwThreadBase parent, const core
 
 AVDecoder::~AVDecoder() noexcept
 {
-	av_free_packet(&avpkt_);
+    av_free_packet(&avpkt_);
     av_frame_free(&avframe);
 }
 
@@ -85,9 +84,9 @@ bool AVDecoder::reset_decoder(const core::pCompressedVideoFrame& frame)
         ctx_->thread_count = threads_;
     }
     if (format == core::compressed_frame::avc1) {
-    	ctx_->codec_tag = ('1'<<24) + ('C'<<16) + ('V'<<8) + 'A';
-    	libav::set_opt(ctx_->priv_data, "is_avc", 1);
-    	libav::set_opt(ctx_->priv_data, "nal_length_size", 4);
+        ctx_->codec_tag = ('1' << 24) + ('C' << 16) + ('V' << 8) + 'A';
+        libav::set_opt(ctx_->priv_data, "is_avc", 1);
+        libav::set_opt(ctx_->priv_data, "nal_length_size", 4);
     }
     if (avcodec_open2(ctx_, codec_, 0) < 0) {
         log[log::error] << "Failed to open codec";
@@ -122,9 +121,7 @@ bool AVDecoder::step()
             if (!fmt) {
                 log[log::warning] << "Frame decoded into an unsupported format";
             } else {
-
                 auto out_frame = libav::yuri_frame_from_av(*avframe);
-
                 push_frame(0, std::move(out_frame));
             }
         }
