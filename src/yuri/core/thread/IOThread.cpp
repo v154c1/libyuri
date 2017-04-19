@@ -155,7 +155,7 @@ bool IOThread::push_frame(position_t index, pFrame frame)
 			const timestamp_t now;
 			const duration_t dur = now-start;
 			const auto brate = static_cast<double>(frame_sizes_[index])*1.0e3/dur.value;
-			log[log::info] << "Streamed " << frames << " in " << dur << ", that's " << (frames*1e6/dur.value) << " fps, bitrate " << std::setprecision(3) << brate << " kB/s";
+			log[log::info] << "Output " << index << " streamed " << frames << " in " << dur << ", that's " << (frames*1e6/dur.value) << " fps, bitrate " << std::setprecision(3) << brate << " kB/s";
 			first_frame_[index] = now;
 			streamed_frames_[index] = 0;
 			frame_sizes_[index] = 0;
