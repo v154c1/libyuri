@@ -66,15 +66,15 @@ private:
     size_t                    max_video_streams_;
     size_t                    max_audio_streams_;
 
-    int  audio_sample_rate_;
-    bool loop_;
-    bool reset_;
-    bool allow_empty_;
-    bool enable_experimental_;
-    bool ignore_timestamps_;
-    int  emit_params_interval_;
-    int last_params_emitted_;
-    bool separate_extra_data_;
+    int         audio_sample_rate_;
+    bool        loop_;
+    bool        reset_;
+    bool        allow_empty_;
+    bool        enable_experimental_;
+    bool        ignore_timestamps_;
+    int         emit_params_interval_;
+    int         last_params_emitted_;
+    bool        separate_extra_data_;
     bool        paused_;
     timestamp_t pause_start_;
 };
