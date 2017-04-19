@@ -71,6 +71,13 @@ get_opt(void* obj, const char* name, int flags = 0)
 
 
 
+inline bool set_opt(void* obj, const char* name, AVSampleFormat value, int flags = 0)
+{
+	if (!obj || av_opt_set_sample_fmt(obj, name, value, flags) < 0) {
+		return false;
+	}
+	return true;
+}
 
 template<typename T>
 typename std::enable_if<std::is_integral<typename std::decay<T>::type>::value, bool>::type
