@@ -89,29 +89,49 @@ size_t is_start_prefix(const data_view& data)
     return 0;
 }
 
-data_view find_nal(data_view data)
+/*!
+ * Returns a NAL unit with length and remaining data
+ * @param data - input data_view
+ * @param avc_size size of AVC length prefix. set to 0 to use start codes.
+ * @return
+ */
+data_view find_nal(data_view data, size_t avc_size)
 {
-    auto preffix_len = is_start_prefix(data);
-    if (!preffix_len)
-        return { nullptr, 0, 0 };
-    // We should try to find other NALs here...
-    for (auto i = preffix_len; i < data.size; ++i) {
-        if (is_start_prefix({ data.ptr + i, data.size - i, data.remaining })) {
-            return { data.ptr + preffix_len, i - preffix_len, data.size - i };
+    if (avc_size < 1) {
+        auto preffix_len = is_start_prefix(data);
+        if (!preffix_len)
+            return { nullptr, 0, 0 };
+        // We should try to find other NALs here...
+        for (auto i = preffix_len; i < data.size; ++i) {
+            if (is_start_prefix({ data.ptr + i, data.size - i, data.remaining })) {
+                return { data.ptr + preffix_len, i - preffix_len, data.size - i };
+            }
         }
+        return { data.ptr + preffix_len, data.size - preffix_len, 0 };
+    } else {
+        if (data.size < avc_size)
+            return { nullptr, 0, 0 };
+        size_t len = 0;
+        while (avc_size-- > 0) {
+            len = (len << 8) | (*data.ptr++ & 0xFF);
+            --data.size;
+        }
+        const auto nal_size = std::min(data.size, len);
+        return { data.ptr, nal_size, data.size - nal_size };
     }
-    return { data.ptr + preffix_len, data.size - preffix_len, 0 };
 }
 }
 
 core::pFrame SimpleH264RtpSender::do_special_single_step(core::pCompressedVideoFrame frame)
 {
-    if (frame->get_format() != core::compressed_frame::h264) {
+    if (frame->get_format() != core::compressed_frame::h264 && frame->get_format() != core::compressed_frame::avc1) {
         log[log::warning] << "Unsupported frame format";
         return {};
     }
+    // Assuming AVC1 length is always 4 bytes...
+    int       avc_size  = frame->get_format() == core::compressed_frame::h264 ? 0 : 4;
     data_view dv        = { &(*frame)[0], frame->size(), 0 };
-    auto      d         = find_nal(dv);
+    auto      d         = find_nal(dv, avc_size);
     auto      timestamp = 9 * (frame->get_timestamp() - core::utils::get_global_start_time()).value / 100;
     while (d.size > 0) {
         log[log::verbose_debug] << "Found nal (" << static_cast<int>(d.ptr[0] & 0x1F) << ") of size " << d.size << " in data block of " << dv.size << "B";
@@ -152,22 +172,22 @@ core::pFrame SimpleH264RtpSender::do_special_single_step(core::pCompressedVideoF
         dv.size      = d.remaining;
         dv.remaining = 0;
 
-        d = find_nal(dv);
+        d = find_nal(dv, avc_size);
     }
     return {};
 }
 
 bool SimpleH264RtpSender::send_rtp_packet(const RTPPacket& packet)
 {
-	int i = 0;
-	while(i++ < 5) {
-		auto s = socket_->send_datagram(packet.data);
-		if (s == packet.data.size()) {
-			return true;
-		}
-	}
-	log[log::error] << "Failed to send packet with " << packet.data.size() <<" bytes";
-	return false;
+    int i = 0;
+    while (i++ < 5) {
+        auto s = socket_->send_datagram(packet.data);
+        if (s == packet.data.size()) {
+            return true;
+        }
+    }
+    log[log::error] << "Failed to send packet with " << packet.data.size() << " bytes";
+    return false;
 }
 
 bool SimpleH264RtpSender::set_param(const core::Parameter& param)
