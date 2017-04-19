@@ -6,6 +6,8 @@ SET (SRC RawAVFile.cpp
 		 RawAVFile.h
 		 AVDecoder.h
 		 AVDecoder.cpp
+		 h264_helper.cpp
+		 h264_helper.h
 		 register.cpp)
 
 
