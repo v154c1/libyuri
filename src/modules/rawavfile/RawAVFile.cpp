@@ -255,12 +255,12 @@ bool RawAVFile::open_file(const std::string& filename)
             if (fmt_out != audio_format_out_ || audio_streams_[i].sample_rate != audio_streams_[i].ctx->sample_rate) {
                 auto audio_fmt_libav      = libav::avsampleformat_from_yuri(audio_format_out_);
                 audio_streams_[i].swr_ctx = swr_alloc();
-                av_opt_set_sample_fmt(audio_streams_[i].swr_ctx, "in_sample_fmt", audio_streams_[i].ctx->sample_fmt, 0);
-                av_opt_set_sample_fmt(audio_streams_[i].swr_ctx, "out_sample_fmt", audio_fmt_libav, 0);
-                av_opt_set_int(audio_streams_[i].swr_ctx, "in_channel_layout", audio_streams_[i].ctx->channel_layout, 0);
-                av_opt_set_int(audio_streams_[i].swr_ctx, "out_channel_layout", audio_streams_[i].ctx->channel_layout, 0);
-                av_opt_set_int(audio_streams_[i].swr_ctx, "in_sample_rate", audio_streams_[i].ctx->sample_rate, 0);
-                av_opt_set_int(audio_streams_[i].swr_ctx, "out_sample_rate", audio_streams_[i].sample_rate, 0);
+                libav::set_opt(audio_streams_[i].swr_ctx, "in_sample_fmt", audio_streams_[i].ctx->sample_fmt, 0);
+                libav::set_opt(audio_streams_[i].swr_ctx, "out_sample_fmt", audio_fmt_libav, 0);
+                libav::set_opt(audio_streams_[i].swr_ctx, "in_channel_layout", audio_streams_[i].ctx->channel_layout, 0);
+                libav::set_opt(audio_streams_[i].swr_ctx, "out_channel_layout", audio_streams_[i].ctx->channel_layout, 0);
+                libav::set_opt(audio_streams_[i].swr_ctx, "in_sample_rate", audio_streams_[i].ctx->sample_rate, 0);
+                libav::set_opt(audio_streams_[i].swr_ctx, "out_sample_rate", audio_streams_[i].sample_rate, 0);
                 swr_init(audio_streams_[i].swr_ctx);
             }
             audio_streams_[i].format_out = audio_format_out_;
