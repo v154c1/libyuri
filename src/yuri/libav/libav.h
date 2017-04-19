@@ -13,6 +13,7 @@
 #include "yuri/core/forward.h"
 extern "C" {
 	#include "libavcodec/avcodec.h"
+	#include <libavutil/opt.h>
 }
 
 #if LIBAVUTIL_VERSION_MAJOR < 52
@@ -39,6 +40,34 @@ yuri::format_t yuri_audio_from_av(AVSampleFormat format);
 core::pRawVideoFrame yuri_frame_from_av(const AVFrame& frame);
 
 lock_t get_libav_lock();
+
+template<typename T>
+typename std::enable_if<std::is_integral<T>::value, T>::type
+get_opt(void* obj, const char* name, int flags = 0)
+{
+	if (!obj) {
+		throw std::runtime_error("no obj");
+	}
+	int64_t val = 0;
+	if (av_opt_get_int(obj, name, flags, &val) < 0) {
+		throw std::runtime_error(std::string{"error querying parameter "}+name);
+	}
+	return static_cast<T>(val);
+}
+
+template<typename T>
+typename std::enable_if<std::is_floating_point<T>::value, T>::type
+get_opt(void* obj, const char* name, int flags = 0)
+{
+	if (!obj) {
+		throw std::runtime_error("no obj");
+	}
+	double val = 0.0;
+	if (av_opt_get_double(obj, name, flags, &val) < 0) {
+		throw std::runtime_error(std::string{"error querying parameter "}+name);
+	}
+	return val;
+}
 
 }
 }
