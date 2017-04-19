@@ -305,7 +305,7 @@ void ThreadBase::process_pending_requests()
 	{
 		lock_t _(ending_childs_mutex_);
 
-		log[log::verbose_debug] << ending_childs_.size() << " childs wait for finishing";
+//		log[log::verbose_debug] << ending_childs_.size() << " childs wait for finishing";
 		while (!ending_childs_.empty()) {
 			pwThreadBase child = ending_childs_.back();
 			ending_childs_.pop_back();
