@@ -27,7 +27,13 @@ core::Parameters AVDecoder::configure()
 }
 
 AVDecoder::AVDecoder(const log::Log& _log, core::pwThreadBase parent, const core::Parameters& parameters)
-    : base_type(_log, parent, 1, 1, "avdecoder"), last_format_(0), format_(0), ctx_(nullptr), codec_(nullptr)
+    : base_type(_log, parent, 1, 1, "avdecoder"),
+	  last_format_(0),
+	  format_(0),
+	  threads_(0),
+	  thread_type_(thread_type_t::slice),
+	  ctx_(nullptr, [](AVCodecContext* ctx){avcodec_free_context(&ctx);}),
+	  codec_(nullptr)
 {
     libav::init_libav();
     IOTHREAD_INIT(parameters)
@@ -38,6 +44,7 @@ AVDecoder::AVDecoder(const log::Log& _log, core::pwThreadBase parent, const core
 
 AVDecoder::~AVDecoder() noexcept
 {
+	av_free_packet(&avpkt_);
     av_frame_free(&avframe);
 }
 
@@ -55,7 +62,8 @@ bool AVDecoder::reset_decoder(const core::pCompressedVideoFrame& frame)
 
     if (!codec_)
         return false;
-    ctx_ = avcodec_alloc_context3(codec_);
+    ctx_.reset(avcodec_alloc_context3(codec_));
+
     if (!ctx_) {
         return false;
     }
@@ -97,7 +105,7 @@ bool AVDecoder::step()
     avpkt_.size   = frame->size();
     int got_frame = 0;
     while (avpkt_.size > 0) {
-        const auto ret = avcodec_decode_video2(ctx_, avframe, &got_frame, &avpkt_);
+        const auto ret = avcodec_decode_video2(ctx_.get(), avframe, &got_frame, &avpkt_);
         if (ret < 0) {
             log[log::info] << "Failed to decode frame";
             return true;

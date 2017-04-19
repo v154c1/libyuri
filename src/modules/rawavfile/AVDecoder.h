@@ -13,6 +13,7 @@
 #include "yuri/libav/libav.h"
 #include "yuri/core/thread/IOThread.h"
 #include "yuri/core/frame/CompressedVideoFrame.h"
+#include "yuri/core/utils/managed_resource.h"
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -40,7 +41,7 @@ private:
     format_t        format_;
     int             threads_;
     thread_type_t   thread_type_;
-    AVCodecContext* ctx_;
+    core::utils::managed_resource<AVCodecContext> ctx_;
     AVCodec*        codec_;
     AVFrame*        avframe;
     AVPacket        avpkt_;
