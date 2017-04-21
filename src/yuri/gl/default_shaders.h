@@ -25,21 +25,19 @@ void main()
 )XXX";
 
 const std::string fs_head = R"XXX(
-uniform float dx;
-uniform float dy;
-uniform float tx;
-uniform float ty;
-uniform int flip_x;
-uniform int flip_y;
+
+uniform float tx0;
+uniform float ty0;
+uniform float tw;
+uniform float th;
 
 )XXX";
 
 const std::string fs_main = R"XXX(
 void main()
 {
-	vec2 mapped_coords = transform_coords(gl_TexCoord[0].st / gl_TexCoord[0].w * 2.0f - vec2(1.0f, 1.0f));
-	mapped_coords = mapped_coords * vec2(1.0f -2.0f * flip_x, 1.0f - 2.0f * flip_y); 	 
-	vec2 coord = (mapped_coords*0.5f+vec2(0.5f, 0.5f)) * vec2(tx, ty) + vec2(dx, dy);
+	vec2 mapped_coords = transform_coords(gl_TexCoord[0].st / gl_TexCoord[0].w);
+	vec2 coord = mapped_coords *vec2(tw, th) + vec2(tx0, ty0);
 	vec4 color = get_color(coord);
 	gl_FragColor = map_color(color, coord);
 }
