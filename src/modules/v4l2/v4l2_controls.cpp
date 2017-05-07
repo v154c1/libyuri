@@ -10,7 +10,6 @@
 #include <errno.h>
 #include "v4l2_controls.h"
 #include "yuri/core/utils.h"
-#include <linux/videodev2.h>
 #include <sys/ioctl.h>
 #include <cstring>
 

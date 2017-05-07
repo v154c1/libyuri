@@ -61,6 +61,8 @@ IF(UNIX)
 ENDIF()
 
 CHECK_INCLUDE_FILE_CXX (linux/videodev2.h HAVE_VIDEODEV2_H)
+# videodev2 alternative on openbsd
+CHECK_INCLUDE_FILE_CXX (sys/videoio.h HAVE_VIDEOIO_H)
 CHECK_INCLUDE_FILE_CXX (linux/dvb/video.h HAVE_DVB_VIDEO_H)
 
 IF(NOT YURI_DISABLE_LIBAV)
@@ -75,7 +77,7 @@ IF (CORE_DECKLINK)
 ENDIF()
 
 
-IF(HAVE_VIDEODEV2_H)
+IF(HAVE_VIDEODEV2_H OR HAVE_VIDEOIO_H)
 	add_subdirectory(v4l2)
 ENDIF()
 

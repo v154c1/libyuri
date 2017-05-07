@@ -12,17 +12,23 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#if YURI_BSD
+#include <sys/videoio.h>
+#else
 #include <linux/videodev2.h>
+#endif
 #include <sys/ioctl.h>
 #include "yuri/core/utils/DirectoryBrowser.h"
 #include "yuri/core/utils.h"
 #include "yuri/core/utils/irange.h"
 
-#include <cstring>
-// for memalign
-#include <malloc.h>
 #include <sys/mman.h>
 #include <poll.h>
+
+// for memalign
+#include <stdlib.h>
+
+#include <cstring>
 
 namespace yuri {
 namespace v4l2 {
@@ -397,8 +403,9 @@ std::vector<buffer_t> v4l2_device::init_user(size_t imagesize)
 	auto no_buffers=req.count;
 	std::vector<buffer_t> buffers (no_buffers);
 	for (auto i: irange(0, req.count)) {
-		auto ptr = ::memalign (page_size, buffer_size);
-		if (!ptr) {
+		void *ptr = nullptr;
+		auto ret = ::posix_memalign (&ptr, page_size, buffer_size);
+		if (ret != 0 || !ptr) {
 			return {};
 		}
 		buffers[i].data.set(reinterpret_cast<uint8_t*>(ptr), buffer_size, [ptr, buffer_size](void*)noexcept{::free(ptr);});

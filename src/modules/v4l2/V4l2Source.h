@@ -17,12 +17,15 @@
 #include "v4l2_controls.h"
 #include "v4l2_common.h"
 #include <iostream>
+#if YURI_BSD
+#include <sys/videoio.h>
+#else
 #include <linux/videodev2.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string>
-#include <malloc.h>
 
 
 namespace yuri {

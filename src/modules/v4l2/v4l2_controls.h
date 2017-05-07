@@ -10,7 +10,14 @@
 #ifndef V4L2_CONTROLS_H_
 #define V4L2_CONTROLS_H_
 
+#include "yuri/core/utils/platform.h"
+
+#if YURI_BSD
+#include <sys/videoio.h>
+#else
 #include <linux/videodev2.h>
+#endif
+
 #include "yuri/event/EventHelpers.h"
 #include "yuri/log/Log.h"
 #include "v4l2_device.h"
