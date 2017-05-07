@@ -34,14 +34,18 @@ target_link_libraries (yuri_test_module ${LIBNAME} )
 install(TARGETS yuri_test_module RUNTIME DESTINATION bin)
 
 IF(UNIX AND NOT YURI_DISABLE_GRABBER AND NOT YURI_DISABLE_OPENGL)
-add_library(yuri_wrapper MODULE 
-		wrapper.cpp
-		wrapper/WrapperLoader.h
-		wrapper/WrapperLoader.cpp
-		)
-
-target_link_libraries (yuri_wrapper ${LIBNAME} ${LIBNAME_HELPER_GL} )
-YURI_INSTALL_EXE_LIB(yuri_wrapper)
+find_package(OpenGL)
+	IF (OPENGL_FOUND)
+	include_directories(${OPENGL_INCLUDE_DIR}) 
+	add_library(yuri_wrapper MODULE 
+			wrapper.cpp
+			wrapper/WrapperLoader.h
+			wrapper/WrapperLoader.cpp
+			)
+	
+	target_link_libraries (yuri_wrapper ${LIBNAME} ${LIBNAME_HELPER_GL} )
+	YURI_INSTALL_EXE_LIB(yuri_wrapper)
+	ENDIF()
 ENDIF()
 
 IF(Boost_REGEX_FOUND)
