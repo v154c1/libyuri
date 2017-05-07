@@ -25,7 +25,7 @@ static struct sigaction act;
 
 void sigHandler(int sig, siginfo_t */*siginfo*/, void */*context*/)
 {
-#if !defined YURI_APPLE
+#if !defined YURI_APPLE && !defined YURI_BSD
 	if (sig==SIGRTMIN) {
 		l[yuri::log::warning] << "Realtime signal 0! Ignoring...";
 		return;
@@ -53,7 +53,7 @@ int main(int argc, char** argv)
 	act.sa_flags = SA_SIGINFO;
 	sigaction(SIGINT,&act,0);
 	sigaction(SIGPIPE,&act,0);
-#if !defined YURI_APPLE
+#if !defined YURI_APPLE && !defined YURI_BSD
 	sigaction(SIGRTMIN,&act,0);
 #endif
 #endif

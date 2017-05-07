@@ -10,7 +10,7 @@
 
 #include <iostream>
 #include <cstdint>
-#if defined __linux__ || defined(__FreeBSD__) || defined __CYGWIN__
+#if defined __linux__ || defined(__FreeBSD__) || defined(__OpenBSD__) || defined __CYGWIN__
 #include <dlfcn.h>
 #define test_posix
 #elif defined _WIN32

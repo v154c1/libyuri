@@ -73,7 +73,7 @@
 	#define PACK_START
 	#define PACK_END			__attribute__((packed))
 	#define DEPRECATED			__attribute__((deprecated))
-#elif defined __FreeBSD__ 
+#elif defined(__FreeBSD__) || defined(__OpenBSD__)
 	#define YURI_BSD 1
 	#define YURI_POSIX 1
 	#define EXPORT
