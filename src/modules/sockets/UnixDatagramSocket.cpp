@@ -30,7 +30,7 @@ bool UnixDatagramSocket::do_bind(const std::string& address, uint16_t /* port */
 {
 	sockaddr_un addr;
 	addr.sun_family = AF_UNIX;
-	strncpy(addr.sun_path, address.c_str(), sizeof(addr.sun_path)-1);
+	std::copy(address.cbegin(), address.cbegin() + std::min(address.size(), sizeof(addr.sun_path) - 1), addr.sun_path);
 	return ::bind(get_socket(), reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0;
 }
 
@@ -38,7 +38,7 @@ bool UnixDatagramSocket::do_connect(const std::string& address, uint16_t /* port
 {
 	sockaddr_un addr;
 	addr.sun_family = AF_UNIX;
-	strncpy(addr.sun_path, address.c_str(), sizeof(addr.sun_path)-1);
+	std::copy(address.cbegin(), address.cbegin() + std::min(address.size(), sizeof(addr.sun_path) - 1), addr.sun_path);
 	return ::connect(get_socket(), reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0;
 }
 
