@@ -34,6 +34,7 @@ private:
 	virtual bool set_param(const core::Parameter& param);
 	format_t	format_;
 	bool allow_passthrough_;
+	size_t threads_;
 
 	struct convert_pimpl_;
 	std::unique_ptr<convert_pimpl_> pimpl_;

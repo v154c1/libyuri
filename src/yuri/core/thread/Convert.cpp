@@ -51,13 +51,15 @@ core::Parameters Convert::configure()
 	p.set_description("Convert");
 	p["format"]["Target format"]="YUV";
 	p["allow_passthrough"]["Allow passing the original frame though, when invalid output format is specified"]=false;
+	p["threads"]["Number of threads to use (if supported by converter)"]=1;
 	return p;
 }
 
 
 struct Convert::convert_pimpl_ {
-	convert_pimpl_(log::Log& log_):log(log_){}
+	convert_pimpl_(log::Log& log_, size_t threads):log(log_),threads{threads} {}
 	log::Log &log;
+	size_t threads;
 
 
 
@@ -74,6 +76,10 @@ struct Convert::convert_pimpl_ {
 		if (!gen.is_registered(name)) return {};
 
 		Parameters par = gen.configure(name);
+		for (auto& p: par) {
+			if (p.first == "threads")
+				p.second = threads;
+		}
 		pIOThread iot = gen.generate(name, log, pwThreadBase{}, par);
 //		log[log::info] << "converter " << name << " " << (iot?"OK":"failed");
 		pConverterThread pct = std::dynamic_pointer_cast<ConverterThread>(iot);
@@ -111,7 +117,7 @@ Convert::Convert(const log::Log &log_, core::pwThreadBase parent, const core::Pa
 core::IOFilter(log_,parent,std::string("convert")),allow_passthrough_(false)
 {
 	IOTHREAD_INIT(parameters)
-	pimpl_.reset(new convert_pimpl_(log));
+	pimpl_.reset(new convert_pimpl_(log, threads_));
 }
 
 Convert::~Convert() noexcept
@@ -187,8 +193,9 @@ pFrame Convert::do_simple_single_step(pFrame frame)
 
 bool Convert::set_param(const core::Parameter& param)
 {
-	if (assign_parameters(param)
-			(allow_passthrough_, "allow_passthrough"))
+	if (assign_parameters(param) //
+			(allow_passthrough_, "allow_passthrough") //
+			(threads_, "threads"))
 		return true;
 	if (param.get_name() == "format") {
 		format_ = raw_format::parse_format(param.get<std::string>());
