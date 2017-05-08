@@ -11,6 +11,8 @@
 #include "yuri/core/Module.h"
 #include "yuri/core/frame/raw_frame_types.h"
 #include "yuri/core/utils/assign_events.h"
+#include "yuri/core/utils/irange.h"
+#include <future>
 
 namespace yuri {
 namespace scale {
@@ -25,13 +27,14 @@ core::Parameters Scale::configure()
 {
     core::Parameters p = base_type::configure();
     p.set_description("Scale");
-    p["resolution"]["Resolution to scale to"] = resolution_t{ 800, 600 };
-    p["fast"]["Enable fast scaling"]          = true;
+    p["resolution"]["Resolution to scale to"]                           = resolution_t{ 800, 600 };
+    p["fast"]["Enable fast scaling"]                                    = true;
+    p["threads"]["Number of threads to use for scaling (EXPERIMENTAL)"] = 1;
     return p;
 }
 
 Scale::Scale(const log::Log& log_, core::pwThreadBase parent, const core::Parameters& parameters)
-    : base_type(log_, parent, std::string("scale")), event::BasicEventConsumer(log), resolution_(resolution_t{ 800, 600 }), fast_(true)
+    : base_type(log_, parent, std::string("scale")), event::BasicEventConsumer(log), resolution_(resolution_t{ 800, 600 }), fast_(true), threads_{ 1 }
 {
     IOTHREAD_INIT(parameters)
     using namespace core::raw_format;
@@ -45,7 +48,8 @@ Scale::~Scale() noexcept
 
 namespace {
 
-template <size_t pixel_size> struct scale_line_bilinear {
+template <size_t pixel_size>
+struct scale_line_bilinear {
     inline static void eval(uint8_t* it, const uint8_t* top, const uint8_t* bottom, const dimension_t new_width, const dimension_t old_width,
                             const double unscale_x, const double y_ratio)
     {
@@ -66,7 +70,8 @@ template <size_t pixel_size> struct scale_line_bilinear {
     }
 };
 
-template <size_t pixel_size> struct scale_line_bilinear_fast {
+template <size_t pixel_size>
+struct scale_line_bilinear_fast {
     inline static void eval(uint8_t* it, const uint8_t* top, const uint8_t* bottom, const dimension_t new_width, const dimension_t old_width,
                             const uint64_t unscale_x, const uint64_t y_ratio)
     {
@@ -212,7 +217,8 @@ struct scale_line_bilinear_uyvy_fast {
     }
 };
 
-template <class kernel> core::pRawVideoFrame scale_image(const core::pRawVideoFrame& frame, const resolution_t new_resolution)
+template <class kernel>
+core::pRawVideoFrame scale_image(const core::pRawVideoFrame& frame, const resolution_t new_resolution, size_t threads)
 {
     auto           outframe     = core::RawVideoFrame::create_empty(frame->get_format(), new_resolution);
     const auto     res          = frame->get_resolution();
@@ -223,13 +229,36 @@ template <class kernel> core::pRawVideoFrame scale_image(const core::pRawVideoFr
     const uint8_t* it_in        = PLANE_RAW_DATA(frame, 0);
     uint8_t*       it           = PLANE_RAW_DATA(outframe, 0);
 
-    for (dimension_t line = 0; line < new_resolution.height - 1; ++line) {
-        const dimension_t top     = static_cast<dimension_t>(line * unscale_y);
-        const dimension_t bottom  = top + 1;
-        const double      y_ratio = line * unscale_y - top;
-        kernel::eval(it, it_in + top * linesize_in, it_in + bottom * linesize_in, new_resolution.width, res.width, unscale_x, y_ratio);
+    if (threads < 2) {
+        for (dimension_t line = 0; line < new_resolution.height - 1; ++line) {
+            const dimension_t top     = static_cast<dimension_t>(line * unscale_y);
+            const dimension_t bottom  = top + 1;
+            const double      y_ratio = line * unscale_y - top;
+            kernel::eval(it, it_in + top * linesize_in, it_in + bottom * linesize_in, new_resolution.width, res.width, unscale_x, y_ratio);
 
-        it += linesize_out;
+            it += linesize_out;
+        }
+    } else {
+        const size_t                   task_lines = new_resolution.height / threads;
+        std::vector<std::future<void>> results(threads);
+        size_t                         start_line = 0;
+        auto f                                    = [&](size_t start, size_t end) {
+            auto it2 = it + start * linesize_out;
+            for (dimension_t line = start; line < end; ++line) {
+                const dimension_t top     = static_cast<dimension_t>(line * unscale_y);
+                const dimension_t bottom  = top + 1;
+                const double      y_ratio = line * unscale_y - top;
+                kernel::eval(it2, it_in + top * linesize_in, it_in + bottom * linesize_in, new_resolution.width, res.width, unscale_x, y_ratio);
+                it2 += linesize_out;
+            }
+        };
+        for (auto i : irange(threads)) {
+            results[i] = std::async(std::launch::async, f, start_line, std::min(start_line + task_lines, new_resolution.height - 1));
+            start_line += task_lines;
+        }
+        for (auto& t : results) {
+            t.get();
+        }
     }
     kernel::eval(PLANE_RAW_DATA(outframe, 0) + (new_resolution.height - 1) * linesize_out, PLANE_RAW_DATA(frame, 0) + (res.height - 1) * linesize_in,
                  PLANE_RAW_DATA(frame, 0) + (res.height - 1) * linesize_in, new_resolution.width, res.width, unscale_x, 0.0);
@@ -237,7 +266,8 @@ template <class kernel> core::pRawVideoFrame scale_image(const core::pRawVideoFr
     return outframe;
 }
 
-template <class kernel> core::pRawVideoFrame scale_image_fast(const core::pRawVideoFrame& frame, const resolution_t new_resolution)
+template <class kernel>
+core::pRawVideoFrame scale_image_fast(const core::pRawVideoFrame& frame, const resolution_t new_resolution, size_t threads)
 {
     auto           outframe     = core::RawVideoFrame::create_empty(frame->get_format(), new_resolution);
     const auto     res          = frame->get_resolution();
@@ -248,13 +278,37 @@ template <class kernel> core::pRawVideoFrame scale_image_fast(const core::pRawVi
     const uint8_t* it_in        = PLANE_RAW_DATA(frame, 0);
     uint8_t*       it           = PLANE_RAW_DATA(outframe, 0);
 
-    for (dimension_t line = 0; line < new_resolution.height - 1; ++line) {
-        const dimension_t top     = line * unscale_y;
-        const dimension_t bottom  = top + 256;
-        const uint64_t    y_ratio = line * unscale_y - top;
-        kernel::eval(it, it_in + top / 256 * linesize_in, it_in + bottom / 256 * linesize_in, new_resolution.width, res.width, unscale_x, y_ratio);
+    if (threads < 2) {
+        for (dimension_t line = 0; line < new_resolution.height - 1; ++line) {
+            const dimension_t top     = line * unscale_y;
+            const dimension_t bottom  = top + 256;
+            const uint64_t    y_ratio = line * unscale_y - top;
+            kernel::eval(it, it_in + top / 256 * linesize_in, it_in + bottom / 256 * linesize_in, new_resolution.width, res.width, unscale_x, y_ratio);
 
-        it += linesize_out;
+            it += linesize_out;
+        }
+    } else {
+        const size_t                   task_lines = new_resolution.height / threads;
+        std::vector<std::future<void>> results(threads);
+        size_t                         start_line = 0;
+        auto f                                    = [&](size_t start, size_t end) {
+            auto it2 = it + start * linesize_out;
+            for (dimension_t line = start; line < end; ++line) {
+                const dimension_t top     = line * unscale_y;
+                const dimension_t bottom  = top + 256;
+                const uint64_t    y_ratio = line * unscale_y - top;
+                kernel::eval(it2, it_in + top / 256 * linesize_in, it_in + bottom / 256 * linesize_in, new_resolution.width, res.width, unscale_x, y_ratio);
+
+                it2 += linesize_out;
+            }
+        };
+        for (auto i : irange(threads)) {
+            results[i] = std::async(std::launch::async, f, start_line, std::min(start_line + task_lines, new_resolution.height - 1));
+            start_line += task_lines;
+        }
+        for (auto& t : results) {
+            t.get();
+        }
     }
     kernel::eval(PLANE_RAW_DATA(outframe, 0) + (new_resolution.height - 1) * linesize_out, PLANE_RAW_DATA(frame, 0) + (res.height - 1) * linesize_in,
                  PLANE_RAW_DATA(frame, 0) + (res.height - 1) * linesize_in, new_resolution.width, res.width, unscale_x, 0.0);
@@ -267,66 +321,74 @@ core::pFrame Scale::do_special_single_step(core::pRawVideoFrame frame)
 {
     process_events();
     if (!resolution_)
-    	return {};
+        return {};
     if (frame->get_resolution() == resolution_)
         return frame;
     // Simple sanity check
     if (resolution_.width > 1e5 || resolution_.height > 1e5)
-    	return {};
+        return {};
     using namespace core::raw_format;
     if (fast_) {
         switch (frame->get_format()) {
         case rgb24:
         case bgr24:
         case yuv444:
-            return scale_image_fast<scale_line_bilinear_fast<3>>(frame, resolution_);
+            return scale_image_fast<scale_line_bilinear_fast<3>>(frame, resolution_, threads_);
 
         case rgba32:
         case argb32:
         case bgra32:
         case abgr32:
         case yuva4444:
-            return scale_image_fast<scale_line_bilinear_fast<4>>(frame, resolution_);
+            return scale_image_fast<scale_line_bilinear_fast<4>>(frame, resolution_, threads_);
         case yuyv422:
         case yvyu422:
-            return scale_image_fast<scale_line_bilinear_yuyv_fast>(frame, resolution_);
+            return scale_image_fast<scale_line_bilinear_yuyv_fast>(frame, resolution_, threads_);
         case uyvy422:
         case vyuy422:
-            return scale_image_fast<scale_line_bilinear_uyvy_fast>(frame, resolution_);
+            return scale_image_fast<scale_line_bilinear_uyvy_fast>(frame, resolution_, threads_);
         }
     } else {
         switch (frame->get_format()) {
         case rgb24:
         case bgr24:
         case yuv444:
-            return scale_image<scale_line_bilinear<3>>(frame, resolution_);
+            return scale_image<scale_line_bilinear<3>>(frame, resolution_, threads_);
 
         case rgba32:
         case argb32:
         case bgra32:
         case abgr32:
         case yuva4444:
-            return scale_image<scale_line_bilinear<4>>(frame, resolution_);
+            return scale_image<scale_line_bilinear<4>>(frame, resolution_, threads_);
         case yuyv422:
         case yvyu422:
-            return scale_image<scale_line_bilinear_yuyv>(frame, resolution_);
+            return scale_image<scale_line_bilinear_yuyv>(frame, resolution_, threads_);
         case uyvy422:
         case vyuy422:
-            return scale_image<scale_line_bilinear_uyvy>(frame, resolution_);
+            return scale_image<scale_line_bilinear_uyvy>(frame, resolution_, threads_);
         }
     }
     return {};
 }
 bool Scale::set_param(const core::Parameter& param)
 {
-    if (assign_parameters(param)(resolution_, "resolution")(fast_, "fast"))
+    if (assign_parameters(param)    //
+        (resolution_, "resolution") //
+        (fast_, "fast")             //
+        (threads_, "threads")       //
+        )
         return true;
     return base_type::set_param(param);
 }
 
 bool Scale::do_process_event(const std::string& event_name, const event::pBasicEvent& event)
 {
-    if (assign_events(event_name, event)(resolution_, "resolution")(fast_, "fast"))
+    if (assign_events(event_name, event) //
+        (resolution_, "resolution")      //
+        (fast_, "fast")                  //
+        (threads_, "threads")            //
+        )
         return true;
     return false;
 }

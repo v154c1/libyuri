@@ -33,6 +33,7 @@ private:
 
     resolution_t resolution_;
     bool         fast_;
+    size_t       threads_;
 };
 
 } /* namespace scale */
