@@ -16,7 +16,9 @@ TEST_CASE( "logging basics", "[log]" ) {
     l.set_flags(log::info);
     l[log::info] << "Hello world " << 5;
     const auto s = ss.str();
-	REQUIRE( s == "0: Hello world 5\n");
+    // Delete the log id
+    const auto s2 = s.substr(s.find(':'));
+    REQUIRE( s2 == ": Hello world 5\n");
 }
 
 TEST_CASE( "geometry types", "[resolution_t, geometry_t, coordinates_t]" ) {
