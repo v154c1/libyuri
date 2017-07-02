@@ -10,7 +10,8 @@
 
 #ifndef AVDEMUXER_H_
 #define AVDEMUXER_H_
-#include "yuri/libav/libav.h"
+
+#include "avcommon.h"
 #include "yuri/core/thread/IOFilter.h"
 #include "yuri/event/BasicEventConsumer.h"
 #include "yuri/event/BasicEventProducer.h"
@@ -65,6 +66,8 @@ private:
     std::vector<core::pFrame> frames_;
     size_t                    max_video_streams_;
     size_t                    max_audio_streams_;
+    int                       threads_;
+    libav::thread_type_t      thread_type_;
 
     int         audio_sample_rate_;
     bool        loop_;

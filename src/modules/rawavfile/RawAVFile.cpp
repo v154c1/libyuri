@@ -99,6 +99,8 @@ core::Parameters RawAVFile::configure()
                               "negative values disables emiting completely."]
         = 1;
     p["separate_extra_data"]["Send extradata for h264 (SPS, PPS) as separate frames instead of prepending them to IDR frames"] = false;
+    p["threads"]["Number of threads. Set to 0 to auto select"]                                     = 0;
+    p["thread_type"]["Type of threaded decoding - slice, frame or any"]                            = "any";
     return p;
 }
 
@@ -113,6 +115,8 @@ RawAVFile::RawAVFile(const log::Log& _log, core::pwThreadBase parent, const core
       fps_(0.0),
       max_video_streams_(1),
       max_audio_streams_(1),
+      threads_(0),
+      thread_type_(libav::thread_type_t::any),
       loop_(true),
       reset_(false),
       allow_empty_(false),
@@ -225,6 +229,10 @@ bool RawAVFile::open_file(const std::string& filename)
                 video_streams_[i].ctx->flags |= CODEC_FLAG_TRUNCATED;
             if (video_streams_[i].format_out != 0) {
                 video_streams_[i].ctx->pix_fmt = libav::avpixelformat_from_yuri(video_streams_[i].format_out);
+            }
+            if (video_streams_[i].codec->capabilities & CODEC_CAP_SLICE_THREADS) {
+                video_streams_[i].ctx->thread_type  = libav::libav_thread_type(thread_type_);
+                video_streams_[i].ctx->thread_count = threads_;
             }
 
             if (avcodec_open2(video_streams_[i].ctx, video_streams_[i].codec, 0) < 0) {
@@ -640,6 +648,8 @@ bool RawAVFile::set_param(const core::Parameter& parameter)
         (audio_sample_rate_, "audio_sample_rate")                                 //
         (emit_params_interval_, "emit_params_interval")                           //
         (separate_extra_data_, "separate_extra_data")                             //
+        (threads_, "threads")                                                     //
+        .parsed<std::string>(thread_type_, "thread_type", libav::parse_thread_type)//
         )
         return true;
     return IOThread::set_param(parameter);

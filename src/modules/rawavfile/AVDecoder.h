@@ -10,7 +10,7 @@
 #ifndef MODULES_RAWAVFILE_AVDECODER_H_
 #define MODULES_RAWAVFILE_AVDECODER_H_
 
-#include "yuri/libav/libav.h"
+#include "avcommon.h"
 #include "yuri/core/thread/IOThread.h"
 #include "yuri/core/frame/CompressedVideoFrame.h"
 #include "yuri/core/utils/managed_resource.h"
@@ -21,7 +21,7 @@ extern "C" {
 
 namespace yuri {
 namespace avdecoder {
-enum class thread_type_t { slice, frame };
+
 class AVDecoder : public yuri::core::IOThread {
     using base_type = yuri::core::IOThread;
 
@@ -40,7 +40,7 @@ private:
     format_t                                      last_format_;
     format_t                                      format_;
     int                                           threads_;
-    thread_type_t                                 thread_type_;
+    libav::thread_type_t                          thread_type_;
     core::utils::managed_resource<AVCodecContext> ctx_;
     AVCodec*                                      codec_;
     AVFrame*                                      avframe;

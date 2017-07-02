@@ -2,7 +2,9 @@
 SET (MODULE rawavfile)
 
 # Set all source files module uses
-SET (SRC RawAVFile.cpp
+SET (SRC avcommon.h
+		 avcommon.cpp
+		 RawAVFile.cpp
 		 RawAVFile.h
 		 AVDecoder.h
 		 AVDecoder.cpp

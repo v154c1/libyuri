@@ -22,7 +22,7 @@ core::Parameters AVDecoder::configure()
 {
     core::Parameters p                                             = base_type::configure();
     p["threads"]["Number of threads. Set to 0 to auto select"]     = 0;
-    p["thread_type"]["Type of threaded decoding - slice or frame"] = "slice";
+    p["thread_type"]["Type of threaded decoding - slice, frame or any"] = "any";
     return p;
 }
 
@@ -31,7 +31,7 @@ AVDecoder::AVDecoder(const log::Log& _log, core::pwThreadBase parent, const core
       last_format_(0),
       format_(0),
       threads_(0),
-      thread_type_(thread_type_t::slice),
+      thread_type_(libav::thread_type_t::any),
       ctx_(nullptr, [](AVCodecContext* ctx) { avcodec_free_context(&ctx); }),
       codec_(nullptr)
 {
@@ -80,7 +80,7 @@ bool AVDecoder::reset_decoder(const core::pCompressedVideoFrame& frame)
     ctx_->pix_fmt = AV_PIX_FMT_NONE;
 
     if (codec_->capabilities & CODEC_CAP_SLICE_THREADS) {
-        ctx_->thread_type  = thread_type_ == thread_type_t::slice ? FF_THREAD_SLICE : FF_THREAD_FRAME;
+        ctx_->thread_type  = libav::libav_thread_type(thread_type_);
         ctx_->thread_count = threads_;
     }
     if (format == core::compressed_frame::avc1) {
@@ -138,7 +138,8 @@ bool AVDecoder::set_param(const core::Parameter& param)
 {
     if (assign_parameters(param) //
         (threads_, "threads")    //
-            .parsed<std::string>(thread_type_, "thread_type", [](const std::string& t) { return t == "slice" ? thread_type_t::slice : thread_type_t::frame; }))
+            .parsed<std::string>(thread_type_, "thread_type", libav::parse_thread_type)//
+        )
         return true;
     return base_type::set_param(param);
 }
