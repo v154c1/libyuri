@@ -1,0 +1,12 @@
+<?xml version="1.0" ?>
+<app name="alsa" xmlns="urn:library:yuri:xmlschema:2001"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<variable name="device">hw:0,0</variable>
+	<node class="alsa_input" name="input">
+		<parameter name="device">@device</parameter>
+	</node>
+	<node class="alsa_output" name="output">
+		<parameter name="device">@device</parameter>
+	</node>
+	<link name="sound_pipe" class="unlimited" source="input:0" target="output:0"/>
+</app>
