@@ -7,7 +7,8 @@
  *
  */
 
-#include "AlsaOutput.h"
+#include "../alsa/AlsaOutput.h"
+
 #include "yuri/core/Module.h"
 #include "yuri/core/frame/raw_audio_frame_types.h"
 namespace yuri {

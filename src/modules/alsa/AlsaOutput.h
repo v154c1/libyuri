@@ -15,7 +15,7 @@
 #include <alsa/asoundlib.h>
 
 namespace yuri {
-namespace alsa_output {
+namespace alsa {
 
 class AlsaOutput: public core::SpecializedIOFilter<core::RawAudioFrame>
 {
@@ -43,6 +43,6 @@ private:
 
 };
 
-} /* namespace alsa_output */
+} /* namespace alsa */
 } /* namespace yuri */
 #endif /* ALSAOUTPUT_H_ */

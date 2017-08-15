@@ -98,7 +98,7 @@ ENDIF()
 find_package(ALSA)
 IF(ALSA_FOUND)
 	add_subdirectory(midi_device)
-	add_subdirectory(alsa_output)
+	add_subdirectory(alsa)
 ENDIF()
 
 find_package(JPEG)
