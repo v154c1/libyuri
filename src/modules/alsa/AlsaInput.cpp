@@ -10,6 +10,7 @@
 #include "AlsaInput.h"
 #include "yuri/core/Module.h"
 #include "yuri/core/frame/raw_audio_frame_types.h"
+#include "yuri/core/frame/raw_audio_frame_params.h"
 
 #include <memory>
 
@@ -22,31 +23,15 @@ IOTHREAD_GENERATOR(AlsaInput)
 
 namespace {
 
-using namespace core::raw_audio_format;
-
-std::map<format_t, unsigned int> yuri_formats_to_bytes = {
-		{unsigned_8bit, 	1},
-		{unsigned_16bit, 	2},
-		{signed_16bit, 		2},
-		{unsigned_24bit, 	3},
-		{signed_24bit, 		3},
-		{unsigned_32bit, 	4},
-		{signed_32bit, 		4},
-		{float_32bit, 		4},
-
-		{unsigned_16bit_be,	2},
-		{signed_16bit_be,	2},
-		{unsigned_24bit_be, 3},
-		{signed_24bit_be, 	3},
-		{unsigned_32bit_be, 4},
-		{signed_32bit_be,	4},
-		{float_32bit_be,	4},
-};
-
 unsigned int get_yuri_format_bytes(format_t fmt) {
-	auto it = yuri_formats_to_bytes.find(fmt);
-	if (it == yuri_formats_to_bytes.end()) return 4; // Not true but safe option
-	return it->second;
+	try {
+		const auto& fi = core::raw_audio_format::get_format_info(fmt);
+		return fi.bits_per_sample / 8;
+	}
+	catch (std::runtime_error&) {
+		// This should never happen, but let's return a safe value'
+		return 4;
+	}
 }
 }
 
@@ -54,10 +39,18 @@ core::Parameters AlsaInput::configure()
 {
 	core::Parameters p = core::IOThread::configure();
 	p.set_description("AlsaInput");
+
+	std::string formats;
+	for (const auto& fmt: core::raw_audio_format::formats()) {
+		for (const auto& name: fmt.second.short_names) {
+			formats += name + ", ";
+		}
+	}
 	p["device"]["Alsa device to use"]="default";
 	p["channels"]["Channel to capture"]=2;
 	p["sample_rate"]["Sample rate to capture"]=48000;
 	p["frames"]["Count of frames captured in one run"]=128;
+	p["format"]["Capture format. Valid values: (" + formats + ")"]="s16";
 	return p;
 }
 
@@ -172,7 +165,8 @@ bool AlsaInput::set_param(const core::Parameter& param) {
 			(device_name_, "device")
 			(channels_, "channels")
 			(sample_rate_, "sample_rate")
-			(frames_, "frames")) {
+			(frames_, "frames")
+			.parsed<std::string>(format_, "format", core::raw_audio_format::parse_format)) {
 		return true;
 	} else return core::IOThread::set_param(param);
 }
