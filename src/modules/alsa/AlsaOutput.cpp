@@ -10,6 +10,7 @@
 #include "AlsaOutput.h"
 #include "yuri/core/Module.h"
 #include "yuri/core/frame/raw_audio_frame_types.h"
+#include "yuri/core/utils/irange.h"
 namespace yuri {
 namespace alsa {
 
@@ -21,6 +22,7 @@ core::Parameters AlsaOutput::configure()
 	core::Parameters p = core::SpecializedIOFilter<core::RawAudioFrame>::configure();
 	p.set_description("AlsaOutput");
 	p["device"]["Alsa device to use"]="default";
+	p["force_channels"]["Force number of channels for the output (set to 0 to automatic channel count)"]=0;
 	return p;
 }
 
@@ -28,7 +30,7 @@ core::Parameters AlsaOutput::configure()
 
 AlsaOutput::AlsaOutput(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters):
 core::SpecializedIOFilter<core::RawAudioFrame>(log_,parent, std::string("alsa_output")),
-format_(0),device_name_("default"),channels_(0),sampling_rate_(0),handle_(0)
+format_(0),device_name_("default"),channels_(0),sampling_rate_(0),forced_channels_(0),handle_(0)
 {
 	IOTHREAD_INIT(parameters)
 
@@ -43,7 +45,8 @@ bool AlsaOutput::is_different_format(const core::pRawAudioFrame& frame)
 {
 	return (frame->get_format() != format_) ||
 			(frame->get_sampling_frequency() != sampling_rate_) ||
-			(frame->get_channel_count() != channels_);
+			(!forced_channels_ && (frame->get_channel_count() != channels_)) ||
+			(forced_channels_ && (forced_channels_ != channels_));
 }
 
 namespace {
@@ -91,11 +94,42 @@ core::pFrame AlsaOutput::do_special_single_step(core::pRawAudioFrame frame)
 	log[log::verbose_debug] << "Received frame with " << frame->get_sample_count() << " samples";
 	if (!handle_) return {};
 
-	const uint8_t* start = frame->data();
-	const uint8_t* end = start+frame->size();
-	while (start != end && still_running()) {
-		start = write_data(log, start, end, handle_, static_cast<int>(get_latency().value/1000), frame->get_sample_size()/8);
+	const uint8_t* start = nullptr;
+	const auto channel_size = frame->get_sample_size() / frame->get_channel_count() / 8;
+	const auto data_size = channels_ * channel_size * frame->get_sample_count();
+	
+	if (channels_ != frame->get_channel_count()) {
+		channel_buffer_.resize(frame->size() * channels_ / frame->get_channel_count());		
+		uint8_t* buf_pos = &channel_buffer_[0];
+		start = buf_pos;
+		auto frame_pos = frame->data();
+		const auto copy_channels = std::min(frame->get_channel_count(), channels_);
+		const auto skip_channels = frame->get_channel_count() - copy_channels;
+		const auto fill_channels = channels_ - copy_channels;
+		
+		
+		for (auto i: irange(frame->get_sample_count())) {
+			(void)i;
+			for (auto x: irange(copy_channels * channel_size)) {
+				(void)x;
+				*buf_pos++ = *frame_pos++;
+			}
+			frame_pos += skip_channels * channel_size;
+			for (auto x: irange(fill_channels * channel_size)) {
+				(void)x;
+				*buf_pos++ = 0;
+			}
+		}
+	} else {
+		// The simple case when we simple copy the data to sound card
+		start = frame->data();
 	}
+	const uint8_t* end = start + data_size;
+	while (start != end && still_running()) {
+		start = write_data(log, start, end, handle_, static_cast<int>(get_latency().value/1000), channel_size * channels_);
+	}
+	
+
 	return {};
 }
 
@@ -123,7 +157,7 @@ bool AlsaOutput::init_alsa(const core::pRawAudioFrame& frame)
 		return false;
 	}
 
-	channels_ = frame->get_channel_count();
+	channels_ = forced_channels_?forced_channels_:frame->get_channel_count();
 	sampling_rate_ = frame->get_sampling_frequency();
 
 	snd_pcm_hw_params_t *hw_params;
@@ -184,14 +218,12 @@ bool AlsaOutput::init_alsa(const core::pRawAudioFrame& frame)
 }
 bool AlsaOutput::set_param(const core::Parameter& param)
 {
-	if (param.get_name() == "device") {
-		device_name_ = param.get<std::string>();
-	}/* else if (param.get_name() == "channels") {
-		channels_ = param.get<std::string>();
-	} else if (param.get_name() == "sample_rate") {
-		sampling_rate_ = param.get<std::string>();
-	}*/ else return core::SpecializedIOFilter<core::RawAudioFrame>::set_param(param);
-	return true;
+	if (assign_parameters(param) //
+		(device_name_, "device") //
+		(forced_channels_, "force_channels")) {
+		return true;
+	}
+	return core::SpecializedIOFilter<core::RawAudioFrame>::set_param(param);
 }
 
 } /* namespace alsa */

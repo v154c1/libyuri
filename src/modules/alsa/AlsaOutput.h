@@ -37,8 +37,8 @@ private:
 	std::string device_name_;
 	size_t channels_;
 	unsigned int sampling_rate_;
-
-
+	size_t forced_channels_;
+	std::vector<uint8_t> channel_buffer_;
 	snd_pcm_t			*handle_;
 
 };
