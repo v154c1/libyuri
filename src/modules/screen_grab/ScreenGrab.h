@@ -31,6 +31,7 @@ private:
 	Window win;
 	coordinates_t position_;
 	resolution_t resolution_;
+	bool cursor_;
 	std::string win_name;
 	size_t pid;
 	Window win_id_;

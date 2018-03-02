@@ -8,6 +8,7 @@
 #include "yuri/core/Module.h"
 #include "yuri/core/frame/raw_frame_types.h"
 #include "yuri/core/frame/RawVideoFrame.h"
+#include <X11/extensions/Xfixes.h>
 #include "X11/Xutil.h"
 #include "X11/Xatom.h"
 #include <string>
@@ -29,6 +30,7 @@ core::Parameters ScreenGrab::configure()
 	p["fps"]["Frames per second (set to 0 or negative, to grab at max. speed)"]=0.0;
 	p["position"]["Position of grabbed area"]="0x0";
 	p["resolution"]["Resolution of the grabbed image (set to 0x0 to grab full image)"]="0x0";
+	p["cursor"]["Grabbing cursor as well"]=false;
 	p["win_name"]["Window name (set to empty string to grab whole screen)"]=std::string();
 	p["pid"]["PID of application that created the window (set to 0 to grab whole screen)"]=0;
 	p["win_id"]["Window ID (set to 0 to grab whole screen)"]=0;
@@ -97,7 +99,7 @@ Window find_child(Display* dpy, Window top, T val, F func)
 
 ScreenGrab::ScreenGrab(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters):
 core::IOThread(log_,parent,1,1,std::string("screen_grab")),fps_(0.0), win(0),position_{0,0},
-resolution_{0,0},pid(0),win_id_(0)
+resolution_{0,0},cursor_(false),pid(0),win_id_(0)
 {
 	IOTHREAD_INIT(parameters)
 	XInitThreads();
@@ -184,10 +186,37 @@ bool ScreenGrab::step()
 			case 32: fmt = core::raw_format::bgra32; break;
 			case 24: fmt = core::raw_format::bgr24; break;
 		}
+
 		if (fmt!=0) {
 			resolution_t res = {static_cast<dimension_t>(w), static_cast<dimension_t>(h)};
 			core::pRawVideoFrame frame = core::RawVideoFrame::create_empty(fmt, res, true);
-			const uint8_t* data = reinterpret_cast<uint8_t*>(img->data);
+			uint8_t* data = reinterpret_cast<uint8_t*>(img->data);
+			if (cursor_) {
+				XFixesCursorImage *xcim = XFixesGetCursorImage(dpy.get());
+				const int x = xcim->x - xcim->xhot;
+				const int y = xcim->y - xcim->yhot;
+				const int to_line = std::min<int>((y + xcim->height), (h + position_.y));
+				const int to_column = std::min<int>((x + xcim->width), (w + position_.x));
+				for (int line = std::max<int>(y, position_.y); line < to_line; line++) {
+					for (int column = std::max<int>(x, position_.x); column < to_column; column++) {
+						int xcim_addr = (line - y) * xcim->width + column - x;
+						int image_addr = ((line - position_.y) * w + column - position_.x) * img->bits_per_pixel/8;
+						int r = (uint8_t)(xcim->pixels[xcim_addr] >>  0);
+						int g = (uint8_t)(xcim->pixels[xcim_addr] >>  8);
+						int b = (uint8_t)(xcim->pixels[xcim_addr] >> 16);
+						int a = (uint8_t)(xcim->pixels[xcim_addr] >> 24);
+						if (a == 255) {
+							data[image_addr+0] = r;
+							data[image_addr+1] = g;
+							data[image_addr+2] = b;
+						} else if (a) {
+							data[image_addr+0] = r + (data[image_addr+0]*(255-a) + 255/2) / 255;
+							data[image_addr+1] = g + (data[image_addr+1]*(255-a) + 255/2) / 255;
+							data[image_addr+2] = b + (data[image_addr+2]*(255-a) + 255/2) / 255;
+						}
+					}
+				}
+			}
 			uint8_t *out = PLANE_RAW_DATA(frame,0);
 			const size_t copy_bytes = w*img->bits_per_pixel/8;
 			for (int line=0;line<h;++line) {
@@ -210,6 +239,7 @@ bool ScreenGrab::set_param(const core::Parameter &param)
 			(fps_, "fps")
 			(position_, "position")
 			(resolution_, "resolution")
+			(cursor_, "cursor")
 			(win_name, "win_name")
 			(pid, "pid")
 			(win_id_, "win_id"))

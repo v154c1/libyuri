@@ -137,7 +137,8 @@ IF(PNG_FOUND)
 ENDIF()
 
 find_package(X11)
-IF(X11_FOUND)
+pkg_check_modules(X11_XFIXES xfixes)
+IF(X11_FOUND AND X11_XFIXES_FOUND)
 	add_subdirectory(screen_grab)
 ENDIF()
 
