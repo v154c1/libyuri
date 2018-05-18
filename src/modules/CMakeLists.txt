@@ -160,6 +160,13 @@ IF(${SAGE_FOUND})
 	add_subdirectory(sage)
 ENDIF()
 
+IF(NOT YURI_DISABLE_NDI)
+	find_package(NDI)
+ENDIF()
+IF(${NDI_FOUND})
+	add_subdirectory(ndi)
+ENDIF()
+
 pkg_check_modules(JACK jack)
 IF(${JACK_FOUND})
     add_subdirectory(jack)
