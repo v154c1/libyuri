@@ -31,6 +31,7 @@ std::map<NDIlib_FourCC_type_e, yuri::format_t> pixel_format_map = {
 	{NDIlib_FourCC_type_UYVA,	yuva4444},
 };
 
+/* Not in use now.
 NDIlib_FourCC_type_e yuri_format_to_ndi(format_t fmt)
 {
 	for (auto f: pixel_format_map) {
@@ -38,6 +39,7 @@ NDIlib_FourCC_type_e yuri_format_to_ndi(format_t fmt)
 	}
 	throw exception::Exception("No NDI format found.");
 }
+*/
 
 format_t ndi_format_to_yuri (NDIlib_FourCC_type_e fmt)
 {
@@ -92,6 +94,9 @@ void NDIInput::run() {
 	NDIlib_recv_create_v3_t receiver_desc;
 	receiver_desc.source_to_connect_to = sources[stream_found];
 	receiver_desc.p_ndi_name = "Yuri NDI receiver";
+	receiver_desc.color_format = NDIlib_recv_color_format_e_UYVY_RGBA;
+	receiver_desc.bandwidth = NDIlib_recv_bandwidth_highest;
+
 
 	NDIlib_recv_instance_t ndi_receiver = NDIlib_recv_create_v3(&receiver_desc);
 	if (!ndi_receiver) {
@@ -118,6 +123,8 @@ void NDIInput::run() {
 		NDIlib_video_frame_v2_t video_frame;
 		NDIlib_audio_frame_v2_t audio_frame;
 		NDIlib_metadata_frame_t metadata_frame;
+		yuri::format_t output_format;
+		core::pRawVideoFrame frame;
 		switch (NDIlib_recv_capture_v2(ndi_receiver, &video_frame, &audio_frame, &metadata_frame, 1000)) {
 		// No data
 		case NDIlib_frame_type_none:
@@ -126,11 +133,11 @@ void NDIInput::run() {
 		// Video data
 		case NDIlib_frame_type_video:
 			printf("Video data received (%dx%d).\n", video_frame.xres, video_frame.yres);
-			//uint8_t *data;
-			//core::pRawVideoFrame frame;
-			//yuri::format_t output_format = ndi_format_to_yuri(video_frame.NDIlib_FourCC_type_e);
-			//video_frame.p_data
+			output_format = ndi_format_to_yuri(video_frame.FourCC);
+			frame = core::RawVideoFrame::create_empty(output_format, {(uint32_t)video_frame.xres, (uint32_t)video_frame.yres}, true);
+			std::copy(video_frame.p_data, video_frame.p_data + video_frame.yres * video_frame.line_stride_in_bytes, PLANE_DATA(frame, 0).begin());
 			NDIlib_recv_free_video_v2(ndi_receiver, &video_frame);
+			push_frame(0,frame);
 			break;
 		// Audio data
 		case NDIlib_frame_type_audio:
