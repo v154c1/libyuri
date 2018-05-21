@@ -32,8 +32,7 @@ std::map<NDIlib_FourCC_type_e, yuri::format_t> pixel_format_map = {
 };
 
 /* Not in use now.
-NDIlib_FourCC_type_e yuri_format_to_ndi(format_t fmt)
-{
+NDIlib_FourCC_type_e yuri_format_to_ndi(format_t fmt) {
 	for (auto f: pixel_format_map) {
 		if (f.second == fmt) return f.first;
 	}
@@ -41,8 +40,7 @@ NDIlib_FourCC_type_e yuri_format_to_ndi(format_t fmt)
 }
 */
 
-format_t ndi_format_to_yuri (NDIlib_FourCC_type_e fmt)
-{
+format_t ndi_format_to_yuri (NDIlib_FourCC_type_e fmt) {
 	auto it = pixel_format_map.find(fmt);
 	if (it == pixel_format_map.end()) throw exception::Exception("No Yuri format found.");
 	return it->second;
@@ -128,11 +126,11 @@ void NDIInput::run() {
 		switch (NDIlib_recv_capture_v2(ndi_receiver, &video_frame, &audio_frame, &metadata_frame, 1000)) {
 		// No data
 		case NDIlib_frame_type_none:
-			printf("No data received.\n");
+			log[log::debug] << "No data received.";
 			break;
 		// Video data
 		case NDIlib_frame_type_video:
-			printf("Video data received (%dx%d).\n", video_frame.xres, video_frame.yres);
+			log[log::debug] << "Video data received: " << video_frame.xres << "x" << video_frame.yres;
 			output_format = ndi_format_to_yuri(video_frame.FourCC);
 			frame = core::RawVideoFrame::create_empty(output_format, {(uint32_t)video_frame.xres, (uint32_t)video_frame.yres}, true);
 			std::copy(video_frame.p_data, video_frame.p_data + video_frame.yres * video_frame.line_stride_in_bytes, PLANE_DATA(frame, 0).begin());
@@ -141,17 +139,17 @@ void NDIInput::run() {
 			break;
 		// Audio data
 		case NDIlib_frame_type_audio:
-			printf("Audio data received (%d samples).\n", audio_frame.no_samples);
+			log[log::debug] << "Audio data received: " << audio_frame.no_samples << " samples.";
 			NDIlib_recv_free_audio_v2(ndi_receiver, &audio_frame);
 			break;
 		// Meta data
 		case NDIlib_frame_type_metadata:
-			printf("Meta data received.\n");
+			log[log::debug] << "Metadata received.";
 			NDIlib_recv_free_metadata(ndi_receiver, &metadata_frame);
 			break;
 		// There is a status change on the receiver (e.g. new web interface)
 		case NDIlib_frame_type_status_change:
-			printf("Receiver connection status changed.\n");
+			log[log::debug] << "Receiver connection status changed.";
 			break;
 		// Everything else
 		default:
