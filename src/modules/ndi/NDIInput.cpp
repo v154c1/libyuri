@@ -66,6 +66,9 @@ stream_("") {
     }
 }
 
+NDIInput::~NDIInput() {
+}
+
 
 void NDIInput::run() {
 	// Create a finder
@@ -84,13 +87,14 @@ void NDIInput::run() {
 		uint32_t count;
 		sources = NDIlib_find_get_current_sources(ndi_finder, &count);
 		for (uint32_t i = 0; i < count; i++) {
+			log[log::info] << "Searching for stream: \"" << stream_ << "\" but found: \"" << sources[i].p_ndi_name << "\"";
 			if (stream_ == sources[i].p_ndi_name)
-				stream_found = i;
+				stream_found = (i+1);
 		}
 	}
 
 	NDIlib_recv_create_v3_t receiver_desc;
-	receiver_desc.source_to_connect_to = sources[stream_found];
+	receiver_desc.source_to_connect_to = sources[stream_found-1];
 	receiver_desc.p_ndi_name = "Yuri NDI receiver";
 	receiver_desc.color_format = NDIlib_recv_color_format_e_UYVY_RGBA;
 	receiver_desc.bandwidth = NDIlib_recv_bandwidth_highest;
