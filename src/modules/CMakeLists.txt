@@ -187,6 +187,10 @@ IF(${VORBISENC_FOUND})
     add_subdirectory(vorbis)
 ENDIF()
 
+pkg_check_modules(OMXIL libomxil-bellagio)
+IF(${OMXIL_FOUND})
+	add_subdirectory(omxil)
+ENDIF()
 
 
 pkg_check_modules(X264 x264)
