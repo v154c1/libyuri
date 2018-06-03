@@ -22,7 +22,7 @@ public:
 	virtual void run() override;
 	IOTHREAD_GENERATOR_DECLARATION
 	static core::Parameters configure();
-	//static std::vector<core::InputDeviceInfo> enumerate();
+	static std::vector<core::InputDeviceInfo> enumerate();
 private:
 	virtual bool set_param(const core::Parameter &param) override;
 

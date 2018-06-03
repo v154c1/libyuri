@@ -69,6 +69,35 @@ stream_("") {
 NDIInput::~NDIInput() {
 }
 
+std::vector<core::InputDeviceInfo> NDIInput::enumerate() {
+	// Returned devices
+	std::vector<core::InputDeviceInfo> devices;
+	std::vector<std::string> main_param_order = {"address", "name"};
+
+	// Create a finder
+	const NDIlib_find_create_t finder_desc;
+	NDIlib_find_instance_t ndi_finder = NDIlib_find_create_v2(&finder_desc);
+	if (!ndi_finder) {
+		throw exception::InitializationFailed("Faile to initialize NDI fidner.");
+	}
+
+	// Search for the source on the network
+	const NDIlib_source_t* sources = NULL;
+	NDIlib_find_wait_for_sources(ndi_finder, 1000);
+	uint32_t count;
+	sources = NDIlib_find_get_current_sources(ndi_finder, &count);
+	for (uint32_t i = 0; i < count; i++) {
+		core::InputDeviceInfo device;
+		device.main_param_order = main_param_order;
+		device.device_name = sources[i].p_ndi_name;
+		core::InputDeviceConfig cfg_base;
+		cfg_base.params["address"]=sources[i].p_ip_address;
+		cfg_base.params["name"]=sources[i].p_ndi_name;
+		device.configurations.push_back(std::move(cfg_base));
+		devices.push_back(std::move(device));
+	}
+	return devices;
+}
 
 void NDIInput::run() {
 	// Create a finder
