@@ -126,6 +126,7 @@ OPTION (YURI_DISABLE_PNG "Disable building of PNG module" OFF)
 OPTION (YURI_DISABLE_BOOST "Disable boost dependencies" OFF)
 OPTION (YURI_DISABLE_GPUJPEG  "Disable GPUJPEG library" ON)
 OPTION (YURI_DISABLE_OPENCV "Disable OpenCV modules" OFF)
+OPTION (YURI_DISABLE_NDI "Disable NDI modules" OFF)
 OPTION (YURI_DISABLE_ULTRAGRID "Disable ultragrid helper and modules" ON)
 
 OPTION (YURI_DISABLE_GRABBER "Disable node fb_grabber in GL helper" OFF)
