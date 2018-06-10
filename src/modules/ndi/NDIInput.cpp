@@ -10,6 +10,7 @@
 #include "yuri/core/frame/raw_frame_params.h"
 #include "yuri/core/frame/RawAudioFrame.h"
 #include "yuri/core/frame/raw_audio_frame_types.h"
+#include "yuri/core/frame/raw_audio_frame_params.h"
 
 #include "yuri/core/utils.h"
 
@@ -52,18 +53,22 @@ IOTHREAD_GENERATOR(NDIInput)
 
 core::Parameters NDIInput::configure() {
 	core::Parameters p = IOThread::configure();
-	p["stream"]["Name of the stream to read"]="";
+	p["stream"]["Name of the stream to read."]="";
+	p["audio"]["Set to true if audio should be received."]=false;
 	return p;
 }
 
 NDIInput::NDIInput(log::Log &log_,core::pwThreadBase parent, const core::Parameters &parameters)
 :core::IOThread(log_,parent,0,1,std::string("NDIInput")),
-stream_("") {
+stream_(""),audio_enabled_(false),audio_pipe_(-1) {
 	IOTHREAD_INIT(parameters)
 	if (!NDIlib_initialize()) {
 		log[log::fatal] << "Faile to initialize NDI input.";
 		throw exception::InitializationFailed("Faile to initialize NDI input.");
     }
+	// Audio pipe is for further multichannel implementation
+	audio_pipe_=(audio_enabled_?1:-1);
+	resize(0,1+(audio_enabled_?1:0));
 }
 
 NDIInput::~NDIInput() {
@@ -151,29 +156,45 @@ void NDIInput::run() {
 	log[log::info] << "Receiving started";
 
 	while (still_running()) {
-		NDIlib_video_frame_v2_t video_frame;
-		NDIlib_audio_frame_v2_t audio_frame;
+		NDIlib_video_frame_v2_t n_video_frame;
+		NDIlib_audio_frame_v2_t n_audio_frame;
 		NDIlib_metadata_frame_t metadata_frame;
-		yuri::format_t output_format;
-		core::pRawVideoFrame frame;
-		switch (NDIlib_recv_capture_v2(ndi_receiver, &video_frame, &audio_frame, &metadata_frame, 1000)) {
+		NDIlib_audio_frame_interleaved_16s_t n_audio_frame_16bpp_interleaved;
+		// Yuri Video
+		yuri::format_t y_video_format;
+		core::pRawVideoFrame y_video_frame;
+		// Yuri Audio
+		core::pRawAudioFrame y_audio_frame;
+		// Receive
+		switch (NDIlib_recv_capture_v2(ndi_receiver, &n_video_frame, &n_audio_frame, &metadata_frame, 1000)) {
 		// No data
 		case NDIlib_frame_type_none:
 			log[log::debug] << "No data received.";
 			break;
 		// Video data
 		case NDIlib_frame_type_video:
-			log[log::debug] << "Video data received: " << video_frame.xres << "x" << video_frame.yres;
-			output_format = ndi_format_to_yuri(video_frame.FourCC);
-			frame = core::RawVideoFrame::create_empty(output_format, {(uint32_t)video_frame.xres, (uint32_t)video_frame.yres}, true);
-			std::copy(video_frame.p_data, video_frame.p_data + video_frame.yres * video_frame.line_stride_in_bytes, PLANE_DATA(frame, 0).begin());
-			NDIlib_recv_free_video_v2(ndi_receiver, &video_frame);
-			push_frame(0,frame);
+			log[log::debug] << "Video data received: " << n_video_frame.xres << "x" << n_video_frame.yres;
+			y_video_format = ndi_format_to_yuri(n_video_frame.FourCC);
+			y_video_frame = core::RawVideoFrame::create_empty(y_video_format, {(uint32_t)n_video_frame.xres, (uint32_t)n_video_frame.yres}, true);
+			std::copy(n_video_frame.p_data, n_video_frame.p_data + n_video_frame.yres * n_video_frame.line_stride_in_bytes, PLANE_DATA(y_video_frame, 0).begin());
+			NDIlib_recv_free_video_v2(ndi_receiver, &n_video_frame);
+			push_frame(0,y_video_frame);
 			break;
 		// Audio data
 		case NDIlib_frame_type_audio:
-			log[log::debug] << "Audio data received: " << audio_frame.no_samples << " samples.";
-			NDIlib_recv_free_audio_v2(ndi_receiver, &audio_frame);
+			if (audio_enabled_) {
+				log[log::debug] << "Audio data received: " << n_audio_frame.no_samples << " samples, " << n_audio_frame.no_channels << " channels.";
+				n_audio_frame_16bpp_interleaved.reference_level = 20;	// 20dB of headroom
+				n_audio_frame_16bpp_interleaved.p_data = new short[n_audio_frame.no_samples*n_audio_frame.no_channels];
+				// Convert it
+				NDIlib_util_audio_to_interleaved_16s_v2(&n_audio_frame, &n_audio_frame_16bpp_interleaved);
+				// Process data!
+				y_audio_frame = core::RawAudioFrame::create_empty(core::raw_audio_format::signed_16bit, n_audio_frame.no_channels, n_audio_frame.sample_rate, n_audio_frame_16bpp_interleaved.p_data , n_audio_frame.no_samples * n_audio_frame.no_channels * 2);
+				push_frame(audio_pipe_, y_audio_frame);
+				// Free the interleaved audio data
+				delete[] n_audio_frame_16bpp_interleaved.p_data;
+			}
+			NDIlib_recv_free_audio_v2(ndi_receiver, &n_audio_frame);
 			break;
 		// Meta data
 		case NDIlib_frame_type_metadata:
@@ -201,6 +222,7 @@ void NDIInput::run() {
 bool NDIInput::set_param(const core::Parameter &param) {
 	if (assign_parameters(param)
 			(stream_, "stream")
+			(audio_enabled_, "audio")
 			)
 		return true;
 	return IOThread::set_param(param);

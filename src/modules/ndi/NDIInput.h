@@ -27,6 +27,8 @@ private:
 	virtual bool set_param(const core::Parameter &param) override;
 
 	std::string stream_;
+	bool audio_enabled_;
+	position_t audio_pipe_;
 };
 
 }
