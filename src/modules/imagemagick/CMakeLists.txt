@@ -8,6 +8,10 @@ SET (SRC ImageMagickSource.cpp
 
 include_directories(${ImageMagick_Magick++_INCLUDE_DIR})
 
+IF(ImageMagick_Magick++_ARCH_INCLUDE_DIR)
+	include_directories(${ImageMagick_Magick++_ARCH_INCLUDE_DIR})
+ENDIF()
+
 # You shouldn't need to edit anything below this line 
 add_library(${MODULE} MODULE ${SRC})
 target_link_libraries(${MODULE} ${LIBNAME} ${ImageMagick_Magick++_LIBRARY})
