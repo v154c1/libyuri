@@ -127,15 +127,15 @@ void XmlBuilder::builder_pimpl_t::load_xml_file(const std::string& file)
 {
 
 	doc.reset(new TiXmlDocument());
+	doc->SetCondenseWhiteSpace(false); // Do not erase multiple spaces
 	VALID(doc->LoadFile(file),"Failed to load file " + file);
 	process_document();
 }
 
 void XmlBuilder::builder_pimpl_t::load_xml_text(const std::string& text)
 {
-
 	doc.reset(new TiXmlDocument());
-//	VALID(doc->LoadFile(file),"Failed to load file " + file);
+	doc->SetCondenseWhiteSpace(false); // Do not erase multiple spaces
 	doc->Parse(text.c_str(), 0, TIXML_ENCODING_UTF8);
 	process_document();
 }
