@@ -69,17 +69,17 @@ bool AVDecoder::reset_decoder(const core::pCompressedVideoFrame& frame)
     }
 
     // Is this really needed?
-    if (codec_->capabilities & CODEC_CAP_TRUNCATED) {
-        ctx_->flags |= CODEC_FLAG_TRUNCATED;
+    if (codec_->capabilities & AV_CODEC_CAP_TRUNCATED) {
+        ctx_->flags |= AV_CODEC_FLAG_TRUNCATED;
     }
-    if (codec_->capabilities & CODEC_CAP_PARAM_CHANGE) {
-        ctx_->flags |= CODEC_CAP_PARAM_CHANGE;
+    if (codec_->capabilities & AV_CODEC_CAP_PARAM_CHANGE) {
+        ctx_->flags |= AV_CODEC_CAP_PARAM_CHANGE;
     }
-    if (codec_->capabilities & CODEC_FLAG2_CHUNKS)
-        ctx_->flags |= CODEC_FLAG2_CHUNKS;
+    if (codec_->capabilities & AV_CODEC_FLAG2_CHUNKS)
+        ctx_->flags |= AV_CODEC_FLAG2_CHUNKS;
     ctx_->pix_fmt = AV_PIX_FMT_NONE;
 
-    if (codec_->capabilities & CODEC_CAP_SLICE_THREADS) {
+    if (codec_->capabilities & AV_CODEC_CAP_SLICE_THREADS) {
         ctx_->thread_type  = libav::libav_thread_type(thread_type_);
         ctx_->thread_count = threads_;
     }
