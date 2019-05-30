@@ -16,6 +16,7 @@
 #include <sys/videoio.h>
 #else
 #include <linux/videodev2.h>
+#include <linux/version.h>
 #endif
 #include <sys/ioctl.h>
 #include "yuri/core/utils/DirectoryBrowser.h"
@@ -723,7 +724,11 @@ control_state_t v4l2_device::is_camera_control_supported(uint32_t id)
 	auto state = is_control_supported(id);
 	if (state.supported == control_support_t::supported) {
 		v4l2_ext_control control {id, 0, {0}, {0}};
-		v4l2_ext_controls controls {V4L2_CID_CAMERA_CLASS, 1, 0, {0,0}, &control};
+#if YURI_BSD ||  LINUX_VERSION_CODE < KERNEL_VERSION(4,20,0)
+		v4l2_ext_controls controls {V4L2_CID_CAMERA_CLASS, 1, 0, {0, 0}, &control};
+#else
+        v4l2_ext_controls controls {V4L2_CID_CAMERA_CLASS, 1, 0, 0, 0, &control};
+#endif
 		if (xioctl (fd_, VIDIOC_G_EXT_CTRLS, &controls)>=0) {
 			state.value = control.value;
 		}
@@ -735,7 +740,11 @@ control_state_t v4l2_device::is_camera_control_supported(uint32_t id)
 bool v4l2_device::set_camera_control(uint32_t id, control_state_t state, int32_t value)
 {
 	v4l2_ext_control control {id, 0, {0}, {clip_value(value, state.min_value, state.max_value)}};
-	v4l2_ext_controls controls {V4L2_CID_CAMERA_CLASS, 1, 0, {0,0}, &control};
+#if YURI_BSD ||  LINUX_VERSION_CODE < KERNEL_VERSION(4,20,0)
+	v4l2_ext_controls controls {V4L2_CID_CAMERA_CLASS, 1, 0, {0, 0}, &control};
+#else
+    v4l2_ext_controls controls {V4L2_CID_CAMERA_CLASS, 1, 0, 0, 0, &control};
+#endif
 
 	if (xioctl (fd_, VIDIOC_S_EXT_CTRLS, &controls) < 0) {
 //		log[log::debug]<< "Failed to enable control " << state.name;
