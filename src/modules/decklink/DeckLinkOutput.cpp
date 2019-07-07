@@ -61,8 +61,14 @@ DeckLinkOutput::~DeckLinkOutput() noexcept
 bool DeckLinkOutput::init()
 {
 	if (!init_decklink()) return false;
+#ifdef DECKLINK_API_11
+	IDeckLinkProfileAttributes *attr = nullptr;
+	device->QueryInterface(IID_IDeckLinkProfileAttributes, reinterpret_cast<void**>(&attr));
+
+#else
 	IDeckLinkAttributes *attr;
 	device->QueryInterface(IID_IDeckLinkAttributes,reinterpret_cast<void**>(&attr));
+#endif
 	//int64_t video_con;
 	//attr->GetInt(BMDDeckLinkVideoOutputConnections,&video_con);
 	if (device->QueryInterface(IID_IDeckLinkOutput,reinterpret_cast<void**>(&output))!=S_OK) {
@@ -114,7 +120,33 @@ bool DeckLinkOutput::verify_display_mode()
 {
 	assert(output);
 	yuri::lock_t l(schedule_mutex);
-	IDeckLinkDisplayMode *dm;
+    IDeckLinkDisplayMode *dm;
+
+#ifdef DECKLINK_API_11
+    BMDDisplayMode actual_mode;
+	bool supported = false;
+    stereo_usable= false;
+    if (stereo_mode) {
+        if (output->DoesSupportVideoMode(0, mode,pixel_format, bmdVideoOutputDualStream3D, &actual_mode, &supported)!=S_OK || !supported) {
+            log[log::warning] << "Selected format does not work with 3D. Re-trying without 3D support";
+            if (output->DoesSupportVideoMode(0, mode,pixel_format,bmdVideoOutputFlagDefault, &actual_mode, &supported)!=S_OK || !supported) {
+                return false;
+            }
+        } else {
+            stereo_usable = true;
+        }
+
+    } else if (output->DoesSupportVideoMode(0, mode,pixel_format,bmdVideoOutputFlagDefault,&actual_mode,&supported)!=S_OK) return false;
+    if (!supported) {
+        return false;
+    }
+    output->GetDisplayMode(actual_mode, &dm);
+//    if (support==bmdDisplayModeNotSupported) return false;
+//    if (support == bmdDisplayModeSupportedWithConversion) {
+//        log[log::warning] << "Display mode supported, but conversion is required";
+//    }
+#else
+
 	BMDDisplayModeSupport support;
 	stereo_usable= false;
 	if (stereo_mode) {
@@ -130,6 +162,7 @@ bool DeckLinkOutput::verify_display_mode()
 	if (support == bmdDisplayModeSupportedWithConversion) {
 		log[log::warning] << "Display mode supported, but conversion is required";
 	}
+#endif
 	width = dm->GetWidth();
 	height = dm->GetHeight();
 	dm->GetFrameRate(&value,&scale);

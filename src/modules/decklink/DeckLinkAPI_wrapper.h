@@ -20,11 +20,14 @@
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 #include "DeckLinkAPI.h"
+#include "DeckLinkAPIVersion.h"
 #ifdef CAN_DISABLE_PEDANTIC
 #pragma GCC diagnostic pop
 #undef CAN_DISABLE_PEDANTIC
 #endif
 
-
+#if BLACKMAGIC_DECKLINK_API_VERSION >= 0x0b000000
+#define DECKLINK_API_11
+#endif
 
 #endif /* SRC_MODULES_DECKLINK_DECKLINKAPI_WRAPPER_H_ */

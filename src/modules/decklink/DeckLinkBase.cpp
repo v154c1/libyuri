@@ -49,6 +49,13 @@ mode_strings = {
 		{"1080p50",		bmdModeHD1080p50},
 		{"1080p5994",	bmdModeHD1080p5994},
 		{"1080p60",		bmdModeHD1080p6000},
+#ifdef DECKLINK_API_11
+        {"1080p9550",	bmdModeHD1080p9590},
+        {"1080p96",		bmdModeHD1080p96},
+        {"1080p100",		bmdModeHD1080p100},
+        {"1080p11988",	bmdModeHD1080p11988},
+        {"1080p120",	bmdModeHD1080p120},
+#endif
 // Progressive 720p modes
 		{"720p50",		bmdModeHD720p50},
 		{"720p5994",	bmdModeHD720p5994},
@@ -70,6 +77,47 @@ mode_strings = {
 		{"4k25",		bmdMode4K2160p25},
 		{"4k2997",		bmdMode4K2160p2997},
 		{"4k30",		bmdMode4K2160p30},
+        {"4k4795",		bmdMode4K2160p4795},
+        {"4k48",		bmdMode4K2160p48},
+        {"4k50",		bmdMode4K2160p50},
+        {"4k5994",		bmdMode4K2160p5994},
+        {"4k60",		bmdMode4K2160p60},
+#ifdef DECKLINK_API_11
+        {"4k9590",		bmdMode4K2160p9590},
+        {"4k96",		bmdMode4K2160p96},
+        {"4k100",		bmdMode4K2160p100},
+        {"4k11988",		bmdMode4K2160p11988},
+        {"4k120",		bmdMode4K2160p120},
+// 8k modes
+        {"8k2398",		bmdMode8K4320p2398},
+        {"8k24",		bmdMode8K4320p24},
+        {"8k25",		bmdMode8K4320p25},
+        {"8k2997",		bmdMode8K4320p2997},
+        {"8k30",		bmdMode8K4320p30},
+        {"8k4795",		bmdMode8K4320p4795},
+        {"8k48",		bmdMode8K4320p48},
+        {"8k50",		bmdMode8K4320p50},
+        {"8k5994",		bmdMode8K4320p5994},
+        {"8k60",		bmdMode8K4320p60},
+// PC modes
+        {"vga",		    bmdMode640x480p60},
+        {"svga",		bmdMode800x600p60},
+        {"wxga+p50",	bmdMode1440x900p50},
+        {"wxga+p60",	bmdMode1440x900p60},
+        {"uxgap50",	    bmdMode1600x1200p50},
+        {"uxgap60",	    bmdMode1600x1200p60},
+        {"wuxgap50",	bmdMode1920x1200p50},
+        {"wuxgap60",	bmdMode1920x1200p60},
+        {"qhdp50",	    bmdMode2560x1440p50},
+        {"qhdp60",	    bmdMode2560x1440p60},
+        {"wqxgap50",	bmdMode2560x1600p50},
+        {"wqxgap60",	bmdMode2560x1600p60},
+
+
+
+
+
+#endif
 };
 
 std::map<std::string, BMDPixelFormat, compare_insensitive>
@@ -228,15 +276,24 @@ core::InputDeviceInfo enum_input_device(IDeckLink* dev, uint16_t device_index)
 		device.device_name="Unknown Decklink device";
 	}
 
-	IDeckLinkAttributes *attr = nullptr;
-	IDeckLinkInput *input = nullptr;
+    IDeckLinkInput *input = nullptr;
+#ifdef DECKLINK_API_11
+	IDeckLinkProfileAttributes *attr = nullptr;
+    dev->QueryInterface(IID_IDeckLinkProfileAttributes, reinterpret_cast<void**>(&attr));
+
+    if (dev->QueryInterface(IID_IDeckLinkInput,reinterpret_cast<void**>(&input))!=S_OK) {
+        // Not an input device
+        return device;
+    }
+#else
+    IDeckLinkAttributes *attr = nullptr;
 	dev->QueryInterface(IID_IDeckLinkAttributes,reinterpret_cast<void**>(&attr));
 
 	if (dev->QueryInterface(IID_IDeckLinkInput,reinterpret_cast<void**>(&input))!=S_OK) {
 		// Not an input device
 		return device;
 	}
-
+#endif
 	bool detection_supported;
 	if(attr->GetFlag(BMDDeckLinkSupportsInputFormatDetection, &detection_supported) != S_OK) {
 		detection_supported = false;
@@ -269,9 +326,34 @@ core::InputDeviceInfo enum_input_device(IDeckLink* dev, uint16_t device_index)
 		auto m = mode->GetDisplayMode();
 		cfg.params["format"]=bm_mode_to_yuri(m);
 		for (const auto& pixfmt: pixel_format_map) {
+#ifdef DECKLINK_API_11
+		    bool supported = false;
+		    // FIXME - connection enumeration (?)
+            if (input->DoesSupportVideoMode(0, m, pixfmt.first, bmdVideoInputFlagDefault, &supported) == S_OK) {
+                if (supported) {
+                    try {
+                        const auto& fi = get_format_info(pixfmt.second);
+                        if (fi.short_names.empty()) continue;
+                        auto cfg2 = cfg;
+                        cfg2.params["pixel_format"]=fi.short_names[0];
+                        cfg2.params["stereo"]=false;
+// FIXME missing 3D support
+//                        if (res_mode->GetFlags() & bmdDisplayModeSupports3D) {
+//                            auto cfg3 = cfg2;
+//                            cfg3.params["stereo"]=true;
+//                            push_cfg_connections(device, std::move(cfg3), connections);
+//                        }
+                        push_cfg_connections(device, std::move(cfg2), connections);
+                    }
+                    catch (...) {
+
+                    }
+                }
+            }
+#else
 			BMDDisplayModeSupport sup;
 			IDeckLinkDisplayMode* res_mode = nullptr;
-			if (input->DoesSupportVideoMode(m,pixfmt.first, bmdVideoInputFlagDefault, &sup, &res_mode) == S_OK) {
+			if (input->DoesSupportVideoMode(m, pixfmt.first, bmdVideoInputFlagDefault, &sup, &res_mode) == S_OK) {
 				if (sup == bmdDisplayModeSupported || sup == bmdDisplayModeSupportedWithConversion) {
 					try {
 						const auto& fi = get_format_info(pixfmt.second);
@@ -292,6 +374,7 @@ core::InputDeviceInfo enum_input_device(IDeckLink* dev, uint16_t device_index)
 					}
 				}
 			}
+#endif
 		}
 
 	}
