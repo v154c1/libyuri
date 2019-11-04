@@ -330,7 +330,7 @@ bool RawAVFile::push_ready_frames()
 bool RawAVFile::process_file_end()
 {
     if (loop_) {
-        if (next_filename_.empty() && fmtctx_) {
+        if (!has_next_filename() && fmtctx_) {
             log[log::debug] << "Seeking to the beginning";
             av_seek_frame(fmtctx_, 0, 0, AVSEEK_FLAG_BACKWARD);
             if (decode_) {
@@ -342,9 +342,9 @@ bool RawAVFile::process_file_end()
                 }
             }
         } else {
-            log[log::info] << "Opening: " << next_filename_;
-            filename_ = std::move(next_filename_);
-            next_filename_.clear();
+            filename_ = get_next_filename();
+            log[log::info] << "Opening: " << filename_;
+
             return open_file(filename_);
         }
         return true;
@@ -422,7 +422,11 @@ bool RawAVFile::process_undecoded_frame(index_t idx, const AVPacket& packet)
     return true;
 }
 
-bool RawAVFile::emit_extradata(index_t idx, format_t format)
+    bool RawAVFile::step() {
+        return IOThread::step();
+    }
+
+    bool RawAVFile::emit_extradata(index_t idx, format_t format)
 {
     const auto d  = video_streams_[idx].ctx->extradata;
     auto       fs = h264::get_extradata_frames(d, format, video_streams_[idx].resolution);
@@ -552,7 +556,7 @@ void RawAVFile::run()
     while (still_running()) {
         process_events();
         if (!fmtctx_) {
-            if (next_filename_.empty()) {
+            if (!has_next_filename()) {
                 wait_for_events(10_ms);
                 continue;
             }
@@ -699,6 +703,16 @@ bool RawAVFile::do_process_event(const std::string& event_name, const event::pBa
     }
 
     return false;
+}
+
+bool RawAVFile::has_next_filename() {
+    return !next_filename_.empty();
+}
+
+std::string RawAVFile::get_next_filename() {
+    std::string n;
+    std::swap (next_filename_, n);
+    return n;
 }
 
 } /* namespace video */
