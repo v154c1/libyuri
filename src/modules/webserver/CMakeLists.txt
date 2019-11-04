@@ -22,12 +22,15 @@ SET (SRC WebServer.cpp
 		 WebDirectoryResource.h
 		 web_exceptions.h
 		 register.cpp
-		 )
-
+		)
+IF (JSONCPP_LIBRARY)
+	SET(SRC ${SRC}
+		WebDataResource.cpp WebDataResource.h)
+ENDIF()
 
  
 add_library(${MODULE} MODULE ${SRC})
-target_link_libraries(${MODULE} ${LIBNAME} ${Boost_REGEX_LIBRARY})
+target_link_libraries(${MODULE} ${LIBNAME} ${Boost_REGEX_LIBRARY} ${JSONCPP_LIBRARY})
 
 YURI_INSTALL_MODULE(${MODULE})
 
