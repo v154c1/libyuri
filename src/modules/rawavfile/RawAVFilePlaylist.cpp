@@ -49,6 +49,7 @@ namespace yuri {
                     return false;
                 }
                 auto vec = event::get_value<event::EventVector>(event);
+                playlist_.clear();
                 std::transform(vec.begin(), vec.end(), std::back_inserter(playlist_), [](const event::pBasicEvent &e) {
                     return event::lex_cast_value<std::string>(e);
                 });
