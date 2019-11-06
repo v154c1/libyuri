@@ -25,7 +25,7 @@ extern "C" {
 namespace yuri {
 namespace rawavfile {
 
-class RawAVFile : public core::IOThread, public event::BasicEventConsumer {
+class RawAVFile : public core::IOThread, public event::BasicEventConsumer, public event::BasicEventProducer {
 public:
     IOTHREAD_GENERATOR_DECLARATION
     static core::Parameters configure();
