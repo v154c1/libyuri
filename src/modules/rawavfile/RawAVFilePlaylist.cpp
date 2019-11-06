@@ -23,8 +23,8 @@ namespace yuri {
         }
 
         RawAVFilePlaylist::RawAVFilePlaylist(const yuri::log::Log &_log, yuri::core::pwThreadBase parent,
-                                             const core::Parameters &parameters) : RawAVFile(_log, parent, parameters),playlist_index_{0}
-                                                                                    {
+                                             const core::Parameters &parameters) : RawAVFile(_log, parent, parameters),
+                                                                                   playlist_index_{0} {
             IOTHREAD_INIT(parameters)
 
         }
@@ -55,6 +55,17 @@ namespace yuri {
 
                 return true;
             }
+            if (event_name == "reset") {
+                this->reset_indices();
+                return RawAVFile::do_process_event(event_name, event);
+            }
+            if (assign_events(event_name, event)
+                (playlist_index_, "playlist_position")) {
+                this->reset_indices();
+                return RawAVFile::do_process_event("reset", std::make_shared<event::EventBool>(true));
+//                return true;
+            }
+
             return RawAVFile::do_process_event(event_name, event);
         }
 
@@ -68,6 +79,7 @@ namespace yuri {
                 playlist_index_ %= playlist_.size();
             }
             log[log::debug] << "Returning " << playlist_[playlist_index_];
+            emit_event("playlist_position", playlist_index_);
             return playlist_[playlist_index_++];
         }
     }

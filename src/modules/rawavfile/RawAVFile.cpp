@@ -108,6 +108,7 @@ core::Parameters RawAVFile::configure()
 RawAVFile::RawAVFile(const log::Log& _log, core::pwThreadBase parent, const core::Parameters& parameters)
     : IOThread(_log, parent, 0, 1024, "RawAVSource"),
       BasicEventConsumer(log),
+      BasicEventProducer(log),
       fmtctx_(nullptr, [](AVFormatContext* ctx) { avformat_close_input(&ctx); }),
       video_format_out_(0),
       audio_format_out_(0),
@@ -295,6 +296,7 @@ bool RawAVFile::open_file(const std::string& filename)
     }
 
     next_times_.resize(video_streams_.size(), timestamp_t{});
+    emit_event("filename", filename_);
     return true;
 }
 
@@ -329,6 +331,7 @@ bool RawAVFile::push_ready_frames()
 
 bool RawAVFile::process_file_end()
 {
+    emit_event("end", true);
     if (loop_) {
         if (!has_next_filename() && fmtctx_) {
             log[log::debug] << "Seeking to the beginning";
@@ -344,7 +347,6 @@ bool RawAVFile::process_file_end()
         } else {
             filename_ = get_next_filename();
             log[log::info] << "Opening: " << filename_;
-
             return open_file(filename_);
         }
         return true;
