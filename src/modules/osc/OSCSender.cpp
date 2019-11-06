@@ -65,7 +65,9 @@ bool OSCSender::set_param(const core::Parameter& param)
 		port_ = param.get<uint16_t>();
 	} else if (param.get_name() == "address") {
 		address_ = param.get<std::string>();
-	} return core::IOThread::set_param(param);
+	} else {
+	    return core::IOThread::set_param(param);
+	}
 	return true;
 }
 
