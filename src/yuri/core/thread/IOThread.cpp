@@ -132,7 +132,7 @@ bool IOThread::push_frame(position_t index, pFrame frame)
         return true;
     const auto cur_idx = frame->get_index();
     if (static_cast<position_t>(next_indices_.size()) <= index) {
-        next_indices_.resize(index + 1);
+        next_indices_.resize(index + 1, 0);
     }
     if (cur_idx == 0) {
         const auto idx = next_indices_[index]++;
@@ -225,6 +225,10 @@ bool IOThread::set_param(const Parameter& parameter)
         )
         return true;
     return ThreadBase::set_param(parameter);
+}
+
+void IOThread::reset_indices() {
+    next_indices_.clear();
 }
 }
 }
