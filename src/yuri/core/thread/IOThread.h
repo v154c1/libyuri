@@ -225,6 +225,11 @@ protected:
      */
     EXPORT virtual void do_connect_out(position_t position, pPipe pipe);
 
+    /*!
+     * Resets indices on outputs
+     *
+     */
+    EXPORT void reset_indices();
 private:
     position_t                 in_ports_;
     position_t                 out_ports_;
