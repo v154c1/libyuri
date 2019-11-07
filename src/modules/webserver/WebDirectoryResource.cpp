@@ -118,7 +118,7 @@ webserver::response_t WebDirectoryResource::do_process_request(const webserver::
         file.seekg(0, std::ios::beg);
         file.read(&data_string[0], len);
 
-        return response_t{ http_code::ok, { { "Content-Encoding", guess_mime_type(suffix) } }, data_string };
+        return response_t{ http_code::ok, { { "Content-Type", guess_mime_type(suffix) } }, data_string };
     } catch (std::runtime_error&) {
         log[log::warning] << "Failed to process " << filename;
         throw not_found(path);
