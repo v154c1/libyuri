@@ -46,7 +46,9 @@ std::unordered_map<format_t, AVCodecID> yuri_codec_map = {
 		{theora,					AV_CODEC_ID_THEORA},
 		{vp8,						AV_CODEC_ID_VP8},
 		{core::raw_audio_format::signed_16bit,
-									AV_CODEC_ID_PCM_S16LE}
+									AV_CODEC_ID_PCM_S16LE},
+        {core::raw_audio_format::signed_32bit,
+                                    AV_CODEC_ID_PCM_S32LE}
 };
 }
 namespace {
