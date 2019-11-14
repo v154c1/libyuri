@@ -23,6 +23,7 @@ core::Parameters AlsaOutput::configure()
 	p.set_description("AlsaOutput");
 	p["device"]["Alsa device to use"]="default";
 	p["force_channels"]["Force number of channels for the output (set to 0 to automatic channel count)"]=0;
+	p["mmap"]["Use mmap to access the device"]=false;
 	p["buffer_size"]["Buffer size"]=24000;
     p["period_size"]["Period size"]=6000;
     p["periods"]["Periods"]=4;
@@ -33,7 +34,8 @@ core::Parameters AlsaOutput::configure()
 
 AlsaOutput::AlsaOutput(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters):
 core::SpecializedIOFilter<core::RawAudioFrame>(log_,parent, std::string("alsa_output")),
-format_(0),device_name_("default"),channels_(0),sampling_rate_(0),forced_channels_(0),buffer_size_{24000},period_size_{6000},periods_{4},handle_(0)
+format_(0),device_name_("default"),channels_(0),sampling_rate_(0),forced_channels_(0),buffer_size_{24000},
+period_size_{6000},periods_{4},use_mmap_{false},handle_(0)
 {
 	IOTHREAD_INIT(parameters)
 
@@ -53,7 +55,7 @@ bool AlsaOutput::is_different_format(const core::pRawAudioFrame& frame)
 }
 
 namespace {
-const uint8_t* write_data(log::Log& log, const uint8_t* start, const uint8_t* end, snd_pcm_t* handle, int timeout, size_t frame_size)
+const uint8_t* write_data(log::Log& log, const uint8_t* start, const uint8_t* end, snd_pcm_t* handle, int timeout, size_t frame_size, bool use_mmap)
 {
 	if (!snd_pcm_wait(handle, timeout)) {
 		log[log::verbose_debug] << "Device busy";
@@ -64,7 +66,11 @@ const uint8_t* write_data(log::Log& log, const uint8_t* start, const uint8_t* en
 	snd_pcm_sframes_t write_frames = std::min(frames_free, avail_frames);
 	if (write_frames > 0) {
 		log[log::verbose_debug] << "Writing " << write_frames << " samples. Available was " << frames_free << ", I received " << avail_frames;
-		write_frames = snd_pcm_writei(handle, reinterpret_cast<const void*>(start), write_frames);
+		if (!use_mmap) {
+            write_frames = snd_pcm_writei(handle, reinterpret_cast<const void *>(start), write_frames);
+        } else {
+            write_frames = snd_pcm_mmap_writei(handle, reinterpret_cast<const void *>(start), write_frames);
+		}
 		log[log::verbose_debug] << "Written " << write_frames << " frames";
 	}
 	if (write_frames < 0) {
@@ -129,7 +135,7 @@ core::pFrame AlsaOutput::do_special_single_step(core::pRawAudioFrame frame)
 	}
 	const uint8_t* end = start + data_size;
 	while (start != end && still_running()) {
-		start = write_data(log, start, end, handle_, static_cast<int>(get_latency().value/1000), channel_size * channels_);
+		start = write_data(log, start, end, handle_, static_cast<int>(get_latency().value/1000), channel_size * channels_, use_mmap_);
 	}
 	
 
@@ -171,9 +177,16 @@ bool AlsaOutput::init_alsa(const core::pRawAudioFrame& frame)
 	if(!error_call(snd_pcm_hw_params_any (handle_, hw_params),
 			"Failed to initialize HW params")) return false;
 
-	// Set access type to interleaved
-	if(!error_call(snd_pcm_hw_params_set_access (handle_, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED),
-			"Failed to set access type")) return false;
+	if (!use_mmap_) {
+        // Set access type to interleaved
+        if (!error_call(snd_pcm_hw_params_set_access(handle_, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED),
+                        "Failed to set access type"))
+            return false;
+    } else {
+        if (!error_call(snd_pcm_hw_params_set_access(handle_, hw_params, SND_PCM_ACCESS_MMAP_INTERLEAVED),
+                        "Failed to set access type"))
+            return false;
+	}
 
 	if(!error_call(snd_pcm_hw_params_set_format (handle_, hw_params, fmt),
 				"Failed to set format")) return false;
@@ -233,7 +246,8 @@ bool AlsaOutput::set_param(const core::Parameter& param)
 		(forced_channels_, "force_channels") //
 		(buffer_size_, "buffer_size") //
         (period_size_, "period_size") //
-        (periods_, "periods")) {
+        (periods_, "periods") //
+		(use_mmap_, "mmap")) {
 		return true;
 	}
 	return core::SpecializedIOFilter<core::RawAudioFrame>::set_param(param);

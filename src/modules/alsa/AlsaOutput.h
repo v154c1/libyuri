@@ -43,6 +43,7 @@ private:
     snd_pcm_uframes_t period_size_;
     unsigned int periods_;
 
+	bool use_mmap_;
 	std::vector<uint8_t> channel_buffer_;
 	snd_pcm_t			*handle_;
 
