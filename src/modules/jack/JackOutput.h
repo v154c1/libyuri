@@ -91,6 +91,9 @@ private:
 	std::vector<buffer_t<jack_default_audio_sample_t>> buffers_;
 	std::mutex	data_mutex_;
 	bool start_server_;
+	bool blocking_;
+
+	std::condition_variable buffer_cv_;
 
 };
 
