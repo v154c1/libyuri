@@ -28,6 +28,7 @@ core::Parameters JackOutput::configure()
 	p["buffer_size"]["Size of internal buffer"]=1048576;
 	p["client_name"]["Name of the JACK client"]="yuri";
 	p["start_server"]["Start server is it's not running."]=false;
+    p["blocking"]["Blocking mode when buffer is full."]=false;
 	return p;
 }
 
@@ -136,7 +137,7 @@ void store_samples(std::vector<buffer_t<Target>>& buffers, const src_fmt* in, si
 JackOutput::JackOutput(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters):
 base_type(log_,parent,std::string("jack_output")),handle_(nullptr),
 client_name_("yuri_jack"),channels_(2),allow_different_frequencies_(false),buffer_size_(1048576),
-start_server_(false)
+start_server_(false),blocking_(false)
 {
 	IOTHREAD_INIT(parameters)
 	if (channels_ < 1) {
@@ -283,20 +284,18 @@ int JackOutput::process_audio(jack_nframes_t nframes)
 }
 bool JackOutput::set_param(const core::Parameter& param)
 {
-	if (param.get_name() == "channels") {
-		channels_ = param.get<size_t>();
-	} else if (param.get_name() == "allow_different_frequencies") {
-		allow_different_frequencies_ = param.get<bool>();
-	} else if (param.get_name() == "connect_to") {
-		connect_to_ = param.get<std::string>();
-	} else if (param.get_name() == "buffer_size") {
-		buffer_size_ = param.get<size_t>();
-	} else if (param.get_name() == "client_name") {
-		client_name_ = param.get<std::string>();
-	} else if (param.get_name() == "start_server") {
-		start_server_ = param.get<bool>();
-	} else return base_type::set_param(param);
-	return true;
+    if (assign_parameters(param)
+            (channels_, "channels")
+            (allow_different_frequencies_, "allow_different_frequencies")
+            (connect_to_, "connect_to")
+            (buffer_size_, "buffer_size")
+            (client_name_, "client_name")
+            (start_server_, "start_server")
+            (blocking_, "blocking")) {
+        return true;
+    }
+	else return base_type::set_param(param);
+
 }
 
 } /* namespace jack_output */
