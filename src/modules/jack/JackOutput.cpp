@@ -222,9 +222,20 @@ core::pFrame JackOutput::do_special_single_step(core::pRawAudioFrame frame)
 
 	std::unique_lock<std::mutex> lock(data_mutex_);
 	using namespace core::raw_audio_format;
-	const auto empty = buffers_[0].empty();
+	auto empty = buffers_[0].empty();
 	if (empty < nframes) {
-		log[log::warning] << "Not enough space in the buffer, overwriting " << (nframes - empty) << " frames";
+	    if (!blocking_) {
+            log[log::warning] << "Not enough space in the buffer, overwriting " << (nframes - empty) << " frames";
+        } else {
+	        while (still_running() && empty < nframes) {
+	            if (!still_running()) {
+	                request_end();
+	                return {};
+	            }
+	            buffer_cv_.wait_for(lock, std::chrono::microseconds(get_latency()));
+                empty = buffers_[0].empty();
+	        }
+	    }
 	}
 	switch (frame->get_format()) {
 		case unsigned_8bit:
@@ -262,6 +273,7 @@ int JackOutput::process_audio(jack_nframes_t nframes)
 		jack_default_audio_sample_t* data = reinterpret_cast<jack_default_audio_sample_t *>(jack_port_get_buffer (ports_[i].get(), nframes));
 		buffers_[i].pop(data,copy_count);
 		std::fill(data+copy_count, data+nframes, 0.0f);
+		buffer_cv_.notify_all();
 	}
 	const auto missing = nframes - copy_count;
 	if (missing > 0) {
