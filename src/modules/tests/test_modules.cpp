@@ -32,17 +32,24 @@ namespace yuri {
             return core::RawVideoFrame::create_empty(fmt, res);
         }
 
-        void test_filter_class(const core::Parameters &p, const std::string &name, resolution_t res, format_t fmt = test_fmt) {
-            auto cls = empty_class<core::IOFilter>(log, name, p);
-            REQUIRE(cls);
-
-            auto f1 = empty_frame(test_fmt, test_res);
+        void test_filter_class_inner(std::shared_ptr<core::IOFilter> &cls, resolution_t src_res, format_t src_fmt,
+                                     resolution_t res, format_t fmt) {
+            auto f1 = empty_frame(src_fmt, src_res);
 
             auto f2 = std::dynamic_pointer_cast<core::RawVideoFrame>(cls->simple_single_step(f1));
             REQUIRE(f2);
             REQUIRE(f2->get_format() == fmt);
             REQUIRE(f2->get_resolution() == res);
             REQUIRE(f1->get_timestamp() == f2->get_timestamp());
+        }
+
+        void
+        test_filter_class(const core::Parameters &p, const std::string &name,
+                          resolution_t res, format_t fmt  = test_fmt) {
+            auto cls = empty_class<core::IOFilter>(log, name, p);
+            REQUIRE(cls);
+            test_filter_class_inner(cls, test_res, test_fmt, res, fmt);
+
         }
 
         TEST_CASE("modules") {
@@ -73,9 +80,17 @@ namespace yuri {
                 test_filter_class({}, "frame_info", test_res);
             }
             SECTION("yuri_convert") {
-                core::Parameters p;
-                p["format"] = "YUYV";
-                test_filter_class(p, "yuri_convert", test_res, core::raw_format::yuyv422);
+                using namespace core::raw_format;
+                const std::map<std::string, format_t> format_list {
+                        {"RGB24", rgb24},
+                        {"YUV", yuyv422}
+                };
+                for (const auto& fmt: format_list) {
+                    core::Parameters p;
+                    p["format"] = fmt.first;
+
+                    test_filter_class(p, "yuri_convert", test_res, fmt.second);
+                }
             }
         }
 
