@@ -253,6 +253,9 @@ core::pFrame YuriConvertor::do_convert_frame(core::pFrame input_frame, format_t 
 		//@ TODO fix this...
 		//outframe->set_info(frame->get_info());
 		//if (outframe->get_pts() == 0) outframe->set_time(frame->get_pts(), frame->get_dts(), frame->get_duration());
+
+		// FIXME: This may update too many fields....
+        outframe->copy_video_params(*frame);
 	}
 	return outframe;
 }
