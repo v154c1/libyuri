@@ -260,6 +260,7 @@ core::pFrame Pad::do_special_single_step(core::pRawVideoFrame frame)
 		// Fill in blank pixels at left side
 		fill_from_sample(out_line_active_end, next_line_start, samples_black.begin());
 	}
+	output->copy_video_params(*frame);
 	return output;
 }
 
