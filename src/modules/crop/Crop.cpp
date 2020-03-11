@@ -119,7 +119,8 @@ core::pFrame Crop::do_special_single_step(core::pRawVideoFrame frame)
 		iter_in += line_size;
 		iter_out += copy_bytes;
 	}
-
+    // FIXME: This may update too many fields....
+    frame_out->copy_video_params(*frame);
 	return frame_out;
 }
 
