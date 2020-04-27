@@ -54,6 +54,7 @@ private:
 	int				sdl_bpp_;
 	std::string		title_;
 	bool			decorations_;
+	bool			show_cursor_;
 	coordinates_t	position_;
 	std::string		display_;
 	std::string		display_str_;
