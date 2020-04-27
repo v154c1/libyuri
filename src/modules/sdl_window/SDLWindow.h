@@ -45,6 +45,7 @@ private:
 	bool prepare_rgb_overlay(const core::pRawVideoFrame& frame);
 	bool do_process_event(const std::string& event_name, const event::pBasicEvent& event) override;
 	resolution_t	resolution_;
+	resolution_t    last_frame_res_;
 	bool			fullscreen_;
 	bool			default_keys_;
 	bool			use_gl_;
@@ -55,6 +56,7 @@ private:
 	std::string		title_;
 	bool			decorations_;
 	bool			show_cursor_;
+	bool			keep_aspect_gl_;
 	coordinates_t	position_;
 	std::string		display_;
 	std::string		display_str_;
