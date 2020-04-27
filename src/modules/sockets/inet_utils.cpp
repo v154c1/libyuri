@@ -15,9 +15,6 @@
 #include <functional>
 
 #include <iostream>
-#if defined(__GNUC__) && (__GNUC__ >= 7)
-#include <functional>
-#endif
 
 namespace yuri{
 namespace network {
