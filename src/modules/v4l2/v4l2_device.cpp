@@ -44,6 +44,21 @@ namespace {
 		}
 		return r;
 	}
+
+	std::map<size_t, size_t> known_resolutions = {
+        {640,  360 },
+        {800,  600 },
+		{1024, 768 },
+		{1280, 720 },
+		{1280, 800 },
+		{1280, 1024},
+		{1600, 900 },
+		{1920, 1080},
+		{1920, 1200},
+		{2048, 1152},
+		{2560, 1440},
+		{3840, 2160}
+	};
 }
 
 std::vector<std::string> enum_v4l2_devices()
@@ -192,6 +207,11 @@ std::vector<resolution_t> v4l2_device::enum_resolutions(uint32_t fmt)
 //				l << "continuous";
 				break;
 			case V4L2_FRMSIZE_TYPE_STEPWISE:
+				for (size_t height = frms.stepwise.min_height; height < frms.stepwise.max_height; height+=frms.stepwise.step_height) {
+					for (size_t width = frms.stepwise.min_width; width < frms.stepwise.max_width; width+=frms.stepwise.step_width) {
+						if (known_resolutions.find(width)->second == height) res.push_back({width, height});
+					}
+				}
 //				l << "stepwise";
 				break;
 		}
