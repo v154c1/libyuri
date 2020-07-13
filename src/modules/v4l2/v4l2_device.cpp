@@ -61,14 +61,14 @@ namespace {
 	};
 
 	std::vector<std::pair<size_t, size_t>> known_fps = {
-        {1, 90},
-        {1, 60},
-		{1, 50},
-		{1, 30},
-		{1, 25},
-		{1, 15},
-		{1, 10},
-		{1,  5},
+        {90, 1},
+        {60, 1},
+		{50, 1},
+		{30, 1},
+		{25, 1},
+		{15, 1},
+		{10, 1},
+		{5,  1},
 		{1,  1}
 	};
 }
@@ -250,7 +250,7 @@ std::vector<fraction_t> v4l2_device::enum_fps(uint32_t fmt, resolution_t res)
 			for (size_t numerator = frmvalen.stepwise.min.numerator; numerator <= frmvalen.stepwise.max.numerator; numerator++) {
 				for (size_t denominator = frmvalen.stepwise.max.denominator; denominator <= frmvalen.stepwise.min.denominator; denominator++) {
 					for (auto& k_fps : known_fps)
-						if (k_fps.first == numerator && k_fps.second == denominator) fps_list.push_back({numerator, denominator});
+						if (k_fps.first == denominator && k_fps.second == numerator) fps_list.push_back({denominator, numerator});
 				}
 			}
 			break;
@@ -262,7 +262,7 @@ std::vector<fraction_t> v4l2_device::enum_fps(uint32_t fmt, resolution_t res)
 				for (size_t numerator = frmvalen.stepwise.min.numerator; numerator <= frmvalen.stepwise.max.numerator; numerator+=frmvalen.stepwise.step.numerator) {
 					for (size_t denominator = frmvalen.stepwise.max.denominator; denominator <= frmvalen.stepwise.min.denominator; denominator+=frmvalen.stepwise.step.denominator) {
 						for (auto& k_fps : known_fps)
-							if (k_fps.first == numerator && k_fps.second == denominator) fps_list.push_back({numerator, denominator});
+							if (k_fps.first == denominator && k_fps.second == numerator) fps_list.push_back({denominator, numerator});
 					}
 				}
 			break;
