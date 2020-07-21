@@ -219,11 +219,15 @@ std::vector<resolution_t> v4l2_device::enum_resolutions(uint32_t fmt)
 //				l << "continuous";
 				break;
 			case V4L2_FRMSIZE_TYPE_STEPWISE:
-				for (size_t height = frms.stepwise.min_height; height < frms.stepwise.max_height; height+=frms.stepwise.step_height) {
-					for (size_t width = frms.stepwise.min_width; width < frms.stepwise.max_width; width+=frms.stepwise.step_width) {
-						for (auto& k_res : known_resolutions)
-							if (k_res.first == width && k_res.second == height) res.push_back({width, height});
-					}
+				for (auto& k_res : known_resolutions) {
+					if (k_res.first >= frms.stepwise.min_width &&
+						k_res.first <= frms.stepwise.max_width &&
+						k_res.second >= frms.stepwise.min_height &&
+						k_res.second <= frms.stepwise.max_height &&
+						(k_res.first-frms.stepwise.min_width)%frms.stepwise.step_width == 0 &&
+						(k_res.second-frms.stepwise.min_height)%frms.stepwise.step_height == 0) {
+							res.push_back({k_res.first, k_res.second});
+						}
 				}
 //				l << "stepwise";
 				break;
@@ -247,23 +251,29 @@ std::vector<fraction_t> v4l2_device::enum_fps(uint32_t fmt, resolution_t res)
 //			log[log::info] << "Supports continuous frame_intervals from"
 //				<< frmvalen.stepwise.min.numerator << "/" << frmvalen.stepwise.min.denominator
 //				<< "s to " << frmvalen.stepwise.max.numerator << "/" << frmvalen.stepwise.max.denominator <<"s"<< std::endl;
-			for (size_t numerator = frmvalen.stepwise.min.numerator; numerator <= frmvalen.stepwise.max.numerator; numerator++) {
-				for (size_t denominator = frmvalen.stepwise.max.denominator; denominator <= frmvalen.stepwise.min.denominator; denominator++) {
-					for (auto& k_fps : known_fps)
-						if (k_fps.first == denominator && k_fps.second == numerator) fps_list.push_back({denominator, numerator});
+				for (auto& k_fps : known_fps) {
+					if (k_fps.first >= frmvalen.stepwise.min.denominator &&
+						k_fps.first <= frmvalen.stepwise.max.denominator &&
+						k_fps.second >= frmvalen.stepwise.min.numerator &&
+						k_fps.second <= frmvalen.stepwise.max.numerator) {
+							fps_list.push_back({k_fps.first, k_fps.second});
+						}
 				}
-			}
 			break;
 		case V4L2_FRMIVAL_TYPE_STEPWISE:
 //			log[log::info] << "Supports stepwise frame_intervals from"
 //				<< frmvalen.stepwise.min.numerator << "/" << frmvalen.stepwise.min.denominator
 //				<< "s to " << frmvalen.stepwise.max.numerator << "/" << frmvalen.stepwise.max.denominator
 //				<< "s with step " << frmvalen.stepwise.step.numerator << "/" << frmvalen.stepwise.step.denominator<<"s"<< std::endl;
-				for (size_t numerator = frmvalen.stepwise.min.numerator; numerator <= frmvalen.stepwise.max.numerator; numerator+=frmvalen.stepwise.step.numerator) {
-					for (size_t denominator = frmvalen.stepwise.max.denominator; denominator <= frmvalen.stepwise.min.denominator; denominator+=frmvalen.stepwise.step.denominator) {
-						for (auto& k_fps : known_fps)
-							if (k_fps.first == denominator && k_fps.second == numerator) fps_list.push_back({denominator, numerator});
-					}
+				for (auto& k_fps : known_fps) {
+					if (k_fps.first >= frmvalen.stepwise.min.denominator &&
+						k_fps.first <= frmvalen.stepwise.max.denominator &&
+						k_fps.second >= frmvalen.stepwise.min.numerator &&
+						k_fps.second <= frmvalen.stepwise.max.numerator &&
+						(k_fps.first-frmvalen.stepwise.min.denominator)%frmvalen.stepwise.step.denominator == 0 &&
+						(k_fps.second-frmvalen.stepwise.min.numerator)%frmvalen.stepwise.step.numerator == 0) {
+							fps_list.push_back({k_fps.first, k_fps.second});
+						}
 				}
 			break;
 		case V4L2_FRMIVAL_TYPE_DISCRETE:
