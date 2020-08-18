@@ -160,6 +160,10 @@ struct frame_traits<bgr24>: public frame_traits_8bit_three_comp , public frame_t
 };
 
 template<>
+struct frame_traits<gbr24>: public frame_traits_8bit_three_comp , public frame_traits_no_subsampling {
+};
+
+template<>
 struct frame_traits<rgba32>: public frame_traits_8bit_four_comp , public frame_traits_no_subsampling {
 };
 
