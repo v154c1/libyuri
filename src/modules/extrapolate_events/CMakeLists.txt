@@ -6,8 +6,7 @@ SET (SRC ExtrapolateEvents.cpp
 		 ExtrapolateEvents.h)
 
 
- 
 add_library(${MODULE} MODULE ${SRC})
 target_link_libraries(${MODULE} ${LIBNAME})
-
+target_compile_options(${MODULE} PUBLIC "-fno-finite-math-only")
 YURI_INSTALL_MODULE(${MODULE})
