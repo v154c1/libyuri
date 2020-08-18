@@ -334,6 +334,28 @@ void convert_line<core::raw_format::rgb24, core::raw_format::bgr24>
 	bgr_rgb(src, dest, width);
 }
 
+void gbr_rgb (core::Plane::const_iterator src, core::Plane::iterator dest, size_t width)
+{
+	for (size_t pixel = 0; pixel < width; ++pixel) {
+		*dest++=*(src+2);
+		*dest++=*(src+0);
+		*dest++=*(src+1);
+		src+=3;
+	}
+}
+template<>
+void convert_line<core::raw_format::gbr24, core::raw_format::rgb24>
+(core::Plane::const_iterator src, core::Plane::iterator dest, size_t width)
+{
+	gbr_rgb(src, dest, width);
+}
+template<>
+void convert_line<core::raw_format::rgb24, core::raw_format::gbr24>
+(core::Plane::const_iterator src, core::Plane::iterator dest, size_t width)
+{
+	gbr_rgb(src, dest, width);
+}
+
 // LE 16bit rgb -> 8bit rgb
 void rgb48_rgb (core::Plane::const_iterator src, core::Plane::iterator dest, size_t width)
 {

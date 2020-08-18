@@ -99,6 +99,8 @@ namespace {
 			ADD_CONVERSION(core::raw_format::abgr32,		core::raw_format::rgb24,	12)
 			ADD_CONVERSION(core::raw_format::bgr24,			core::raw_format::rgb24,	10)
 			ADD_CONVERSION(core::raw_format::rgb24,			core::raw_format::bgr24,	10)
+			ADD_CONVERSION(core::raw_format::gbr24,			core::raw_format::rgb24,	10)
+			ADD_CONVERSION(core::raw_format::rgb24,			core::raw_format::gbr24,	10)
 			ADD_CONVERSION(core::raw_format::yuyv422,		core::raw_format::uyvy422,	10)
 			ADD_CONVERSION(core::raw_format::uyvy422,		core::raw_format::yuyv422,	10)
 			ADD_CONVERSION(core::raw_format::yvyu422,		core::raw_format::vyuy422,	10)
