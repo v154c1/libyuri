@@ -198,6 +198,15 @@ IF(NOT HAVE_STOUL)
 	add_definitions("-DYURI_STD_STOUL_MISSING")
 ENDIF()
 
+
+#################################################################
+# Fix warning for CMP0072 (OpenGL_GL_PREFERENCE)
+#################################################################
+
+if(POLICY CMP0072)
+	cmake_policy(SET CMP0072 NEW)
+endif()
+
 #################################################################
 # And finally submerge into source directories
 #################################################################
