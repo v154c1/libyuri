@@ -69,6 +69,12 @@ const format_t bgra64		= 0x113;	// BGRA 16:16:16:16
 const format_t rgb_r10k		= 0x120;	// RGBx 10:10:10:2
 const format_t bgr_r10k		= 0x121;	// BGRx 10:10:10:2
 
+const format_t gbr8			= 0x130;	// BGR 2:3:3
+const format_t gbr15		= 0x131;	// BGR 5:5:5
+const format_t gbr16		= 0x132;	// BGR 5:6:5
+const format_t gbr24		= 0x133;	// BGR 8:8:8
+const format_t gbr48		= 0x134;	// BGR 16:16:16
+
 
 const format_t yuv411		= 0x200;	// YYUYYV	4pixels, 8bit
 const format_t yvu411		= 0x201;	// YYVYYU	4pixels, 8bit
@@ -100,6 +106,8 @@ const format_t rgba64p		= 0x405;	// RGBA 16:16:16:`6 (planar)
 const format_t abgr32p		= 0x406;	// ABGR 8:8:8:8 (planar)
 const format_t abgr64p		= 0x407;	// ABGR 16:16:16:16 (planar)
 
+const format_t gbr24p		= 0x408;	// GBR 8:8:8 (planar)
+const format_t gbr48p		= 0x409;	// GBR 16:16:16 (planar)
 
 const format_t yuv444p		= 0x500;	// YUV 4:4:4 (planar)
 const format_t yuv422p		= 0x501;	// YUV 4:2:2 (planar)
