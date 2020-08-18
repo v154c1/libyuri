@@ -15,6 +15,8 @@ SET (SRC register.cpp
 		 EventValuePair.h
 		 PassEvent.cpp
 		 PassEvent.h
+		 EventConvolution.cpp
+		 EventConvolution.h
 		 )
 
 IF(YURI_PLATFORM_LINUX)
