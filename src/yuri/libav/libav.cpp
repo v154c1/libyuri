@@ -68,6 +68,7 @@ std::unordered_map<format_t, AVPixelFormat> yuri_pixel_map = {
 		{abgr32,		 			AV_PIX_FMT_ABGR},
 		{rgb48,						AV_PIX_FMT_RGB48},
 		{bgr48,						AV_PIX_FMT_BGR48},
+		{gbr24p,					AV_PIX_FMT_GBR24P},
 #ifdef AV_PIX_FMT_RGBA64
 		{rgba64,					AV_PIX_FMT_RGBA64},
 #endif
