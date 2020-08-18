@@ -13,13 +13,22 @@
 #include "yuri/core/thread/IOThread.h"
 #include "yuri/event/BasicEventConsumer.h"
 #include "yuri/event/BasicEventProducer.h"
+#include "EventRateLimiter.h"
 #include <chrono>
 
 namespace yuri {
     namespace extrapolate_events {
+        struct event_info_t {
+            // Last received value
+            double last_value;
+            // Speed in units/ns. If NaN, we don't have any speed info yet
+            double current_speed;
+            // Time the last event was received
+            std::chrono::high_resolution_clock::time_point last_update;
+        };
 
         class ExtrapolateEvents
-                : public core::IOThread, public event::BasicEventConsumer, public event::BasicEventProducer {
+                : public  event_rate::EventRateLimiter<event_info_t> {
         public:
             IOTHREAD_GENERATOR_DECLARATION
 
@@ -31,27 +40,15 @@ namespace yuri {
 
         private:
 
-            virtual void run() override;
+            bool set_param(const core::Parameter &param) override;
 
-            virtual bool set_param(const core::Parameter &param) override;
+            bool do_process_event(const std::string &event_name, const event::pBasicEvent &event);
 
-            virtual bool do_process_event(const std::string &event_name, const event::pBasicEvent &event);
+            void output_event(const std::string &event_name, event_info_t &data,
+                              std::chrono::high_resolution_clock::time_point now) override;
 
         private:
-            double fps_;
 
-            std::chrono::high_resolution_clock::time_point output_start_;
-            int64_t output_counter_;
-
-            struct event_info_t {
-                // Last received value
-                double last_value;
-                // Speed in units/ns. If NaN, we don't have any speed info yet
-                double current_speed;
-                // Time the last event was received
-                std::chrono::high_resolution_clock::time_point last_update;
-            };
-            std::map<std::string, event_info_t> events_;
         };
 
     } /* namespace extrapolate_events */

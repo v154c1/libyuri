@@ -17,38 +17,24 @@ namespace yuri {
 
         IOTHREAD_GENERATOR(ExtrapolateEvents)
 
-        MODULE_REGISTRATION_BEGIN("extrapolate_events")
-            REGISTER_IOTHREAD("extrapolate_events", ExtrapolateEvents)
-        MODULE_REGISTRATION_END()
-
         core::Parameters ExtrapolateEvents::configure() {
-            core::Parameters p = core::IOThread::configure();
+            core::Parameters p = EventRateLimiter::configure();
             p.set_description("Extrapolates event values and outputs them in regular intervals.");
-            p["fps"]["Output framerate"] = 25;
             return p;
         }
 
 
         ExtrapolateEvents::ExtrapolateEvents(const log::Log &log_, core::pwThreadBase parent,
                                              const core::Parameters &parameters) :
-                core::IOThread(log_, parent, 0, 0, std::string("extrapolate_events")),
-                event::BasicEventConsumer(log),
-                event::BasicEventProducer(log),
-                output_counter_(0) {
+                EventRateLimiter(log_, parent, parameters) {
             IOTHREAD_INIT(parameters)
-            set_latency(0.1_ms);
-            output_start_ = std::chrono::high_resolution_clock::now();
         }
 
         ExtrapolateEvents::~ExtrapolateEvents() noexcept = default;
 
 
         bool ExtrapolateEvents::set_param(const core::Parameter &param) {
-            if (assign_parameters(param)
-                    (fps_, "fps")) {
-                return true;
-            }
-            return core::IOThread::set_param(param);
+            return EventRateLimiter::set_param(param);
         }
 
         bool ExtrapolateEvents::do_process_event(const std::string &event_name, const event::pBasicEvent &event) {
@@ -78,25 +64,16 @@ namespace yuri {
             return false;
         }
 
-        void ExtrapolateEvents::run() {
-            auto next_update = output_start_;
-            while (still_running()) {
-                wait_for_events(get_latency());
-                process_events();
-                const auto now = std::chrono::high_resolution_clock::now();
-                if (now >= next_update) {
-                    for (const auto &ev: events_) {
-                        const auto& info = ev.second;
-                        if (std::isnan(info.current_speed)) {
-                            continue;
-                        }
-                        const auto current_value = std::chrono::duration_cast<std::chrono::nanoseconds>(now - info.last_update).count() * info.current_speed + info.last_value;
-                        emit_event(ev.first, current_value);
-                    }
+        void ExtrapolateEvents::output_event(const std::string &event_name, event_info_t &info,
+                                             std::chrono::high_resolution_clock::time_point now) {
 
-                    next_update = output_start_ + std::chrono::microseconds(++output_counter_ * 1_s / fps_);
-                }
+            if (std::isnan(info.current_speed)) {
+                return;
             }
+            const auto current_value =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(now - info.last_update).count() *
+                    info.current_speed + info.last_value;
+            emit_event(event_name, current_value);
         }
 
     } /* namespace extrapolate_events */

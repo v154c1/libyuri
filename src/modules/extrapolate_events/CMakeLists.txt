@@ -3,7 +3,9 @@ SET (MODULE extrapolate_events)
 
 # Set all source files module uses
 SET (SRC ExtrapolateEvents.cpp
-		 ExtrapolateEvents.h)
+		 ExtrapolateEvents.h
+		 EventRate.cpp
+		 EventRate.h EventRateLimiter.h register.cpp)
 
 
 add_library(${MODULE} MODULE ${SRC})
