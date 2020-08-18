@@ -559,13 +559,23 @@ core::pFrame dispatch(core::pRawVideoFrame frame, format_t target) {
 	// RGB Conversion
 	if (source == rgb24 && target == rgb24p) frame_out = split_planes<rgb24, rgb24p, 3>(frame, {{0, 1, 2}});
 	if (source == rgb24 && target == bgr24p) frame_out = split_planes<rgb24, bgr24p, 3>(frame, {{2, 1, 0}});
+	if (source == rgb24 && target == gbr24p) frame_out = split_planes<rgb24, gbr24p, 3>(frame, {{1, 2, 0}});
 	if (source == bgr24 && target == rgb24p) frame_out = split_planes<bgr24, rgb24p, 3>(frame, {{2, 1, 0}});
 	if (source == bgr24 && target == bgr24p) frame_out = split_planes<bgr24, bgr24p, 3>(frame, {{0, 1, 2}});
+	if (source == bgr24 && target == gbr24p) frame_out = split_planes<bgr24, gbr24p, 3>(frame, {{1, 0, 2}});
+	if (source == gbr24 && target == rgb24p) frame_out = split_planes<gbr24, rgb24p, 3>(frame, {{2, 0, 1}});
+	if (source == gbr24 && target == bgr24p) frame_out = split_planes<gbr24, bgr24p, 3>(frame, {{1, 0, 2}});
+	if (source == gbr24 && target == gbr24p) frame_out = split_planes<gbr24, gbr24p, 3>(frame, {{0, 1, 2}});
 
 	if (source == rgb24p && target == rgb24) frame_out = merge_planes<rgb24p, rgb24, 3>(frame, {{0, 1, 2}});
 	if (source == rgb24p && target == bgr24) frame_out = merge_planes<rgb24p, bgr24, 3>(frame, {{2, 1, 0}});
+	if (source == rgb24p && target == gbr24) frame_out = merge_planes<rgb24p, gbr24, 3>(frame, {{1, 2, 0}});
 	if (source == bgr24p && target == rgb24) frame_out = merge_planes<bgr24p, rgb24, 3>(frame, {{2, 1, 0}});
 	if (source == bgr24p && target == bgr24) frame_out = merge_planes<bgr24p, bgr24, 3>(frame, {{0, 1, 2}});
+	if (source == bgr24p && target == gbr24) frame_out = merge_planes<bgr24p, gbr24, 3>(frame, {{1, 0, 2}});
+	if (source == gbr24p && target == rgb24) frame_out = merge_planes<gbr24p, rgb24, 3>(frame, {{2, 0, 1}});
+	if (source == gbr24p && target == bgr24) frame_out = merge_planes<gbr24p, bgr24, 3>(frame, {{1, 0, 2}});
+	if (source == gbr24p && target == gbr24) frame_out = merge_planes<gbr24p, gbr24, 3>(frame, {{0, 1, 2}});
 
 	// RGBA Conversion
 	if (source == rgba32 && target == rgba32p) frame_out =  split_planes<rgba32, rgba32p, 4>(frame, {{0, 1, 2, 3}});
@@ -638,11 +648,13 @@ MODULE_REGISTRATION_BEGIN("convert_planar")
 		REGISTER_CONVERTER(yuri::core::raw_format::rgb24, yuri::core::raw_format::bgr24p, "convert_planar", 5)
 		REGISTER_CONVERTER(yuri::core::raw_format::bgr24, yuri::core::raw_format::rgb24p, "convert_planar", 5)
 		REGISTER_CONVERTER(yuri::core::raw_format::bgr24, yuri::core::raw_format::bgr24p, "convert_planar", 5)
+		REGISTER_CONVERTER(yuri::core::raw_format::gbr24, yuri::core::raw_format::gbr24p, "convert_planar", 5)
 
 		REGISTER_CONVERTER(yuri::core::raw_format::rgb24p, yuri::core::raw_format::rgb24, "convert_planar", 10)
 		REGISTER_CONVERTER(yuri::core::raw_format::rgb24p, yuri::core::raw_format::bgr24, "convert_planar", 10)
 		REGISTER_CONVERTER(yuri::core::raw_format::bgr24p, yuri::core::raw_format::rgb24, "convert_planar", 10)
 		REGISTER_CONVERTER(yuri::core::raw_format::bgr24p, yuri::core::raw_format::bgr24, "convert_planar", 10)
+		REGISTER_CONVERTER(yuri::core::raw_format::gbr24p, yuri::core::raw_format::gbr24, "convert_planar", 10)
 
 		// RGBA
 		REGISTER_CONVERTER(yuri::core::raw_format::rgba32, yuri::core::raw_format::rgba32p, "convert_planar", 10)
