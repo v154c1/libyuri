@@ -51,7 +51,7 @@ core::pRawVideoFrame rotate(const core::pRawVideoFrame& frame, double angle, con
     size_t len = std::max(height, width);
     cv::Point2f pt(len/2.0f, len/2.0f);
     cv::Mat r = cv::getRotationMatrix2D(pt, angle, 1.0);
-    cv::warpAffine(in_mat, out_mat, r, cv::Size(len, len), CV_INTER_LINEAR, IPL_BORDER_CONSTANT, cv::Scalar(color.r(), color.g(), color.b(), color.a()));
+    cv::warpAffine(in_mat, out_mat, r, cv::Size(len, len), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(color.r(), color.g(), color.b(), color.a()));
     core::pRawVideoFrame output = core::RawVideoFrame::create_empty(core::raw_format::rgba32,
                                             {static_cast<dimension_t>(out_mat.cols), static_cast<dimension_t>(out_mat.rows)},
 											out_mat.data,
