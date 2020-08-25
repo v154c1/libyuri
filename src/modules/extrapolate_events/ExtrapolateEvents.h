@@ -48,7 +48,8 @@ namespace yuri {
                               std::chrono::high_resolution_clock::time_point now) override;
 
         private:
-
+            bool emit_speed_;
+            double max_speed_;
         };
 
     } /* namespace extrapolate_events */
