@@ -30,6 +30,7 @@ private:
 
 	std::string haar_cascade_file_;
 	cv::CascadeClassifier haar_cascade_;
+	float min_face_size_;
 };
 
 } /* namespace opencv_facedetection */
