@@ -22,6 +22,7 @@ namespace yuri {
             core::Parameters p = core::SpecializedIOFilter<core::RawVideoFrame>::configure();
             p.set_description("OpenCVFaceDetect");
             p["haar_cascade"]["Path to he xml file with HAAR cascade"] = "haarcascade_frontalface_default.xml";
+            p["min_face_size"]["Minimal detected face size."] = 0;
             return p;
         }
 
@@ -57,11 +58,14 @@ namespace yuri {
                 log[log::debug] << "Found " << faces.size() << " faces";
                 std::vector<event::pBasicEvent> face_events;
 
-                std::vector<cv::Rect_<int>> faces_sorted;
+                std::vector<cv::Rect> faces_sorted;
                 faces_sorted.reserve(faces.size());
-                std::copy(faces.cbegin(), faces.cend(), std::back_inserter(faces_sorted));
+                std::copy_if(faces.cbegin(), faces.cend(), std::back_inserter(faces_sorted),
+                             [&](const cv::Rect &f) {
+                                 return (f.width / 2) >= min_face_size_ && (f.height / 2) >= min_face_size_;
+                             });
                 std::sort(faces_sorted.begin(), faces_sorted.end(),
-                          [](const cv::Rect_<int> &a, const cv::Rect_<int> &b) { return b.width < a.width; });
+                          [](const cv::Rect &a, const cv::Rect &b) { return b.width < a.width; });
                 for (const auto &x: faces_sorted) {
                     log[log::verbose_debug] << x.width << "x" << x.height << "+" << x.x << "+" << x.y;
                     std::vector<event::pBasicEvent> vec
@@ -85,10 +89,13 @@ namespace yuri {
         }
 
         bool OpenCVFaceDetect::set_param(const core::Parameter &param) {
-            if (param.get_name() == "haar_cascade") {
-                haar_cascade_file_ = param.get<std::string>();
-            } else return core::SpecializedIOFilter<core::RawVideoFrame>::set_param(param);
-            return true;
+            if (assign_parameters(param)
+                    (haar_cascade_file_, "haar_cascade")
+                    (min_face_size_, "min_face_size")) {
+                return true;
+            }
+            return core::SpecializedIOFilter<core::RawVideoFrame>::set_param(param);
+
         }
 
     } /* namespace opencv_facedetection */
