@@ -52,7 +52,11 @@ namespace yuri {
             resolution_t res = frame->get_resolution();
             cv::Mat in_mat(res.height, res.width, CV_8UC1, PLANE_RAW_DATA(frame, 0));
             std::vector<cv::Rect> faces;
-            haar_cascade_.detectMultiScale(in_mat, faces);
+            cv::Size min_size{static_cast<int>(min_face_size_ * 2), static_cast<int>(min_face_size_ * 2)};
+            cv::Size max_size = max_face_size_ < 0 ? cv::Size{} : cv::Size{static_cast<int>(max_face_size_ * 2),
+                                                                           static_cast<int>(max_face_size_ * 2)};
+            // Params 1.1, 3 and 0 are default values for the method
+            haar_cascade_.detectMultiScale(in_mat, faces, 1.1, 3, 0, min_size, max_size);
             if (faces.empty()) {
                 log[log::debug] << "No faces found!";
             } else {
