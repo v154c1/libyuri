@@ -62,6 +62,7 @@ namespace yuri {
             core::Parameters p = core::IOThread::configure();
             p.set_description("RealSense");
             p["clip_distance"]["Distance for removing background"] = -1.0f;
+            p["hide_shadows"]["Consider shadows as background"] = true;
             return p;
         }
 
@@ -135,15 +136,29 @@ namespace yuri {
                 auto color_start = data_color + line * color_line_width;
                 auto data_start = data + line * color_line_width;
                 const auto depth_start = data_depth + line * depth_line_width;
-                std::for_each(depth_start, depth_start + depth_line_width, [&](const uint16_t depth) {
-                    if (depth != 0 && depth <= max_depth) {
-                        std::copy(color_start, color_start + 3, data_start);
-                    } else {
-                        std::fill(data_start, data_start + 3, 0);
-                    }
-                    data_start += 3;
-                    color_start += 3;
-                });
+                if (hide_shadows_) {
+                    std::for_each(depth_start, depth_start + depth_line_width, [&](const uint16_t depth) {
+                        if (depth != 0 && depth <= max_depth) {
+                            std::copy(color_start, color_start + 3, data_start);
+                        } else {
+                            std::fill(data_start, data_start + 3, 0);
+                        }
+                        data_start += 3;
+                        color_start += 3;
+                    });
+                } else {
+                    std::for_each(depth_start, depth_start + depth_line_width, [&](const uint16_t depth) {
+                        if (depth <= max_depth) {
+                            std::copy(color_start, color_start + 3, data_start);
+                        } else {
+                            std::fill(data_start, data_start + 3, 0);
+                        }
+                        data_start += 3;
+                        color_start += 3;
+                    });
+                }
+
+
             }
             return frame;
         }
@@ -151,7 +166,8 @@ namespace yuri {
 
         bool RealSense::set_param(const core::Parameter &param) {
             if (assign_parameters(param)
-                    (clip_distance_, "clip_distance")) {
+                    (clip_distance_, "clip_distance")
+                    (hide_shadows_, "hide_shadows")) {
                 return true;
             }
             return core::IOThread::set_param(param);

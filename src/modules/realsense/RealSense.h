@@ -35,6 +35,7 @@ private:
     rs2::pipeline_profile profile_;
     float depth_scale_ = -1.0;
     float clip_distance_ = -1.0;
+    bool hide_shadows_;
 };
 
 } /* namespace realsense */
