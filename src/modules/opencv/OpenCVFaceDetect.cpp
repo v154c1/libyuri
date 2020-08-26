@@ -23,6 +23,7 @@ namespace yuri {
             p.set_description("OpenCVFaceDetect");
             p["haar_cascade"]["Path to he xml file with HAAR cascade"] = "haarcascade_frontalface_default.xml";
             p["min_face_size"]["Minimal detected face size."] = 0;
+            p["max_face_size"]["Maximum detected face size. Set to negative number to disable"] = -1;
             return p;
         }
 
@@ -62,7 +63,9 @@ namespace yuri {
                 faces_sorted.reserve(faces.size());
                 std::copy_if(faces.cbegin(), faces.cend(), std::back_inserter(faces_sorted),
                              [&](const cv::Rect &f) {
-                                 return (f.width / 2) >= min_face_size_ && (f.height / 2) >= min_face_size_;
+                                 return (f.width / 2) >= min_face_size_ && (f.height / 2) >= min_face_size_
+                                        && (max_face_size_ < 0 ||
+                                            ((f.width / 2) <= max_face_size_ && (f.height / 2) <= max_face_size_));
                              });
                 std::sort(faces_sorted.begin(), faces_sorted.end(),
                           [](const cv::Rect &a, const cv::Rect &b) { return b.width < a.width; });
@@ -91,7 +94,8 @@ namespace yuri {
         bool OpenCVFaceDetect::set_param(const core::Parameter &param) {
             if (assign_parameters(param)
                     (haar_cascade_file_, "haar_cascade")
-                    (min_face_size_, "min_face_size")) {
+                    (min_face_size_, "min_face_size")
+                    (max_face_size_, "max_face_size")) {
                 return true;
             }
             return core::SpecializedIOFilter<core::RawVideoFrame>::set_param(param);
