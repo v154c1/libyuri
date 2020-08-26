@@ -24,6 +24,8 @@ namespace yuri {
             p["haar_cascade"]["Path to he xml file with HAAR cascade"] = "haarcascade_frontalface_default.xml";
             p["min_face_size"]["Minimal detected face size."] = 0;
             p["max_face_size"]["Maximum detected face size. Set to negative number to disable"] = -1;
+            p["scale_factor"]["Scale factor for each image scale (see opencv doc.)"] = 1.1;
+            p["min_neighbors"]["Min neigbors for each rectange (see opencv doc)"] = 3;
             return p;
         }
 
@@ -55,8 +57,8 @@ namespace yuri {
             cv::Size min_size{static_cast<int>(min_face_size_ * 2), static_cast<int>(min_face_size_ * 2)};
             cv::Size max_size = max_face_size_ < 0 ? cv::Size{} : cv::Size{static_cast<int>(max_face_size_ * 2),
                                                                            static_cast<int>(max_face_size_ * 2)};
-            // Params 1.1, 3 and 0 are default values for the method
-            haar_cascade_.detectMultiScale(in_mat, faces, 1.1, 3, 0, min_size, max_size);
+
+            haar_cascade_.detectMultiScale(in_mat, faces, scale_factor_, min_neighbors_, 0, min_size, max_size);
             if (faces.empty()) {
                 log[log::debug] << "No faces found!";
             } else {
@@ -99,7 +101,9 @@ namespace yuri {
             if (assign_parameters(param)
                     (haar_cascade_file_, "haar_cascade")
                     (min_face_size_, "min_face_size")
-                    (max_face_size_, "max_face_size")) {
+                    (max_face_size_, "max_face_size")
+                    (scale_factor_, "scale_factor")
+                    (min_neighbors_, "min_neighbors")) {
                 return true;
             }
             return core::SpecializedIOFilter<core::RawVideoFrame>::set_param(param);

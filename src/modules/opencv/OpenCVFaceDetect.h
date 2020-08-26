@@ -32,6 +32,8 @@ private:
 	cv::CascadeClassifier haar_cascade_;
 	float min_face_size_;
     float max_face_size_;
+    double scale_factor_;
+    int min_neighbors_;
 };
 
 } /* namespace opencv_facedetection */
