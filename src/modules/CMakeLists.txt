@@ -102,6 +102,11 @@ IF(ALSA_FOUND)
 	add_subdirectory(alsa)
 ENDIF()
 
+find_package(PulseAudio)
+IF(PulseAudio_FOUND)
+	add_subdirectory(pulse)
+ENDIF()
+
 find_package(JPEG)
 IF(JPEG_FOUND)
 #	add_subdirectory(jpegdecoder)
