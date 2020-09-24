@@ -103,6 +103,29 @@ const std::string& get_format_name_no_throw(yuri::format_t fmt) {
 	return unknown_format;
 }
 
+
+std::string param_value(const yuri::event::pBasicEvent& event) {
+
+    if (event->get_type() == event::event_type_t::boolean_event) {
+        return yuri::event::lex_cast_value<bool>(event) ? "True" : "False";
+    } else if (event->get_type() == event::event_type_t::vector_event) {
+        const auto val = std::dynamic_pointer_cast<event::EventVector>(event);
+        std::string value = "[";
+        for (const auto &ev: *val) {
+            if (value.size() > 1) {
+                value = value + ", ";
+            }
+            value = value + param_value(ev);
+        }
+        value = value + "]";
+        return value;
+    } else if (event->get_type() == event::event_type_t::dictionary_event){
+        return "DICTIONARY VALUES NOT IMPLEMENTED";
+    } else {
+        return event::lex_cast_value<std::string>(event);
+    }
+}
+
 void list_params(yuri::log::Log& l_, const yuri::core::Parameters& params, int /* verbosity */)
 {
 	using namespace yuri;
@@ -110,20 +133,23 @@ void list_params(yuri::log::Log& l_, const yuri::core::Parameters& params, int /
 		const auto& param = p.second;
 		const std::string& pname = param.get_name();
 		if (pname[0] != '_') {
-			std::string value;
-			if (param.get_value()->get_type() == event::event_type_t::boolean_event) {
-				value = param.get<bool>()?"True":"False";
-			} else {
-				value = param.get<std::string>();
-			}
-			l_[log::info] << "\t\t"
-				<< std::setfill(' ') << std::left << std::setw(20)
-				<< (pname + ": ")
-				<< std::right << std::setw(10) << value;
-			const std::string& d = param.get_description();
-			if (!d.empty()) {
-				l_[log::info] << "\t\t\t" << d;
-			}
+		    try {
+                const auto value = param_value(param.get_value());
+                l_[log::info] << "\t\t"
+                              << std::setfill(' ') << std::left << std::setw(20)
+                              << (pname + ": ")
+                              << std::right << std::setw(10) << value;
+                const std::string &d = param.get_description();
+                if (!d.empty()) {
+                    l_[log::info] << "\t\t\t" << d;
+                }
+            }
+		    catch (const std::exception& e) {
+		        l_[log::warning] << "\t\t"
+                              << std::setfill(' ') << std::left << std::setw(20)
+                              << (pname + ": ")
+                              << "FAILED TO DISPLAY VALUE (" << e.what() << ")";
+		    }
 		}
 	}
 }
