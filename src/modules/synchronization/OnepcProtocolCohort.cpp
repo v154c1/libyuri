@@ -19,6 +19,7 @@ core::Parameters OnepcProtocolCohort::configure()
     p["fps"]["Override framerate. Specify 0 to use original, or negative value to maximal speed."]=0;
     p["central_tendency"]["Sets central tendency type. Improved average, mode, none"] = "none";
     p["frame_index"]["Using default frame index."]=false;
+    p["allow_restart"]["Allow restarts of timestamps"]=false;
     return p;
 }
 
@@ -30,7 +31,7 @@ IOTHREAD_GENERATOR(OnepcProtocolCohort)
 OnepcProtocolCohort::OnepcProtocolCohort(log::Log &log_, core::pwThreadBase parent,const core::Parameters &parameters):
     core::IOThread(log_,parent,1,1,std::string("onepc_protocol_cohort")), event::BasicEventConsumer(log),
     changed_(false), global_frame_no_(1), local_frame_no_(1), id_coordinator_(0), frame_delay_(0),
-    tendency_(CentralTendencyType::none), fps_(0.0), use_index_frame_(true)
+    tendency_(CentralTendencyType::none), fps_(0.0), use_index_frame_(true),allow_restart_(false)
 {
     IOTHREAD_INIT(parameters)
 }
@@ -128,7 +129,9 @@ bool OnepcProtocolCohort::do_process_event(const std::string& event_name, const 
         if(id_coordinator_ == 0) id_coordinator_ = id_sender;
         if(id_sender != id_coordinator_) return false;
         global_frame_no_ =  event::lex_cast_value<index_t>(val[1]);
-        if(global_frame_no_ >= local_frame_no_ ) changed_ = true;
+        if ((allow_restart_ && global_frame_no_ != local_frame_no_) || global_frame_no_ >= local_frame_no_ ) {
+            changed_ = true;
+        }
         return true;
     }
     return false;
@@ -178,6 +181,7 @@ bool OnepcProtocolCohort::set_param(const core::Parameter &parameter)
 {
     if (assign_parameters(parameter)
     		(fps_, "fps")
+            (allow_restart_, "allow_restart")
 			.parsed<std::string>
     			(tendency_, "central_tendency", central_tendency_type)
 			)

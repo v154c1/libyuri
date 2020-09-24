@@ -229,6 +229,11 @@ core::pRawVideoFrame BlankGenerator::generate_frame(format_t format, resolution_
 			fill_frame_plane(frame, 1, color.g());
 			fill_frame_plane(frame, 2, color.r());
 			break;
+		case gbr24p:
+			fill_frame_plane(frame, 0, color.g());
+			fill_frame_plane(frame, 1, color.b());
+			fill_frame_plane(frame, 2, color.r());
+			break;
 		case rgba32p:
 			fill_frame_plane(frame, 0, color.r());
 			fill_frame_plane(frame, 1, color.g());

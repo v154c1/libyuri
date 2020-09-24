@@ -25,7 +25,7 @@ extern "C" {
 namespace yuri {
 namespace rawavfile {
 
-class RawAVFile : public core::IOThread, public event::BasicEventConsumer {
+class RawAVFile : public core::IOThread, public event::BasicEventConsumer, public event::BasicEventProducer {
 public:
     IOTHREAD_GENERATOR_DECLARATION
     static core::Parameters configure();
@@ -35,7 +35,7 @@ public:
 
     struct stream_detail_t;
 
-private:
+protected:
     virtual void run() override;
     virtual bool do_process_event(const std::string& event_name, const event::pBasicEvent& event) override;
 
@@ -49,6 +49,14 @@ private:
 
     bool emit_extradata(index_t idx, format_t format);
     void jump_times(const duration_t& delta);
+
+
+    virtual bool has_next_filename();
+    virtual std::string get_next_filename();
+protected:
+    bool step() override;
+
+private:
     core::utils::managed_resource<AVFormatContext> fmtctx_;
 
     std::string filename_;

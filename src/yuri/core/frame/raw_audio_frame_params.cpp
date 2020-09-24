@@ -45,6 +45,11 @@ format_info_map_t raw_audio_formats_info = {
 		{float_64bit_be, {float_64bit, "Float 64 bit (big endian)", {"f64_be"}, 64, false}},
 
 
+        {unsigned_8bit_planar, {unsigned_8bit_planar, "Unsigned 8bit planar", {"u8p"}, 8, true, true}},
+        {signed_16bit_planar, {signed_16bit_planar, "Signed 16bit planar (little endian)", {"s16p"}, 16, true, true}},
+        {signed_32bit_planar, {signed_32bit_planar, "Signed 32bit planar (little endian)", {"s32p"}, 32, true, true}},
+        {float_32bit_planar, {float_32bit_planar, "Float 32bit planar (little endian)", {"f32p","fltp"}, 32, true, true}},
+        {float_64bit_planar, {float_64bit_planar, "Float 64bit planar (little endian)", {"f64p"}, 64, true, true}},
 };
 
 }

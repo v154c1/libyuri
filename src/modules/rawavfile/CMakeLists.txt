@@ -10,7 +10,9 @@ SET (SRC avcommon.h
 		 AVDecoder.cpp
 		 h264_helper.cpp
 		 h264_helper.h
-		 register.cpp)
+		 RawAVFilePlaylist.cpp
+		 RawAVFilePlaylist.h
+		 register.cpp )
 
 
 SET(CMAKE_REQUIRED_LIBRARIES ${libavutil_LIBRARIES})

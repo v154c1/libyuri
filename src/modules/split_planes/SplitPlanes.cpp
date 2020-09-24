@@ -91,6 +91,8 @@ std::vector<core::pFrame> SplitPlanes::do_special_step(std::tuple<core::pRawVide
 				return split<r8, g8, b8>(frame);
 			case bgr24p:
 				return split<b8, g8, r8>(frame);
+			case gbr24p:
+				return split<g8, b8, r8>(frame);
 //			case rgba32p:
 //				return split<b8, g8, r8, alpha8>(frame);
 //			case abgr32p:
@@ -106,6 +108,7 @@ std::vector<core::pFrame> SplitPlanes::do_special_step(std::tuple<core::pRawVide
 			case yuv411p:
 			case rgb24p:
 			case bgr24p:
+			case gbr24p:
 				return split<y8, y8, y8>(frame);
 //			case rgba32p:
 //			case abgr32p:

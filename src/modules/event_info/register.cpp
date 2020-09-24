@@ -13,6 +13,7 @@
 #include "EventToFrame.h"
 #include "EventValuePair.h"
 #include "EventDelay.h"
+#include "EventConvolution.h"
 #if YURI_LINUX
 #include "EventDevice.h"
 #endif
@@ -25,6 +26,7 @@ MODULE_REGISTRATION_BEGIN("event_misc")
 		REGISTER_IOTHREAD("event_timer", event_timer::EventTimer)
 		REGISTER_IOTHREAD("event_to_frame", event_to_frame::EventToFrame)
 		REGISTER_IOTHREAD("event_delay", event_delay::EventDelay)
+        REGISTER_IOTHREAD("event_convolution", event_convolution::EventConvolution)
 #if YURI_LINUX
 		REGISTER_IOTHREAD("event_device", event_device::EventDevice)
 #endif

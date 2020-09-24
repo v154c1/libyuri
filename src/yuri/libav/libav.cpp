@@ -46,7 +46,9 @@ std::unordered_map<format_t, AVCodecID> yuri_codec_map = {
 		{theora,					AV_CODEC_ID_THEORA},
 		{vp8,						AV_CODEC_ID_VP8},
 		{core::raw_audio_format::signed_16bit,
-									AV_CODEC_ID_PCM_S16LE}
+									AV_CODEC_ID_PCM_S16LE},
+        {core::raw_audio_format::signed_32bit,
+                                    AV_CODEC_ID_PCM_S32LE}
 };
 }
 namespace {
@@ -66,6 +68,7 @@ std::unordered_map<format_t, AVPixelFormat> yuri_pixel_map = {
 		{abgr32,		 			AV_PIX_FMT_ABGR},
 		{rgb48,						AV_PIX_FMT_RGB48},
 		{bgr48,						AV_PIX_FMT_BGR48},
+		{gbr24p,					AV_PIX_FMT_GBR24P},
 #ifdef AV_PIX_FMT_RGBA64
 		{rgba64,					AV_PIX_FMT_RGBA64},
 #endif
@@ -89,12 +92,14 @@ std::unordered_map<format_t, AVPixelFormat> yuri_pixel_map = {
 
 using namespace yuri::core::raw_audio_format;
 std::unordered_map<format_t, AVSampleFormat> yuri_audio_format_map = {
+        {unsigned_8bit,				AV_SAMPLE_FMT_U8},
 		{signed_16bit, 				AV_SAMPLE_FMT_S16},
-		{unsigned_8bit,				AV_SAMPLE_FMT_U8},
+        {signed_32bit, 				AV_SAMPLE_FMT_S32},
 		{float_32bit,				AV_SAMPLE_FMT_FLT},
 		{float_64bit,				AV_SAMPLE_FMT_DBL},
+        {unsigned_8bit_planar,		AV_SAMPLE_FMT_U8P},
 		{signed_16bit_planar,		AV_SAMPLE_FMT_S16P},
-		{unsigned_8bit_planar,		AV_SAMPLE_FMT_U8P},
+        {signed_32bit_planar,		AV_SAMPLE_FMT_S32P},
 		{float_32bit_planar,		AV_SAMPLE_FMT_FLTP},
 		{float_64bit_planar,		AV_SAMPLE_FMT_DBLP},
 };

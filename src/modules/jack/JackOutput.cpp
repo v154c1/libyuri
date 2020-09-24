@@ -28,6 +28,7 @@ core::Parameters JackOutput::configure()
 	p["buffer_size"]["Size of internal buffer"]=1048576;
 	p["client_name"]["Name of the JACK client"]="yuri";
 	p["start_server"]["Start server is it's not running."]=false;
+    p["blocking"]["Blocking mode when buffer is full."]=false;
 	return p;
 }
 
@@ -136,7 +137,7 @@ void store_samples(std::vector<buffer_t<Target>>& buffers, const src_fmt* in, si
 JackOutput::JackOutput(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters):
 base_type(log_,parent,std::string("jack_output")),handle_(nullptr),
 client_name_("yuri_jack"),channels_(2),allow_different_frequencies_(false),buffer_size_(1048576),
-start_server_(false)
+start_server_(false),blocking_(false)
 {
 	IOTHREAD_INIT(parameters)
 	if (channels_ < 1) {
@@ -222,9 +223,20 @@ core::pFrame JackOutput::do_special_single_step(core::pRawAudioFrame frame)
 
 	std::unique_lock<std::mutex> lock(data_mutex_);
 	using namespace core::raw_audio_format;
-	const auto empty = buffers_[0].empty();
+	auto empty = buffers_[0].empty();
 	if (empty < nframes) {
-		log[log::warning] << "Not enough space in the buffer, overwriting " << (nframes - empty) << " frames";
+	    if (!blocking_) {
+            log[log::warning] << "Not enough space in the buffer, overwriting " << (nframes - empty) << " frames";
+        } else {
+	        while (still_running() && empty < nframes) {
+	            if (!still_running()) {
+	                request_end();
+	                return {};
+	            }
+	            buffer_cv_.wait_for(lock, std::chrono::microseconds(get_latency()));
+                empty = buffers_[0].empty();
+	        }
+	    }
 	}
 	switch (frame->get_format()) {
 		case unsigned_8bit:
@@ -262,6 +274,7 @@ int JackOutput::process_audio(jack_nframes_t nframes)
 		jack_default_audio_sample_t* data = reinterpret_cast<jack_default_audio_sample_t *>(jack_port_get_buffer (ports_[i].get(), nframes));
 		buffers_[i].pop(data,copy_count);
 		std::fill(data+copy_count, data+nframes, 0.0f);
+		buffer_cv_.notify_all();
 	}
 	const auto missing = nframes - copy_count;
 	if (missing > 0) {
@@ -271,20 +284,18 @@ int JackOutput::process_audio(jack_nframes_t nframes)
 }
 bool JackOutput::set_param(const core::Parameter& param)
 {
-	if (param.get_name() == "channels") {
-		channels_ = param.get<size_t>();
-	} else if (param.get_name() == "allow_different_frequencies") {
-		allow_different_frequencies_ = param.get<bool>();
-	} else if (param.get_name() == "connect_to") {
-		connect_to_ = param.get<std::string>();
-	} else if (param.get_name() == "buffer_size") {
-		buffer_size_ = param.get<size_t>();
-	} else if (param.get_name() == "client_name") {
-		client_name_ = param.get<std::string>();
-	} else if (param.get_name() == "start_server") {
-		start_server_ = param.get<bool>();
-	} else return base_type::set_param(param);
-	return true;
+    if (assign_parameters(param)
+            (channels_, "channels")
+            (allow_different_frequencies_, "allow_different_frequencies")
+            (connect_to_, "connect_to")
+            (buffer_size_, "buffer_size")
+            (client_name_, "client_name")
+            (start_server_, "start_server")
+            (blocking_, "blocking")) {
+        return true;
+    }
+	else return base_type::set_param(param);
+
 }
 
 } /* namespace jack_output */

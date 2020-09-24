@@ -99,6 +99,8 @@ namespace {
 			ADD_CONVERSION(core::raw_format::abgr32,		core::raw_format::rgb24,	12)
 			ADD_CONVERSION(core::raw_format::bgr24,			core::raw_format::rgb24,	10)
 			ADD_CONVERSION(core::raw_format::rgb24,			core::raw_format::bgr24,	10)
+			ADD_CONVERSION(core::raw_format::gbr24,			core::raw_format::rgb24,	10)
+			ADD_CONVERSION(core::raw_format::rgb24,			core::raw_format::gbr24,	10)
 			ADD_CONVERSION(core::raw_format::yuyv422,		core::raw_format::uyvy422,	10)
 			ADD_CONVERSION(core::raw_format::uyvy422,		core::raw_format::yuyv422,	10)
 			ADD_CONVERSION(core::raw_format::yvyu422,		core::raw_format::vyuy422,	10)
@@ -253,6 +255,9 @@ core::pFrame YuriConvertor::do_convert_frame(core::pFrame input_frame, format_t 
 		//@ TODO fix this...
 		//outframe->set_info(frame->get_info());
 		//if (outframe->get_pts() == 0) outframe->set_time(frame->get_pts(), frame->get_dts(), frame->get_duration());
+
+		// FIXME: This may update too many fields....
+        outframe->copy_video_params(*frame);
 	}
 	return outframe;
 }

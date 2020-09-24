@@ -95,6 +95,7 @@ private:
     CentralTendencyType tendency_;
     double fps_;
     bool use_index_frame_;
+    bool allow_restart_;
     std::unordered_map<int64_t, int64_t> delays_;
 };
 

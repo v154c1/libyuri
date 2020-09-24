@@ -38,6 +38,12 @@ private:
 	size_t channels_;
 	unsigned int sampling_rate_;
 	size_t forced_channels_;
+
+    snd_pcm_uframes_t buffer_size_;
+    snd_pcm_uframes_t period_size_;
+    unsigned int periods_;
+
+	bool use_mmap_;
 	std::vector<uint8_t> channel_buffer_;
 	snd_pcm_t			*handle_;
 

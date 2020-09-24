@@ -26,6 +26,7 @@ add_subdirectory(crop)
 add_subdirectory(delay)
 add_subdirectory(diff)
 add_subdirectory(dup)
+add_subdirectory(extrapolate_events)
 add_subdirectory(event_info)
 add_subdirectory(fade)
 add_subdirectory(filedump)
@@ -147,8 +148,9 @@ IF(${ImageMagick_Magick++_FOUND})
 	add_subdirectory(imagemagick)
 ENDIF()
 
-pkg_check_modules(OpenCV opencv>=2.3.0)
+pkg_check_modules(OpenCV opencv4)
 IF(OpenCV_FOUND AND NOT YURI_DISABLE_OPENCV)
+	include_directories(${OpenCV_INCLUDE_DIRS})
 	add_subdirectory(opencv)
 	#add_subdirectory(opencv_calib)
 ENDIF()
@@ -319,6 +321,11 @@ ENDIF(YURI_BUILD_EXPERIMENTAL_MODULES)
 #################################################################
 #################################################################
 
+IF (NOT YURI_DISABLE_TESTS)
+	add_subdirectory(tests)
+ENDIF()
+
+
 
 IF(FALSE)
 #################################################################
@@ -415,3 +422,6 @@ ENDIF()
 
 
 ENDIF()
+
+
+
