@@ -23,6 +23,7 @@ namespace yuri {
                     "Multiplies event value (and previous values) with a convolution kernel. The resulted value is then weighted with a previous output.");
             p["weight"]["Weight for the new value"] = 0.75;
             p["kernel"]["Vector of values for the kernel (either a vector of doubles or space separated list of values"] = "1";
+
             return p;
         }
 
@@ -90,7 +91,7 @@ namespace yuri {
             while (vals.size() > kernel_.size()) {
                 vals.pop_back();
             }
-            log[log::info] << "already have " << vals.size();
+
             if (vals.size() == kernel_.size()) {
                 const auto val = std::inner_product(vals.cbegin(), vals.cend(), kernel_.cbegin(), 0.0);
                 const auto next_value = val * weight_ + last_values_.at(event_name) * (1.0 - weight_);
