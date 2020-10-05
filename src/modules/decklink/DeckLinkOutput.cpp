@@ -61,8 +61,8 @@ DeckLinkOutput::~DeckLinkOutput() noexcept
 bool DeckLinkOutput::init()
 {
 	if (!init_decklink()) return false;
-	IDeckLinkAttributes *attr;
-	device->QueryInterface(IID_IDeckLinkAttributes,reinterpret_cast<void**>(&attr));
+	IDeckLinkProfileAttributes *attr;
+	device->QueryInterface(IID_IDeckLinkProfileAttributes,reinterpret_cast<void**>(&attr));
 	//int64_t video_con;
 	//attr->GetInt(BMDDeckLinkVideoOutputConnections,&video_con);
 	if (device->QueryInterface(IID_IDeckLinkOutput,reinterpret_cast<void**>(&output))!=S_OK) {
@@ -114,22 +114,21 @@ bool DeckLinkOutput::verify_display_mode()
 {
 	assert(output);
 	yuri::lock_t l(schedule_mutex);
-	IDeckLinkDisplayMode *dm;
-	BMDDisplayModeSupport support;
+	BMDDisplayMode dsp_mode;
+	bool supported;
 	stereo_usable= false;
 	if (stereo_mode) {
-		if (output->DoesSupportVideoMode(mode,pixel_format,bmdVideoOutputDualStream3D,&support,&dm)!=S_OK) {
+		if (output->DoesSupportVideoMode(bmdVideoConnectionSDI, mode, pixel_format, bmdNoVideoOutputConversion, bmdVideoOutputDualStream3D, &dsp_mode, &supported)!=S_OK) {
 			log[log::warning] << "Selected format does not work with 3D. Re-trying without 3D support";
-			if (output->DoesSupportVideoMode(mode,pixel_format,bmdVideoOutputFlagDefault,&support,&dm)!=S_OK) return false;
+			if (output->DoesSupportVideoMode(bmdVideoConnectionSDI, mode, pixel_format, bmdNoVideoOutputConversion, bmdVideoOutputFlagDefault, &dsp_mode, &supported)!=S_OK) return false;
 		} else {
 			stereo_usable = true;
 		}
 
-	} else if (output->DoesSupportVideoMode(mode,pixel_format,bmdVideoOutputFlagDefault,&support,&dm)!=S_OK) return false;
-	if (support==bmdDisplayModeNotSupported) return false;
-	if (support == bmdDisplayModeSupportedWithConversion) {
-		log[log::warning] << "Display mode supported, but conversion is required";
-	}
+	} else if (output->DoesSupportVideoMode(bmdVideoConnectionSDI, mode, pixel_format, bmdNoVideoOutputConversion, bmdVideoOutputFlagDefault, &dsp_mode, &supported)!=S_OK) return false;
+	if (!supported) return false;
+	IDeckLinkDisplayMode *dm;
+	output->GetDisplayMode(dsp_mode, &dm);
 	width = dm->GetWidth();
 	height = dm->GetHeight();
 	dm->GetFrameRate(&value,&scale);

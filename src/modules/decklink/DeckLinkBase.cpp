@@ -228,9 +228,9 @@ core::InputDeviceInfo enum_input_device(IDeckLink* dev, uint16_t device_index)
 		device.device_name="Unknown Decklink device";
 	}
 
-	IDeckLinkAttributes *attr = nullptr;
+	IDeckLinkProfileAttributes *attr = nullptr;
 	IDeckLinkInput *input = nullptr;
-	dev->QueryInterface(IID_IDeckLinkAttributes,reinterpret_cast<void**>(&attr));
+	dev->QueryInterface(IID_IDeckLinkProfileAttributes,reinterpret_cast<void**>(&attr));
 
 	if (dev->QueryInterface(IID_IDeckLinkInput,reinterpret_cast<void**>(&input))!=S_OK) {
 		// Not an input device
@@ -269,10 +269,10 @@ core::InputDeviceInfo enum_input_device(IDeckLink* dev, uint16_t device_index)
 		auto m = mode->GetDisplayMode();
 		cfg.params["format"]=bm_mode_to_yuri(m);
 		for (const auto& pixfmt: pixel_format_map) {
-			BMDDisplayModeSupport sup;
-			IDeckLinkDisplayMode* res_mode = nullptr;
-			if (input->DoesSupportVideoMode(m,pixfmt.first, bmdVideoInputFlagDefault, &sup, &res_mode) == S_OK) {
-				if (sup == bmdDisplayModeSupported || sup == bmdDisplayModeSupportedWithConversion) {
+			bool supported;
+			BMDDisplayMode dsp_mode;
+			if (input->DoesSupportVideoMode(bmdVideoConnectionSDI, m, pixfmt.first, bmdNoVideoOutputConversion, bmdVideoInputFlagDefault, &dsp_mode, &supported) == S_OK) {
+				if (supported) {
 					try {
 						const auto& fi = get_format_info(pixfmt.second);
 						if (fi.short_names.empty()) continue;
@@ -280,11 +280,11 @@ core::InputDeviceInfo enum_input_device(IDeckLink* dev, uint16_t device_index)
 						cfg2.params["pixel_format"]=fi.short_names[0];
 						cfg2.params["stereo"]=false;
 
-						if (res_mode->GetFlags() & bmdDisplayModeSupports3D) {
-							auto cfg3 = cfg2;
-							cfg3.params["stereo"]=true;
-							push_cfg_connections(device, std::move(cfg3), connections);
-						}
+						// if (res_mode->GetFlags() & bmdDisplayModeSupports3D) {
+						// 	auto cfg3 = cfg2;
+						// 	cfg3.params["stereo"]=true;
+						// 	push_cfg_connections(device, std::move(cfg3), connections);
+						// }
 						push_cfg_connections(device, std::move(cfg2), connections);
 					}
 					catch (...) {
@@ -312,11 +312,9 @@ std::vector<core::InputDeviceInfo> DeckLinkBase::enumerate_inputs()
 			continue;
 		}
 		devices.push_back(enum_input_device(dev, idx));
-
 		dev->Release();
 		idx++;
 	}
-
 	return devices;
 }
 

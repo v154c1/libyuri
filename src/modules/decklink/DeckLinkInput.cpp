@@ -201,9 +201,9 @@ HRESULT DeckLinkInput::VideoInputFrameArrived (IDeckLinkVideoInputFrame* videoFr
 bool DeckLinkInput::init()
 {
 	if (!init_decklink()) return false;
-	IDeckLinkAttributes *attr;
+	IDeckLinkProfileAttributes *attr = nullptr;
 	assert(device);
-	device->QueryInterface(IID_IDeckLinkAttributes,reinterpret_cast<void**>(&attr));
+	device->QueryInterface(IID_IDeckLinkProfileAttributes,reinterpret_cast<void**>(&attr));
 
 	if (device->QueryInterface(IID_IDeckLinkInput,reinterpret_cast<void**>(&input))!=S_OK) {
 		log[log::fatal] << "Failed to get input interface";
@@ -302,14 +302,13 @@ bool DeckLinkInput::verify_display_mode()
 {
 	assert(input);
 	yuri::lock_t l(schedule_mutex);
-	IDeckLinkDisplayMode *dm;
-	BMDDisplayModeSupport support;
+	BMDDisplayMode dsp_mode;
+	bool supported;
 	BMDVideoInputFlags input_flags = capture_stereo?bmdVideoInputDualStream3D:bmdVideoInputFlagDefault;
-	if (input->DoesSupportVideoMode(mode,pixel_format,input_flags,&support,&dm)!=S_OK) return false;
-	if (support == bmdDisplayModeNotSupported) return false;
-	if (support == bmdDisplayModeSupportedWithConversion) {
-		log[log::warning] << "Display mode supported, but conversion is required";
-	}
+	if (input->DoesSupportVideoMode(bmdVideoConnectionSDI, mode, pixel_format, bmdNoVideoInputConversion, input_flags, &dsp_mode, &supported)!=S_OK) return false;
+	if (!supported) return false;
+	IDeckLinkDisplayMode *dm;
+	input->GetDisplayMode(dsp_mode, &dm);
 	width = dm->GetWidth();
 	height = dm->GetHeight();
 	dm->GetFrameRate(&value,&scale);
