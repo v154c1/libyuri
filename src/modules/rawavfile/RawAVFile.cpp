@@ -504,14 +504,23 @@ bool RawAVFile::decode_audio_frame(index_t idx, const AVPacket& packet, AVFrame*
         log[log::debug] << "Used only " << decoded_size << " bytes out of " << packet.size;
     }
     if (!audio_streams_[idx].swr_ctx) {
-        size_t data_size = av_frame->nb_samples * av_frame_get_channels(av_frame) * 2;
-        auto   f = core::RawAudioFrame::create_empty(audio_streams_[idx].format_out, av_frame_get_channels(av_frame), av_frame->sample_rate, av_frame->data[0],
-                                                   data_size);
-        if (!f) {
-            log[log::warning] << "Failed to convert avframe, probably unsupported pixelformat";
+        try {
+            const auto& fi = core::raw_audio_format::get_format_info(audio_format_out_);
+
+            size_t data_size = av_frame->nb_samples * av_frame_get_channels(av_frame) * fi.bits_per_sample / 8;
+            auto f = core::RawAudioFrame::create_empty(audio_streams_[idx].format_out, av_frame_get_channels(av_frame),
+                                                       av_frame->sample_rate, av_frame->data[0],
+                                                       data_size);
+            if (!f) {
+                log[log::warning] << "Failed to convert avframe, probably unsupported pixelformat";
+                return false;
+            }
+            push_frame(idx + max_video_streams_, std::move(f));
+        }
+        catch (const std::runtime_error& e) {
+            log[log::error] << "Failed to get format info for audio: " << e.what();
             return false;
         }
-        push_frame(idx + max_video_streams_, std::move(f));
     } else {
         auto output_sample_count = av_rescale_rnd(av_frame->nb_samples, audio_streams_[idx].sample_rate, audio_streams_[idx].ctx->sample_rate, AV_ROUND_UP);
         auto f = core::RawAudioFrame::create_empty(audio_streams_[idx].format_out, av_frame_get_channels(av_frame), audio_streams_[idx].sample_rate,
