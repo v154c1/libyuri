@@ -19,15 +19,15 @@ Exception::Exception():reason("Generic exception")
 {
 }
 
-Exception::Exception(std::string reason):reason(reason)
+Exception::Exception(std::string reason):reason(std::move(reason))
 {
 
 }
-Exception::~Exception() throw()
+Exception::~Exception() noexcept
 {
 }
 
-const char *Exception::what() const throw()
+const char *Exception::what() const noexcept
 {
 	return (const char*) reason.c_str();
 }

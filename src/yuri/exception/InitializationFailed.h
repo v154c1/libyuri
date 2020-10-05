@@ -20,7 +20,8 @@ namespace exception {
 class InitializationFailed: public yuri::exception::Exception {
 public:
 	EXPORT InitializationFailed(std::string reason = "Failed to initialize object");
-	EXPORT virtual ~InitializationFailed() throw();
+	EXPORT ~InitializationFailed() noexcept override;
+
 };
 
 }
