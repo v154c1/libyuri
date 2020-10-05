@@ -76,7 +76,7 @@ namespace yuri {
         }
 
         std::string RawAVFilePlaylist::get_next_filename() {
-            if (playlist_index_ >= playlist_.size()) {
+            if (playlist_index_ >= static_cast<int>(playlist_.size())) {
                 playlist_index_ %= playlist_.size();
             }
             log[log::debug] << "Returning " << playlist_[playlist_index_];
