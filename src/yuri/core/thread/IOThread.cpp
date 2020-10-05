@@ -98,8 +98,10 @@ void IOThread::connect_in(position_t index, pPipe pipe)
 void IOThread::do_connect_in(position_t index, pPipe pipe)
 {
     TRACE_METHOD
-    if (index < 0 || index >= do_get_no_in_ports())
-        throw std::out_of_range("Input pipe out of Range");
+    if (index < 0 || index >= do_get_no_in_ports()) {
+    	log[log::fatal] << "Requested index " << index << " is out of range, node has only " << do_get_no_in_ports() << " ports";
+        throw std::out_of_range("Input pipe out of range");
+    }
     if (in_[index]) {
         log[log::debug] << "Disconnecting already connected pipe from in port " << index;
     }
