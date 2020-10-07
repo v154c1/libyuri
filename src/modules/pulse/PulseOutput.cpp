@@ -156,6 +156,9 @@ bool PulseOutput::set_format(const core::pRawAudioFrame& frame) {
         static_cast<uint8_t>(channels_)	// .channels
     };
 
+	log[log::info] << "Initialized for " << sample_rate_ << " Hz";
+	log[log::info] << "Initialized for " << static_cast<int>(channels_) << " channels";
+
 	if (!pa_sample_spec_valid(&ss)) {
         log[log::error] << "Unsupported sample type (format/rate/channels) by pulse audio.";
 		return false;
