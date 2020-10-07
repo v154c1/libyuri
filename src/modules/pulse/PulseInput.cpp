@@ -34,7 +34,7 @@ core::Parameters PulseInput::configure() {
 	p["device"]["Pulse device to use"]="";
 	p["channels"]["Channel to capture"]=2;
 	p["sample_rate"]["Sample rate to capture"]=48000;
-	p["frames"]["Count of frames captured in one run"]=128;
+	p["latency"]["Max latency in bytes"]=128;
 	p["format"]["Capture format. Valid values: (" + formats + ")"]="s16";
 	return p;
 }
@@ -58,7 +58,7 @@ unsigned int get_yuri_format_bytes(format_t fmt) {
 
 PulseInput::PulseInput(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters):
 core::IOThread(log_,parent,0,1,std::string("pulse_input")),
-device_name_(""),format_(signed_16bit),channels_(2) {
+device_name_(""),format_(signed_16bit),channels_(2),latency_(128) {
 	IOTHREAD_INIT(parameters)
 }
 
@@ -192,15 +192,19 @@ bool PulseInput::set_format() {
 		return false;
 	}
 
-    pa_buffer_attr bufattr = {
-        (uint32_t) -1,
-        (uint32_t) -1,
-        (uint32_t) -1,
-        (uint32_t) -1,
-        (uint32_t) -1
-    };
+	uint32_t flags = 0;
+	pa_buffer_attr bufattr;
+	if (latency_ > 0) {
+		memset(&bufattr, 0, sizeof(bufattr));
+		bufattr.tlength = (uint32_t) latency_;
+		bufattr.minreq = (uint32_t) 0;
+		bufattr.maxlength = (uint32_t) -1;
+		bufattr.prebuf = (uint32_t) -1;
+		bufattr.fragsize = (uint32_t) latency_;
+		flags |= PA_STREAM_ADJUST_LATENCY;
+	}
 
-   	if (pa_stream_connect_record(stream_, (device_name_.empty() ? nullptr : device_name_.c_str()), &bufattr, PA_STREAM_ADJUST_LATENCY) < 0) {
+   	if (pa_stream_connect_record(stream_, (device_name_.empty() ? nullptr : device_name_.c_str()), latency_ > 0 ? &bufattr : nullptr, static_cast<pa_stream_flags_t>(flags)) < 0) {
         log[log::error] << "Error while connecting stream to pulse record.";
 		return false;
     }
@@ -239,7 +243,6 @@ bool PulseInput::set_param(const core::Parameter& param) {
 			(device_name_, "device")
 			(channels_, "channels")
 			(sample_rate_, "sample_rate")
-            (frames_, "frames")
 			.parsed<std::string>(format_, "format", core::raw_audio_format::parse_format)) {
 		return true;
 	} else return core::IOThread::set_param(param);

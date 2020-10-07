@@ -40,6 +40,7 @@ private:
 	size_t forced_channels_;
 	unsigned int sample_rate_;
     unsigned int frames_;
+	unsigned int latency_;
 
 	std::vector<uint8_t> channel_buffer_;
 
