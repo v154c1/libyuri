@@ -211,3 +211,40 @@ add_subdirectory(src)
 add_subdirectory(doc)
 
 
+#################################################################
+# Specify defaults for packaging into a debian package
+#################################################################
+
+SET(CPACK_GENERATOR "DEB")
+SET(CPACK_PACKAGE_VENDOR "st.dio s.r.o.")
+SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "<zdenek@stdio.cz>>")
+SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libboost-all-dev, libgl1-mesa-dev, libavcodec-dev, libavformat-dev, libavutil-dev")
+SET(CPACK_PACKAGE_CHECKSUM SHA256)
+
+# Simple hack to get detailed version
+if(NOT GIT_FOUND)
+	find_package(Git QUIET)
+endif()
+
+SET(GIT_COMMIT_COUNT "")
+if (GIT_FOUND)
+	execute_process(COMMAND
+			${GIT_EXECUTABLE}
+			describe
+			WORKING_DIRECTORY
+			"${CMAKE_SOURCE_DIR}"
+			RESULT_VARIABLE
+			res
+			OUTPUT_VARIABLE
+			out
+			ERROR_QUIET
+			OUTPUT_STRIP_TRAILING_WHITESPACE)
+	if(res EQUAL 0)
+		string(REPLACE "-" ";" out_list ${out})
+		list(GET out_list 1 com)
+		SET(GIT_COMMIT_COUNT "${com}")
+	endif()
+ENDIF()
+SET(CPACK_DEBIAN_PACKAGE_RELEASE "${GIT_COMMIT_COUNT}")
+SET(CPACK_DEBIAN_FILE_NAME "${CMAKE_PROJECT_NAME}-${CMAKE_PROJECT_VERSION}-${GIT_COMMIT_COUNT}-Linux.deb")
+INCLUDE(CPack)
