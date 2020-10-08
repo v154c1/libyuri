@@ -102,8 +102,8 @@ IF(ALSA_FOUND)
 	add_subdirectory(alsa)
 ENDIF()
 
-find_package(PulseAudio)
-IF(PulseAudio_FOUND)
+find_package(PULSEAUDIO)
+IF(PULSEAUDIO_FOUND)
 	add_subdirectory(pulse)
 ENDIF()
 
