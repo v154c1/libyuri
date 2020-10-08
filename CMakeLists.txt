@@ -1,8 +1,5 @@
-# Disable warnings on cygwin
-set(CMAKE_LEGACY_CYGWIN_WIN32 0) # Remove when CMake >= 2.8.4 is required
-
-cmake_minimum_required (VERSION 2.8.0)
-PROJECT(yuri2 CXX)
+cmake_minimum_required (VERSION 3.0.0)
+PROJECT(yuri2 VERSION 2.8.0 LANGUAGES CXX)
 ENABLE_LANGUAGE(C)
 
 SET(OLD_CMAKE FALSE)
