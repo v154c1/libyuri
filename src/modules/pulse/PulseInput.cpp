@@ -34,6 +34,7 @@ core::Parameters PulseInput::configure() {
 	p["device"]["Pulse device to use"]="";
 	p["channels"]["Channel to capture"]=2;
 	p["sample_rate"]["Sample rate to capture"]=48000;
+	p["frames"]["Count of frames captured in one run"]=1024;
 	p["latency"]["Max latency in bytes"]=128;
 	p["format"]["Capture format. Valid values: (" + formats + ")"]="s16";
 	return p;
@@ -58,7 +59,7 @@ unsigned int get_yuri_format_bytes(format_t fmt) {
 
 PulseInput::PulseInput(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters):
 core::IOThread(log_,parent,0,1,std::string("pulse_input")),
-device_name_(""),format_(signed_16bit),channels_(2),latency_(128) {
+device_name_(""),format_(signed_16bit),channels_(2),frames_(1024),latency_(128) {
 	IOTHREAD_INIT(parameters)
 }
 
@@ -110,39 +111,19 @@ std::vector<core::InputDeviceInfo> PulseInput::enumerate() {
 	return devices;
 }
 
-void PulseInput::run()
-{
-	if (!init_pulse()) return;
+void PulseInput::run() {
     if (!set_format()) return;
-
-	int yuri_format_bytes = get_yuri_format_bytes(format_);
-
 	while(still_running()) {
-		size_t len = pa_stream_readable_size(stream_);
-		if (len == 0 || len == (size_t)-1) {
-			usleep(1000*10);
-			continue;
+		size_t bytes_to_read = frames_ * channels_ * get_yuri_format_bytes(format_);
+		data_.resize(bytes_to_read);
+		int error;
+		if (pa_simple_read(pa_s_, &data_[0], data_.size(), &error) < 0) {
+            log[log::error] << "Not able to read sound samples: " << pa_strerror(error);
+        } else {
+			auto frame = core::RawAudioFrame::create_empty(format_, channels_, sample_rate_, frames_);
+			memcpy(frame->data(), &data_[0], bytes_to_read);
+			push_frame(0, frame);
 		}
-		size_t rcv_len = 0;
-		const void *rcv_data = nullptr;
-		pa_threaded_mainloop_lock(pulse_loop_);
-        if (pa_stream_peek(stream_, &rcv_data, &rcv_len) == 0) {
-			if (rcv_data && rcv_len) {
-				frames_ = rcv_len / (yuri_format_bytes * channels_);
-				auto frame = core::RawAudioFrame::create_empty(format_, channels_, sample_rate_, frames_);
-				memcpy(frame->data(), rcv_data, rcv_len);
-				push_frame(0, frame);
-				pa_stream_drop(stream_);
-			} else if (!rcv_data && rcv_len) {
-				pa_stream_drop(stream_);
-				log[log::warning] << "Hole in the pulse buffer detected with length: " << rcv_len;
-			} else if (!rcv_len) {
-				log[log::warning] << "Cannot read audio samples from pulse.";
-			}
-		} else {
-			log[log::warning] << "Error in pulse stream peak.";
-		}
-		pa_threaded_mainloop_unlock(pulse_loop_);
 	}
 }
 
@@ -153,16 +134,17 @@ bool PulseInput::set_format() {
 		return false;
 	}
 
-    pa_sample_spec ss = {
-        pulse_format,					// .format
-        sample_rate_,					// .rate
-        static_cast<uint8_t>(channels_)	// .channels
-    };
+    pa_sample_spec ss;
+	ss.format = pulse_format;
+	ss.rate = sample_rate_;
+	ss.channels = static_cast<uint8_t>(channels_);
 
 	if (!pa_sample_spec_valid(&ss)) {
         log[log::error] << "Unsupported sample type (format/rate/channels) by pulse audio.";
 		return false;
     }
+
+	log[log::error] << "wtf ";
 
 	struct pa_channel_map map;
 	map.channels = 0;
@@ -186,13 +168,6 @@ bool PulseInput::set_format() {
 		return false;
 	}
 
-	pa_threaded_mainloop_lock(pulse_loop_);
-	if (!(stream_ = pa_stream_new(ctx_, "audio record", &ss, &map))) {
-		log[log::error] << "Error while creating new pulse audio record.";
-		return false;
-	}
-
-	uint32_t flags = 0;
 	pa_buffer_attr bufattr;
 	if (latency_ > 0) {
 		memset(&bufattr, 0, sizeof(bufattr));
@@ -201,41 +176,22 @@ bool PulseInput::set_format() {
 		bufattr.maxlength = (uint32_t) -1;
 		bufattr.prebuf = (uint32_t) -1;
 		bufattr.fragsize = (uint32_t) latency_;
-		flags |= PA_STREAM_ADJUST_LATENCY;
 	}
 
-   	if (pa_stream_connect_record(stream_, (device_name_.empty() ? nullptr : device_name_.c_str()), latency_ > 0 ? &bufattr : nullptr, static_cast<pa_stream_flags_t>(flags)) < 0) {
-        log[log::error] << "Error while connecting stream to pulse record.";
-		return false;
+	if (pa_s_) pa_simple_free(pa_s_);
+	int error;
+	if (!(pa_s_ = pa_simple_new(nullptr, "Yuri", PA_STREAM_RECORD, device_name_.empty() ? nullptr : device_name_.c_str(), "audio in", &ss, &map, &bufattr, &error))) {
+		log[log::error] << "Not able to set new recording: " << pa_strerror(error);
+        return false;
     }
-
-	pa_threaded_mainloop_unlock(pulse_loop_);
 
 	log[log::info] << "New format for pulse audio set.";
 
 	return true;
 }
 
-bool PulseInput::init_pulse() {
-	try {
-		ctx_ = get_pulse_connect(&pulse_loop_, &pulse_ready_);
-	} catch(const std::exception& e) {
-		log[log::error] << "Pulse error: " << e.what();
-		return false;
-	}
-	while (pulse_ready_ != 1) {
-		if (pulse_ready_ == 2) {
-			close_pulse(pulse_loop_);
-			log[log::error] << "Pulse audio disconnected or in error state.";
-			return false;
-		}
-		usleep(1000);
-	}
-	return true;
-}
-
 void PulseInput::destroy_pulse() {
-	if (pulse_loop_) close_pulse(pulse_loop_);
+	if (pa_s_) pa_simple_free(pa_s_);
 }
 
 bool PulseInput::set_param(const core::Parameter& param) {
