@@ -124,9 +124,11 @@ core::pFrame PulseOutput::do_special_single_step(core::pRawAudioFrame frame) {
 		// The simple case when we simple copy the data to sound card
 		start = frame->data();	
 	}
+	pa_threaded_mainloop_lock(pulse_loop_);
 	if (pa_stream_write(stream_, start, data_size, nullptr, 0, PA_SEEK_RELATIVE) < 0) {
 		log[log::warning] << "Not able to write data to pulse audio.";
 	}
+	pa_threaded_mainloop_unlock(pulse_loop_);
 	return {};
 }
 
