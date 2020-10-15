@@ -29,6 +29,7 @@ core::Parameters JackOutput::configure()
 	p["client_name"]["Name of the JACK client"]="yuri";
 	p["start_server"]["Start server is it's not running."]=false;
     p["blocking"]["Blocking mode when buffer is full."]=false;
+    p["auto_connect"]["Automatically connect (to specified or default client)"]=true;
 	return p;
 }
 
@@ -177,26 +178,27 @@ start_server_(false),blocking_(false)
 		throw exception::InitializationFailed("Failed to allocate output port");
 	}
 	log[log::info] << "client activated";
-	const char **ports = nullptr;
-	if (connect_to_.empty()) {
-		ports = jack_get_ports (handle_.get(), nullptr, nullptr, JackPortIsPhysical|JackPortIsInput);
-	} else {
-		ports = jack_get_ports (handle_.get(), connect_to_.c_str(), nullptr, JackPortIsInput);
-	}
-	if (!ports) {
-		log[log::warning] << "No suitable input ports found";
-	} else {
-		for (size_t i=0;i<ports_.size();++i) {
-			if (!ports[i]) break;
-			if (jack_connect (handle_.get(), jack_port_name (ports_[i].get()), ports[i])) {
-				log[log::warning] << "Failed connect to output port " << i;
-			} else {
-				log[log::info] << "Connected port " << jack_port_name (ports_[i].get()) << " to " << ports[i];
-			}
-		}
-		jack_free (ports);
-	}
-
+	if (auto_connect_) {
+        const char **ports = nullptr;
+        if (connect_to_.empty()) {
+            ports = jack_get_ports(handle_.get(), nullptr, nullptr, JackPortIsPhysical | JackPortIsInput);
+        } else {
+            ports = jack_get_ports(handle_.get(), connect_to_.c_str(), nullptr, JackPortIsInput);
+        }
+        if (!ports) {
+            log[log::warning] << "No suitable input ports found";
+        } else {
+            for (size_t i = 0; i < ports_.size(); ++i) {
+                if (!ports[i]) break;
+                if (jack_connect(handle_.get(), jack_port_name(ports_[i].get()), ports[i])) {
+                    log[log::warning] << "Failed connect to output port " << i;
+                } else {
+                    log[log::info] << "Connected port " << jack_port_name(ports_[i].get()) << " to " << ports[i];
+                }
+            }
+            jack_free(ports);
+        }
+    }
 	using namespace core::raw_audio_format;
 	set_supported_formats({unsigned_8bit, unsigned_16bit, unsigned_32bit, signed_16bit, signed_32bit, float_32bit});
 }
@@ -291,7 +293,9 @@ bool JackOutput::set_param(const core::Parameter& param)
             (buffer_size_, "buffer_size")
             (client_name_, "client_name")
             (start_server_, "start_server")
-            (blocking_, "blocking")) {
+            (blocking_, "blocking")
+            (auto_connect_, "auto_connect")
+            ) {
         return true;
     }
 	else return base_type::set_param(param);

@@ -92,6 +92,7 @@ private:
 	std::mutex	data_mutex_;
 	bool start_server_;
 	bool blocking_;
+	bool auto_connect_;
 
 	std::condition_variable buffer_cv_;
 
