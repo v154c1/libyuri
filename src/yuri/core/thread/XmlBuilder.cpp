@@ -303,6 +303,9 @@ void XmlBuilder::builder_pimpl_t::process_links()
 		record.target_index = stoll(target.substr(idx+1));
 		record.parameters = parse_parameters(node);
 		builder::verify_link_class(record.class_name);
+		if (links.find(record.name) != links.end()) {
+		    throw exception::InitializationFailed("Duplicate link name " + record.name);
+		}
 		links[record.name]=std::move(record);
 	}
 }
