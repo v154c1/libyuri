@@ -25,6 +25,7 @@ core::Parameters JsonConfig::configure()
 	core::Parameters p = core::IOThread::configure();
 	p.set_description("JsonConfig");
 	p["filename"]["Config filename"]="";
+	p["readonly"]["Do not write to the disk"]=false;
 	return p;
 }
 
@@ -32,7 +33,7 @@ core::Parameters JsonConfig::configure()
 JsonConfig::JsonConfig(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters):
 core::IOThread(log_,parent,1,1,std::string("json_config")),
 BasicEventConsumer(log),
-BasicEventProducer(log)
+BasicEventProducer(log),readonly_{false}
 {
 	IOTHREAD_INIT(parameters)
 	if (filename_.empty()) {
@@ -201,13 +202,16 @@ void JsonConfig::run()
 		wait_for_events(get_latency());
 		process_events();
 	}
-	dump_config(log, event_map_, filename_);
+	if (!readonly_) {
+        dump_config(log, event_map_, filename_);
+    }
 
 }
 bool JsonConfig::set_param(const core::Parameter& param)
 {
 	if (assign_parameters(param)
-			(filename_, "filename"))
+			(filename_, "filename")
+            (readonly_, "readonly"))
 		return true;
 	return core::IOThread::set_param(param);
 }
