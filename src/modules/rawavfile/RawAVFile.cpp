@@ -55,9 +55,23 @@ const std::string& get_format_name_no_throw(format_t fmt)
 }
 
 struct RawAVFile::stream_detail_t {
-    stream_detail_t(AVStream* stream = nullptr, AVCodec* codec = nullptr, format_t fmt = 0, format_t fmt_out = 0)
-        : stream(stream), ctx(stream ? stream->codec : nullptr), codec(codec), swr_ctx(nullptr), format(fmt), format_out(fmt_out), sample_rate(0)
+    explicit stream_detail_t(AVStream* stream = nullptr, format_t fmt_out = 0)
+        : stream(stream), ctx(nullptr), codec(nullptr), swr_ctx(nullptr), format(0), format_out(fmt_out), sample_rate(0)
     {
+        if (stream && stream->codecpar) {
+            const auto& par = *(stream->codecpar);
+            codec = avcodec_find_decoder(par.codec_id);
+            if (codec == nullptr) {
+                throw std::runtime_error("Failed to find decoder");
+            }
+            ctx = avcodec_alloc_context3(codec);
+            if (ctx == nullptr) {
+                throw std::runtime_error("Failed to allocate decoder context");
+            }
+            if (avcodec_parameters_to_context(ctx, &par) < 0) {
+                throw std::runtime_error("Failed to setup decoder context");
+            }
+        }
     }
     ~stream_detail_t()
     {
@@ -72,7 +86,7 @@ struct RawAVFile::stream_detail_t {
     SwrContext*     swr_ctx;
     format_t        format;
     format_t        format_out;
-    resolution_t    resolution;
+    resolution_t    resolution{};
     duration_t      delta;
     int             sample_rate;
 };
@@ -106,7 +120,7 @@ core::Parameters RawAVFile::configure()
 
 // TODO: number of output streams should be -1 and custom connect_out should be implemented.
 RawAVFile::RawAVFile(const log::Log& _log, core::pwThreadBase parent, const core::Parameters& parameters)
-    : IOThread(_log, parent, 0, 1024, "RawAVSource"),
+    : IOThread(_log, std::move(parent), 0, 1024, "RawAVSource"),
       BasicEventConsumer(log),
       BasicEventProducer(log),
       fmtctx_(nullptr, [](AVFormatContext* ctx) { avformat_close_input(&ctx); }),
@@ -168,31 +182,34 @@ bool RawAVFile::open_file(const std::string& filename)
     }
     fmtctx_.reset();
 
-    avformat_open_input(&fmtctx_.get_ptr_ref(), filename.c_str(), 0, 0);
+    avformat_open_input(&fmtctx_.get_ptr_ref(), filename.c_str(), nullptr, nullptr);
     if (!fmtctx_) {
         log[log::error] << "Failed to allocate Format context";
         return false;
     }
 
-    if (avformat_find_stream_info(fmtctx_, 0) < 0) {
+    if (avformat_find_stream_info(fmtctx_, nullptr) < 0) {
         log[log::fatal] << "Failed to retrieve stream info!";
         return false;
     }
 
     for (size_t i = 0; i < fmtctx_->nb_streams; ++i) {
-        if (fmtctx_->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+        if (fmtctx_->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             log[log::debug] << "Found video stream with id " << i << ".";
-            if (video_streams_.size() < max_video_streams_ && fmtctx_->streams[i]->codec) {
-                video_streams_.push_back({ fmtctx_->streams[i], nullptr, 0, video_format_out_ });
-                if (enable_experimental_)
-                    fmtctx_->streams[i]->codec->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
+            if (video_streams_.size() < max_video_streams_ && fmtctx_->streams[i]->codecpar) {
+                stream_detail_t stream { fmtctx_->streams[i], video_format_out_ };
+                    if (enable_experimental_ && stream.codec) {
+                        stream.ctx->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
+                    }
+                video_streams_.emplace_back(std::move(stream));
             } else {
                 fmtctx_->streams[i]->discard = AVDISCARD_ALL;
             }
-        } else if (fmtctx_->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
+        } else if (fmtctx_->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
             log[log::debug] << "Found audio stream with id " << i << ".";
-            if (audio_streams_.size() < max_audio_streams_ && fmtctx_->streams[i]->codec) {
-                audio_streams_.push_back(fmtctx_->streams[i]);
+            if (audio_streams_.size() < max_audio_streams_ && fmtctx_->streams[i]->codecpar) {
+                stream_detail_t stream { fmtctx_->streams[i]};
+                audio_streams_.emplace_back(std::move(stream));
             } else {
                 fmtctx_->streams[i]->discard = AVDISCARD_ALL;
             }
@@ -264,12 +281,15 @@ bool RawAVFile::open_file(const std::string& filename)
             if (fmt_out != audio_format_out_ || audio_streams_[i].sample_rate != audio_streams_[i].ctx->sample_rate) {
                 auto audio_fmt_libav      = libav::avsampleformat_from_yuri(audio_format_out_);
                 audio_streams_[i].swr_ctx = swr_alloc();
-                libav::set_opt(audio_streams_[i].swr_ctx, "in_sample_fmt", audio_streams_[i].ctx->sample_fmt, 0);
-                libav::set_opt(audio_streams_[i].swr_ctx, "out_sample_fmt", audio_fmt_libav, 0);
-                libav::set_opt(audio_streams_[i].swr_ctx, "in_channel_layout", audio_streams_[i].ctx->channel_layout, 0);
-                libav::set_opt(audio_streams_[i].swr_ctx, "out_channel_layout", audio_streams_[i].ctx->channel_layout, 0);
-                libav::set_opt(audio_streams_[i].swr_ctx, "in_sample_rate", audio_streams_[i].ctx->sample_rate, 0);
-                libav::set_opt(audio_streams_[i].swr_ctx, "out_sample_rate", audio_streams_[i].sample_rate, 0);
+                libav::set_opt(audio_streams_[i].swr_ctx, "isf", audio_streams_[i].ctx->sample_fmt, 0);
+                libav::set_opt(audio_streams_[i].swr_ctx, "osf", audio_fmt_libav, 0);
+                libav::set_opt(audio_streams_[i].swr_ctx, "icl", audio_streams_[i].ctx->channel_layout, 0);
+                libav::set_opt(audio_streams_[i].swr_ctx, "ocl", audio_streams_[i].ctx->channel_layout, 0);
+                libav::set_opt(audio_streams_[i].swr_ctx, "isr", audio_streams_[i].ctx->sample_rate, 0);
+                libav::set_opt(audio_streams_[i].swr_ctx, "osr", audio_streams_[i].sample_rate, 0);
+                libav::set_opt(audio_streams_[i].swr_ctx, "ich", audio_streams_[i].ctx->channels, 0);
+                libav::set_opt(audio_streams_[i].swr_ctx, "och", audio_streams_[i].ctx->channels, 0);
+
                 swr_init(audio_streams_[i].swr_ctx);
             }
             audio_streams_[i].format_out = audio_format_out_;
@@ -378,7 +398,7 @@ bool RawAVFile::process_undecoded_frame(index_t idx, const AVPacket& packet)
     size_t sps_pps_len = 0;
 
     if (format == core::compressed_frame::h264 || format == core::compressed_frame::avc1) {
-        const auto type = packet.data[nal_length_size] & 0x1f;
+        const auto type = packet.data[nal_length_size] & 0x1fu;
         // We emit extra data only for IDR frames when !separate_extra_data
         const bool frame_usable_for_extradata = separate_extra_data_ || type == 5;
 
@@ -443,22 +463,20 @@ Parameter packet should be const, but the woudn't work with the fake ffmpeg (lib
 */
 bool RawAVFile::decode_video_frame(index_t idx, AVPacket& packet, AVFrame* av_frame, bool& keep_packet)
 {
-    int whole_frame = 0;
-
     keep_packet      = false;
-    int decoded_size = avcodec_decode_video2(video_streams_[idx].ctx, av_frame, &whole_frame, &packet);
-    if (!whole_frame) {
-        log[log::verbose_debug] << "Didn't get whole frame";
-        return false;
-    }
-    if (decoded_size < 0) {
-        log[log::warning] << "Failed to decode frame";
-        return false;
+
+    if (avcodec_send_packet(video_streams_[idx].ctx, &packet) < 0) {
+        log[log::warning] << "Failed to send packet to video decoder";
     }
 
-    if (packet.size && decoded_size != packet.size) {
-        keep_packet = true;
-        log[log::debug] << "Used only " << decoded_size << " bytes out of " << packet.size;
+    auto ret = avcodec_receive_frame(video_streams_[idx].ctx, av_frame);
+
+    if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
+        log[log::warning] << "Failed to receive frame from video decoder";
+        return false;
+    }
+    if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+        return false;
     }
 
     auto f = libav::yuri_frame_from_av(*av_frame);
@@ -488,39 +506,49 @@ bool RawAVFile::decode_audio_frame(index_t idx, const AVPacket& packet, AVFrame*
     return false;
 #else
     keep_packet     = false;
-    int whole_frame = 0;
 
-    int decoded_size = avcodec_decode_audio4(audio_streams_[idx].ctx, av_frame, &whole_frame, &packet);
-    if (!whole_frame) {
-        return false;
-    }
-    if (decoded_size < 0) {
-        log[log::warning] << "Failed to decode frame";
-        return false;
+    if (avcodec_send_packet(audio_streams_[idx].ctx, &packet) < 0) {
+        log[log::warning] << "Failed to send packet to video decoder";
     }
 
-    if (decoded_size != packet.size) {
-        keep_packet = true;
-        log[log::debug] << "Used only " << decoded_size << " bytes out of " << packet.size;
+    auto ret = avcodec_receive_frame(audio_streams_[idx].ctx, av_frame);
+
+    if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
+        log[log::warning] << "Failed to receive frame from video decoder";
+        return false;
     }
+    if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+        return false;
+    }
+
+
     if (!audio_streams_[idx].swr_ctx) {
-        size_t data_size = av_frame->nb_samples * av_frame_get_channels(av_frame) * 2;
-        auto   f = core::RawAudioFrame::create_empty(audio_streams_[idx].format_out, av_frame_get_channels(av_frame), av_frame->sample_rate, av_frame->data[0],
-                                                   data_size);
-        if (!f) {
-            log[log::warning] << "Failed to convert avframe, probably unsupported pixelformat";
+        try {
+            const auto& fi = core::raw_audio_format::get_format_info(audio_format_out_);
+
+            size_t data_size = av_frame->nb_samples * av_frame->channels * fi.bits_per_sample / 8;
+            auto f = core::RawAudioFrame::create_empty(audio_streams_[idx].format_out, av_frame->channels,
+                                                       av_frame->sample_rate, av_frame->data[0],
+                                                       data_size);
+            if (!f) {
+                log[log::warning] << "Failed to convert avframe, probably unsupported pixelformat";
+                return false;
+            }
+            push_frame(idx + max_video_streams_, std::move(f));
+        }
+        catch (const std::runtime_error& e) {
+            log[log::error] << "Failed to get format info for audio: " << e.what();
             return false;
         }
-        push_frame(idx + max_video_streams_, std::move(f));
     } else {
         auto output_sample_count = av_rescale_rnd(av_frame->nb_samples, audio_streams_[idx].sample_rate, audio_streams_[idx].ctx->sample_rate, AV_ROUND_UP);
-        auto f = core::RawAudioFrame::create_empty(audio_streams_[idx].format_out, av_frame_get_channels(av_frame), audio_streams_[idx].sample_rate,
+        auto f = core::RawAudioFrame::create_empty(audio_streams_[idx].format_out, av_frame->channels, audio_streams_[idx].sample_rate,
                                                    output_sample_count);
         auto            out_buffer = f->data();
-        const uint8_t** in_buffer  = const_cast<const uint8_t**>(av_frame->data);
+        const auto** in_buffer  = const_cast<const uint8_t**>(av_frame->data);
         auto            ret        = swr_convert(audio_streams_[idx].swr_ctx, &out_buffer, av_frame->nb_samples, in_buffer, av_frame->nb_samples);
         auto            real_buffer_size
-            = av_samples_get_buffer_size(nullptr, av_frame_get_channels(av_frame), ret, libav::avsampleformat_from_yuri(audio_streams_[idx].format_out), 1);
+            = av_samples_get_buffer_size(nullptr, av_frame->channels, ret, libav::avsampleformat_from_yuri(audio_streams_[idx].format_out), 1);
         log[log::verbose_debug] << "Received " << av_frame->nb_samples << " samples, expected to convert to " << output_sample_count << ", actually got " << ret
                                 << " stored in " << f->size() << " bytes, real size: " << real_buffer_size;
         f->resize(real_buffer_size);
@@ -583,7 +611,7 @@ void RawAVFile::run()
         }
 
         if (!keep_packet) {
-            av_free_packet(&packet);
+            av_packet_unref(&packet);
             if (av_read_frame(fmtctx_, &packet) < 0) {
                 finishing = true;
             }
@@ -626,7 +654,7 @@ void RawAVFile::run()
     }
     av_free(av_frame);
 
-    av_free_packet(&empty_packet);
+    av_packet_unref(&empty_packet);
 }
 
 void RawAVFile::jump_times(const duration_t& delta)

@@ -13,6 +13,7 @@
 #include "yuri/core/thread/SpecializedIOFilter.h"
 #include "yuri/core/frame/RawAudioFrame.h"
 #include <jack/jack.h>
+#include "yuri/event/BasicEventConsumer.h"
 
 namespace yuri {
 namespace jack {
@@ -64,14 +65,17 @@ struct buffer_t {
 	}
 };
 
-class JackOutput: public core::SpecializedIOFilter<core::RawAudioFrame>
+class JackOutput: public core::SpecializedIOFilter<core::RawAudioFrame>, public event::BasicEventConsumer
 {
 	using base_type = core::SpecializedIOFilter<core::RawAudioFrame>;
 	using handle_t = std::unique_ptr<jack_client_t, std::function<void(jack_client_t*)>>;
 	using port_t = std::unique_ptr<jack_port_t, std::function<void(jack_port_t*)>>;
 public:
 	IOTHREAD_GENERATOR_DECLARATION
-	static core::Parameters configure();
+
+
+public:
+    static core::Parameters configure();
 	JackOutput(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters);
 	virtual ~JackOutput() noexcept;
 	int process_audio(jack_nframes_t nframes);
@@ -79,6 +83,7 @@ private:
 	
 	virtual core::pFrame do_special_single_step(core::pRawAudioFrame frame) override;
 	virtual bool set_param(const core::Parameter& param) override;
+    bool do_process_event(const std::string &event_name, const event::pBasicEvent &event) override;
 
 	handle_t handle_;
 	std::vector<port_t> ports_;
@@ -92,6 +97,9 @@ private:
 	std::mutex	data_mutex_;
 	bool start_server_;
 	bool blocking_;
+	bool auto_connect_;
+	std::vector<float> gains_;
+    bool clamp_;
 
 	std::condition_variable buffer_cv_;
 

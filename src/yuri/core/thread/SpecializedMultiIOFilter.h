@@ -56,7 +56,7 @@ private:
 			auto f = do_special_step(std::move(p));
 //			auto t2 = t.get_duration();
 //			log[log::info] << "Processing took "<<t2<<" in total, conversions " << t1 << " and module took " << (t2-t1);
-			return std::move(f);
+			return f;
 //			return do_special_step();
 		}
 		catch (std::exception& e) {

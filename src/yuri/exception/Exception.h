@@ -23,8 +23,8 @@ class Exception: public std::exception
 public:
 	EXPORT Exception();
 	EXPORT Exception(std::string reason);
-	EXPORT virtual ~Exception()  throw();
-	EXPORT virtual const char* what() const throw();
+	EXPORT virtual ~Exception()  noexcept;
+	EXPORT virtual const char* what() const noexcept;
 protected:
 	std::string reason;
 };

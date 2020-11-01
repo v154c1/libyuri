@@ -236,6 +236,11 @@ ENDIF()
 ENDIF(YURI_BUILD_UNSTABLE_MODULES)
 
 
+pkg_check_modules(REALSENSE2 realsense2)
+IF (${REALSENSE2_FOUND})
+	add_subdirectory(realsense)
+ENDIF()
+
 #################################################################
 # Experimental modules
 #################################################################

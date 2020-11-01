@@ -20,6 +20,9 @@ namespace yuri {
         core::Parameters ExtrapolateEvents::configure() {
             core::Parameters p = EventRateLimiter::configure();
             p.set_description("Extrapolates event values and outputs them in regular intervals.");
+            p["emit_speed"]["Emit speed event (as <name>_speed)"] = true;
+            p["max_speed"]["Max absolute speed (in units/ns). Set to negative value to disable"] = -1;
+
             return p;
         }
 
@@ -34,6 +37,11 @@ namespace yuri {
 
 
         bool ExtrapolateEvents::set_param(const core::Parameter &param) {
+            if (assign_parameters(param)
+                    (emit_speed_, "emit_speed")
+                    (max_speed_, "max_speed")) {
+                return true;
+            }
             return EventRateLimiter::set_param(param);
         }
 
@@ -56,9 +64,15 @@ namespace yuri {
                 const auto delta_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                         now - info.last_update).count();
                 info.current_speed = (value - info.last_value) / delta_ns;
+                if (max_speed_ >=0 && std::abs(info.current_speed) > max_speed_) {
+                    info.current_speed = max_speed_;
+                }
                 info.last_value = value;
                 info.last_update = now;
                 log[log::debug] << "Current speed for " << event_name << " is " << info.current_speed << "/ns";
+                if (emit_speed_) {
+                    emit_event(event_name + "_speed", info.current_speed);
+                }
             }
 
             return false;
