@@ -429,6 +429,7 @@ ENDIF()
 
 IF(UNIX)
 	add_subdirectory(event_device)
+	add_subdirectory(event_joystick)
 ENDIF()
 
 

@@ -16,6 +16,7 @@
 #include "EventConvolution.h"
 #if YURI_LINUX
 #include "EventDevice.h"
+#include "EventJoystick.h"
 #endif
 namespace yuri {
 
@@ -29,6 +30,7 @@ MODULE_REGISTRATION_BEGIN("event_misc")
         REGISTER_IOTHREAD("event_convolution", event_convolution::EventConvolution)
 #if YURI_LINUX
 		REGISTER_IOTHREAD("event_device", event_device::EventDevice)
+		REGISTER_IOTHREAD("event_joystick", event_joystick::EventJoystick)
 #endif
 MODULE_REGISTRATION_END()
 
