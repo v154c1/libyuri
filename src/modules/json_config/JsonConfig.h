@@ -34,6 +34,7 @@ private:
 	std::string filename_;
 	event_map event_map_;
 	bool readonly_;
+	bool autosave_;
 };
 
 } /* namespace json_config */

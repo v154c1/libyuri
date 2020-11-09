@@ -26,6 +26,7 @@ core::Parameters JsonConfig::configure()
 	p.set_description("JsonConfig");
 	p["filename"]["Config filename"]="";
 	p["readonly"]["Do not write to the disk"]=false;
+	p["autosave"]["Save config file after each received event"]=false;
 	return p;
 }
 
@@ -33,7 +34,7 @@ core::Parameters JsonConfig::configure()
 JsonConfig::JsonConfig(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters):
 core::IOThread(log_,parent,1,1,std::string("json_config")),
 BasicEventConsumer(log),
-BasicEventProducer(log),readonly_{false}
+BasicEventProducer(log),readonly_{false},autosave_{false}
 {
 	IOTHREAD_INIT(parameters)
 	if (filename_.empty()) {
@@ -211,7 +212,8 @@ bool JsonConfig::set_param(const core::Parameter& param)
 {
 	if (assign_parameters(param)
 			(filename_, "filename")
-            (readonly_, "readonly"))
+            (readonly_, "readonly")
+            (autosave_, "autosave"))
 		return true;
 	return core::IOThread::set_param(param);
 }
@@ -220,6 +222,9 @@ bool JsonConfig::do_process_event(const std::string& event_name, const event::pB
 {
 	event_map_[event_name]=event;
 	emit_event(event_name, event);
+	if (autosave_) {
+	    dump_config(log, event_map_, filename_);
+	}
 	return false;
 }
 } /* namespace json_config */
