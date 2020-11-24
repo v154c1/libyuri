@@ -40,6 +40,7 @@ core::Parameters GlxWindow::configure()
 	p["delta_y"]["Vertical correction (-1.0, 1.0)"]=0.0f;
 	p["show_cursor"]["Enable or disable cursor in the window"]=true;
 	p["on_top"]["Stay on top"]=false;
+	p["fullscreen"]["Set window fullscreen"]=false;
 	p["pbo"]["Use PBO to update display (larger latency, faster update"]=false;
 	return p;
 }
@@ -91,7 +92,7 @@ display_str_{":0"},display_(nullptr,[](Display*d) { XCloseDisplay(d);}),
 screen_number_{0},attributes_{GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None},
 geometry_{800,600,0,0},visual_{nullptr},flip_x_{false},flip_y_{false},
 read_back_{false},stereo_mode_{stereo_mode_t::none},decorations_{false},
-on_top_{false},swap_eyes_{false},delta_x_{0.0},delta_y_{0.0},needs_move_{false},
+on_top_{false},fullscreen_{false},swap_eyes_{false},delta_x_{0.0},delta_y_{0.0},needs_move_{false},
 show_cursor_{true},
 counter_(0),
 wm_delete_window_(0)
@@ -125,6 +126,7 @@ void GlxWindow::run()
 		show_window();
 		move_window({geometry_.x, geometry_.y});
 		set_on_top(on_top_);
+		if (fullscreen_) set_fullscreen();
 		// Let's keep local converter until MultiIOThread supports this behaviour.
 		converter_.reset(new core::Convert(log, get_this_ptr(), core::Convert::configure()));
 		add_child(converter_);
@@ -353,7 +355,27 @@ bool GlxWindow::show_decorations(bool decorations)
 	hints.status = 0;
 	int r = XChangeProperty(display_.get(), win_, mh, mh, 32, PropModeReplace,
 			(unsigned char *) &hints, 5);
-	log[log::info] << "XChangeProperty returned " << r;
+	log[log::info] << "Decorations XChangeProperty returned " << r;
+	return true;
+}
+bool GlxWindow::set_fullscreen()
+{
+	auto wm_state = XInternAtom(display_.get(),"_NET_WM_STATE", 1);
+	auto wm_state_fs = XInternAtom(display_.get(),"_NET_WM_STATE_FULLSCREEN", 1);
+	int r = XChangeProperty(display_.get(), win_, wm_state, wm_state, 32, PropModeReplace,
+			(unsigned char *) &wm_state_fs, 1);
+	log[log::info] << "Fullscreen XChangeProperty returned " << r;
+	XClearWindow(display_.get(), win_);
+	XMapRaised(display_.get(), win_);
+	XEvent event;
+	event.type = ClientMessage;
+	event.xclient.window = win_;
+	event.xclient.message_type = wm_state;
+	event.xclient.format = 32;
+	event.xclient.data.l[0] = 1;
+	event.xclient.data.l[1] = wm_state_fs;
+	event.xclient.data.l[3] = 0l;
+	XSendEvent(display_.get(), root_, 0, SubstructureNotifyMask, &event);
 	return true;
 }
 
@@ -520,6 +542,7 @@ bool GlxWindow::set_param(const core::Parameter& param)
 			(read_back_, "read_back")
 			(decorations_, "decorations")
 			(on_top_, "on_top")
+			(fullscreen_, "fullscreen")
 			(swap_eyes_, "swap_eyes")
 			(delta_x_, "delta_x")
 			(delta_y_, "delta_y")
