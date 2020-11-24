@@ -187,6 +187,7 @@ bool GlxWindow::create_window()
 	log[log::info] << "Found visual " << visual_->visualid;
 	auto cmap = XCreateColormap(display_.get(), root_, visual_->visual, AllocNone);
 	XSetWindowAttributes swa;
+	swa.override_redirect = true;
 	swa.colormap = cmap;
 	swa.event_mask =  ExposureMask   | KeyPressMask    | StructureNotifyMask
 					| KeyReleaseMask | ButtonPressMask | ButtonReleaseMask
@@ -260,9 +261,9 @@ bool GlxWindow::process_x11_events()
 {
 	XEvent event_;
 	bool processed_any = false;
-	auto x11_fd = ConnectionNumber(display_.get());
-	pollfd fds = {x11_fd, POLLIN, 0};
-	if (poll(&fds, 1, 0) <= 0) return false;
+	// auto x11_fd = ConnectionNumber(display_.get());
+	// pollfd fds = {x11_fd, POLLIN, 0};
+	// if (poll(&fds, 1, 0) <= 0) return false;
 	while (XPending(display_.get())) {
 //	while (XCheckWindowEvent(display_.get(),
 //				win_,
