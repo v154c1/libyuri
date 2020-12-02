@@ -172,65 +172,8 @@ namespace yuri {
             if (channels_ < 1) {
                 throw exception::InitializationFailed("Invalid number of channels");
             }
-            jack_status_t status;
-            jack_options_t options = start_server_ ? JackNullOption : JackNoStartServer;
-            handle_ = {jack_client_open(client_name_.c_str(), options, &status),
-                       [](jack_client_t *p) { if (p)jack_client_close(p); }};
-            if (!handle_)
-                throw exception::InitializationFailed("Failed to connect to JACK server: " + get_error_string(status));
-
-            if (status & JackServerStarted) {
-                log[log::info] << "Jack server was started";
-            }
-            if (status & JackNameNotUnique) {
-                client_name_ = jack_get_client_name(handle_.get());
-                log[log::warning] << "Client name wasn't unique, we got new name from server instead: '" << client_name_
-                                  << "'";
-            }
-            log[log::info] << "Connected to JACK server";
-
-            buffers_.resize(channels_, buffer_t<jack_default_audio_sample_t>(buffer_size_));
-
-            if (jack_set_process_callback(handle_.get(), process_audio_wrapper, this) != 0) {
-                log[log::error] << "Failed to set process callback!";
-            }
-
-            for (size_t i = 0; i < channels_; ++i) {
-                std::string port_name = "output" + lexical_cast<std::string>(i);
-                auto port = jack_port_register(handle_.get(), port_name.c_str(), JACK_DEFAULT_AUDIO_TYPE,
-                                               JackPortIsOutput, 0);
-                if (!port) {
-                    throw exception::InitializationFailed("Failed to allocate output port");
-                }
-                ports_.push_back({port, [&](jack_port_t *p) { if (p)jack_port_unregister(handle_.get(), p); }});
-                log[log::info] << "Opened port " << port_name;
-            }
-
-            if (jack_activate(handle_.get()) != 0) {
-                throw exception::InitializationFailed("Failed to allocate output port");
-            }
-            log[log::info] << "client activated";
-            if (auto_connect_) {
-                const char **ports = nullptr;
-                if (connect_to_.empty()) {
-                    ports = jack_get_ports(handle_.get(), nullptr, nullptr, JackPortIsPhysical | JackPortIsInput);
-                } else {
-                    ports = jack_get_ports(handle_.get(), connect_to_.c_str(), nullptr, JackPortIsInput);
-                }
-                if (!ports) {
-                    log[log::warning] << "No suitable input ports found";
-                } else {
-                    for (size_t i = 0; i < ports_.size(); ++i) {
-                        if (!ports[i]) break;
-                        if (jack_connect(handle_.get(), jack_port_name(ports_[i].get()), ports[i])) {
-                            log[log::warning] << "Failed connect to output port " << i;
-                        } else {
-                            log[log::info] << "Connected port " << jack_port_name(ports_[i].get()) << " to "
-                                           << ports[i];
-                        }
-                    }
-                    jack_free(ports);
-                }
+            if (!connect_to_jackd()) {
+                throw exception::InitializationFailed("Failed to initialize connection to jackd");
             }
             using namespace core::raw_audio_format;
             set_supported_formats(
@@ -381,7 +324,7 @@ namespace yuri {
 
         namespace {
             template<class F>
-            bool process_vector_event(const event::pBasicEvent &event, std::vector<float>& gains, F &&func) {
+            bool process_vector_event(const event::pBasicEvent &event, std::vector<float> &gains, F &&func) {
                 if (const auto &vec_event = std::dynamic_pointer_cast<event::EventVector>(event)) {
                     if (vec_event->size() > gains.size()) {
                         gains.resize(vec_event->size(), 1.0f);
@@ -413,10 +356,92 @@ namespace yuri {
                     log[log::warning] << "volume event has to receive a vector";
                     return false;
                 }
-                log[log::info] << "Gain for channel 0: "<< gains_[0] << " (" << gain_to_db(gains_[0]) << " dB)";
+                log[log::info] << "Gain for channel 0: " << gains_[0] << " (" << gain_to_db(gains_[0]) << " dB)";
                 return true;
             }
             return false;
+        }
+
+        bool JackOutput::connect_to_jackd() {
+            jack_status_t status;
+            jack_options_t options = start_server_ ? JackNullOption : JackNoStartServer;
+            // Store ports and handle to local variables, move to members only on successfull connect
+            decltype(handle_) handle = {jack_client_open(client_name_.c_str(), options, &status),
+                       [](jack_client_t *p) { if (p)jack_client_close(p); }};
+            decltype(ports_) ports;
+
+            if (!handle) {
+                log[log::error] << "Failed to connect to JACK server: " << get_error_string(status);
+                return false;
+            }
+
+            if (status & JackServerStarted) {
+                log[log::info] << "Jack server was started";
+            }
+
+            if (status & JackNameNotUnique) {
+                client_name_ = jack_get_client_name(handle.get());
+                log[log::warning] << "Client name wasn't unique, we got new name from server instead: '" << client_name_
+                                  << "'";
+            }
+
+            log[log::info] << "Connected to JACK server";
+
+            buffers_.resize(channels_, buffer_t<jack_default_audio_sample_t>(buffer_size_));
+
+            if (jack_set_process_callback(handle.get(), process_audio_wrapper, this) != 0) {
+                log[log::error] << "Failed to set process callback!";
+                return false;
+            }
+
+            for (size_t i = 0; i < channels_; ++i) {
+                std::string port_name = "output" + lexical_cast<std::string>(i);
+                auto port = jack_port_register(handle.get(), port_name.c_str(), JACK_DEFAULT_AUDIO_TYPE,
+                                               JackPortIsOutput, 0);
+                if (!port) {
+                    log[log::error] << "Failed to allocate output port";
+                    return false;
+                }
+                // store raw pointer to handle to avoid possible race condition on move below.
+                const auto handle_ptr = handle.get();
+                ports.push_back({port, [handle_ptr](jack_port_t *p) { if (p) {jack_port_unregister(handle_ptr, p); }}});
+                log[log::info] << "Opened port " << port_name;
+            }
+
+            if (jack_activate(handle.get()) != 0) {
+                log[log::error] <<  "Failed to activate jack";
+                return false;
+            }
+            log[log::info] << "Jack client activated";
+            if (auto_connect_) {
+                const char **system_ports = nullptr;
+                if (connect_to_.empty()) {
+                    system_ports = jack_get_ports(handle.get(), nullptr, nullptr, JackPortIsPhysical | JackPortIsInput);
+                } else {
+                    system_ports = jack_get_ports(handle.get(), connect_to_.c_str(), nullptr, JackPortIsInput);
+                }
+                if (!system_ports) {
+                    log[log::warning] << "No suitable input ports found";
+                } else {
+                    for (size_t i = 0; i < ports.size(); ++i) {
+                        if (!system_ports[i]) break;
+                        if (jack_connect(handle.get(), jack_port_name(ports[i].get()), system_ports[i])) {
+                            log[log::warning] << "Failed connect to output port " << i;
+                        } else {
+                            log[log::info] << "Connected port " << jack_port_name(ports[i].get()) << " to "
+                                           << system_ports[i];
+                        }
+                    }
+                    jack_free(system_ports);
+                }
+            }
+            handle_ = std::move(handle);
+            ports_ = std::move(ports);
+            // We also have to fix the deleters here!
+            for (auto& port: ports_) {
+                port.get_deleter() = [=](jack_port_t *p) { if (p && handle_) {jack_port_unregister(handle_.get(), p); }};
+            }
+            return true;
         }
 
     } /* namespace jack_output */
