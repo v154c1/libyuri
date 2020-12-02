@@ -85,6 +85,8 @@ private:
 	virtual bool set_param(const core::Parameter& param) override;
     bool do_process_event(const std::string &event_name, const event::pBasicEvent &event) override;
 
+    bool connect_to_jackd();
+
 	handle_t handle_;
 	std::vector<port_t> ports_;
 	std::string client_name_;
