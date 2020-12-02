@@ -32,6 +32,8 @@ namespace yuri {
             p["blocking"]["Blocking mode when buffer is full."] = false;
             p["auto_connect"]["Automatically connect (to specified or default client)"] = true;
             p["clamp"]["Clamp the values to <1.0,1.0> when using gains"] = true;
+            p["reconnect"]["Reconnect ot jackd if disconnected. Setting to false will terminate on disconnect"] = true;
+            p["allow_unconnected"]["Allow the module start without an active connection to jackd, Forces reconnect"] = false;
             return p;
         }
 
@@ -71,6 +73,11 @@ namespace yuri {
             int process_audio_wrapper(jack_nframes_t nframes, void *arg) {
                 auto j = reinterpret_cast<JackOutput *>(arg);
                 return j->process_audio(nframes);
+            }
+
+            void jack_shutdown_wrapper(jack_status_t /* code */, const char *reason, void *arg) {
+                auto j = reinterpret_cast<JackOutput *>(arg);
+                j->notify_jack_shutdown(reason);
             }
 
             template<typename Target, typename Source>
@@ -172,8 +179,16 @@ namespace yuri {
             if (channels_ < 1) {
                 throw exception::InitializationFailed("Invalid number of channels");
             }
+            if (allow_unconnected_ && !reconnect_) {
+                log[log::info] << "Forcing reconnect as allow_unconnected is allowed";
+                reconnect_ = true;
+            }
             if (!connect_to_jackd()) {
-                throw exception::InitializationFailed("Failed to initialize connection to jackd");
+                if (allow_unconnected_) {
+                    log[log::info] << "Failed to connect to jackd, waiting for server to start";
+                } else {
+                    throw exception::InitializationFailed("Failed to initialize connection to jackd");
+                }
             }
             using namespace core::raw_audio_format;
             set_supported_formats(
@@ -184,6 +199,20 @@ namespace yuri {
         }
 
         core::pFrame JackOutput::do_special_single_step(core::pRawAudioFrame frame) {
+            if (!handle_) {
+                // Disconnected from server
+                if (!reconnect_) {
+                    log[log::fatal] << "Not connected to jackd server and reconnect notallowed, quitting";
+                    request_end(yuri::core::yuri_exit_finished);
+                    return {};
+                }
+                if (connect_to_jackd()) {
+                    log[log::info] << "Successfully reconnected to jackd";
+                } else {
+                    log[log::warning] << "Failed to reconnect to jackd";
+                    return {};
+                }
+            }
 
             jack_nframes_t sample_rate = jack_get_sample_rate(handle_.get());
             if (sample_rate != frame->get_sampling_frequency() && !allow_different_frequencies_) {
@@ -316,6 +345,8 @@ namespace yuri {
                     (start_server_, "start_server")
                     (blocking_, "blocking")
                     (auto_connect_, "auto_connect")
+                    (reconnect_, "reconnect")
+                    (allow_unconnected_, "allow_unconnected")
                     ) {
                 return true;
             } else return base_type::set_param(param);
@@ -367,7 +398,7 @@ namespace yuri {
             jack_options_t options = start_server_ ? JackNullOption : JackNoStartServer;
             // Store ports and handle to local variables, move to members only on successfull connect
             decltype(handle_) handle = {jack_client_open(client_name_.c_str(), options, &status),
-                       [](jack_client_t *p) { if (p)jack_client_close(p); }};
+                                        [](jack_client_t *p) { if (p)jack_client_close(p); }};
             decltype(ports_) ports;
 
             if (!handle) {
@@ -394,6 +425,8 @@ namespace yuri {
                 return false;
             }
 
+            jack_on_info_shutdown(handle.get(), jack_shutdown_wrapper, this);
+
             for (size_t i = 0; i < channels_; ++i) {
                 std::string port_name = "output" + lexical_cast<std::string>(i);
                 auto port = jack_port_register(handle.get(), port_name.c_str(), JACK_DEFAULT_AUDIO_TYPE,
@@ -404,12 +437,13 @@ namespace yuri {
                 }
                 // store raw pointer to handle to avoid possible race condition on move below.
                 const auto handle_ptr = handle.get();
-                ports.push_back({port, [handle_ptr](jack_port_t *p) { if (p) {jack_port_unregister(handle_ptr, p); }}});
+                ports.push_back(
+                        {port, [handle_ptr](jack_port_t *p) { if (p) { jack_port_unregister(handle_ptr, p); }}});
                 log[log::info] << "Opened port " << port_name;
             }
 
             if (jack_activate(handle.get()) != 0) {
-                log[log::error] <<  "Failed to activate jack";
+                log[log::error] << "Failed to activate jack";
                 return false;
             }
             log[log::info] << "Jack client activated";
@@ -438,10 +472,21 @@ namespace yuri {
             handle_ = std::move(handle);
             ports_ = std::move(ports);
             // We also have to fix the deleters here!
-            for (auto& port: ports_) {
-                port.get_deleter() = [=](jack_port_t *p) { if (p && handle_) {jack_port_unregister(handle_.get(), p); }};
+            for (auto &port: ports_) {
+                port.get_deleter() = [=](jack_port_t *p) {
+                    if (p && handle_) {
+                        jack_port_unregister(handle_.get(), p);
+                    }
+                };
             }
             return true;
+        }
+
+        void JackOutput::notify_jack_shutdown(const char *reason) {
+            log[log::info] << "Jackd shutdown (" << reason << ")";
+            ports_.clear();
+            handle_.reset();
+
         }
 
     } /* namespace jack_output */
