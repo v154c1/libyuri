@@ -501,6 +501,13 @@ namespace yuri {
                     request_end(yuri::core::yuri_exit_interrupted);
                     return false;
                 }
+                // Limit reconnects to one attempt per second
+                const timestamp_t now{};
+                if (now - last_reconnect_ < 1_s) {
+                    sleep(100_ms);
+                    return true;
+                }
+                last_reconnect_ = now;
                 jack_set_error_function(null_output);
                 const auto reconnected = connect_to_jackd();
                 jack_set_error_function(nullptr);
