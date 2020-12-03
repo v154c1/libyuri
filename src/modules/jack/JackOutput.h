@@ -86,7 +86,7 @@ private:
 	virtual core::pFrame do_special_single_step(core::pRawAudioFrame frame) override;
 	virtual bool set_param(const core::Parameter& param) override;
     bool do_process_event(const std::string &event_name, const event::pBasicEvent &event) override;
-
+    bool step() override;
     bool connect_to_jackd();
 
 	handle_t handle_;
@@ -108,6 +108,7 @@ private:
     bool allow_unconnected_;
 
 	std::condition_variable buffer_cv_;
+	bool jackd_down_ = false;
 
 };
 
