@@ -111,7 +111,7 @@ private:
 	bool jackd_down_ = false;
 	size_t report_max_;
 	size_t current_missing_;
-
+    timestamp_t last_reconnect_;
 };
 
 } /* namespace jack_output */
