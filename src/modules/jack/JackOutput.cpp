@@ -34,6 +34,8 @@ namespace yuri {
             p["clamp"]["Clamp the values to <1.0,1.0> when using gains"] = true;
             p["reconnect"]["Reconnect ot jackd if disconnected. Setting to false will terminate on disconnect"] = true;
             p["allow_unconnected"]["Allow the module start without an active connection to jackd, Forces reconnect"] = false;
+            p["report_max_missing"]["Number of missing frames to report, when no data are present to a longer time"] =
+                    5 * 48000;
             return p;
         }
 
@@ -174,7 +176,7 @@ namespace yuri {
         JackOutput::JackOutput(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters) :
                 base_type(log_, parent, std::string("jack_output")), event::BasicEventConsumer(log), handle_(nullptr),
                 client_name_("yuri_jack"), channels_(2), allow_different_frequencies_(false), buffer_size_(1048576),
-                start_server_(false), blocking_(false) {
+                start_server_(false), blocking_(false), report_max_(32768), current_missing_(0) {
             IOTHREAD_INIT(parameters)
             if (channels_ < 1) {
                 throw exception::InitializationFailed("Invalid number of channels");
@@ -314,8 +316,15 @@ namespace yuri {
                 buffer_cv_.notify_all();
             }
             const auto missing = nframes - copy_count;
-            if (missing > 0) {
-                log[log::warning] << "Missing " << missing << " frames, filled with zeros";
+            if (missing > 0 && missing != nframes) {
+                log[log::warning] << "Missing " << (current_missing_ + missing) << " frames, filled with zeros";
+                current_missing_ = 0;
+            } else {
+                current_missing_ += missing;
+                if (current_missing_ >= report_max_) {
+                    log[log::warning] << "Missing " << current_missing_ << " frames, filled with zeros";
+                    current_missing_ = 0;
+                }
             }
             return 0;
         }
@@ -332,6 +341,7 @@ namespace yuri {
                     (auto_connect_, "auto_connect")
                     (reconnect_, "reconnect")
                     (allow_unconnected_, "allow_unconnected")
+                    (report_max_, "report_max_missing")
                     ) {
                 return true;
             } else return base_type::set_param(param);
