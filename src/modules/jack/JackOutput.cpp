@@ -199,21 +199,6 @@ namespace yuri {
         }
 
         core::pFrame JackOutput::do_special_single_step(core::pRawAudioFrame frame) {
-            if (!handle_) {
-                // Disconnected from server
-                if (!reconnect_) {
-                    log[log::fatal] << "Not connected to jackd server and reconnect notallowed, quitting";
-                    request_end(yuri::core::yuri_exit_finished);
-                    return {};
-                }
-                if (connect_to_jackd()) {
-                    log[log::info] << "Successfully reconnected to jackd";
-                } else {
-                    log[log::warning] << "Failed to reconnect to jackd";
-                    return {};
-                }
-            }
-
             jack_nframes_t sample_rate = jack_get_sample_rate(handle_.get());
             if (sample_rate != frame->get_sampling_frequency() && !allow_different_frequencies_) {
                 log[log::warning] << "Frame has different sampling rate ("
@@ -484,9 +469,32 @@ namespace yuri {
 
         void JackOutput::notify_jack_shutdown(const char *reason) {
             log[log::info] << "Jackd shutdown (" << reason << ")";
-            ports_.clear();
-            handle_.reset();
+            jackd_down_ = true;
 
+        }
+
+        bool JackOutput::step() {
+            if (jackd_down_) {
+                log[log::info] << "Releasing jackd resources";
+                jackd_down_ = false;
+                ports_.clear();
+                handle_.reset();
+            }
+            if (!handle_) {
+                // Disconnected from server
+                if (!reconnect_) {
+                    log[log::fatal] << "Not connected to jackd server and reconnect notallowed, quitting";
+                    request_end(yuri::core::yuri_exit_interrupted);
+                    return false;
+                }
+                if (connect_to_jackd()) {
+                    log[log::info] << "Successfully reconnected to jackd";
+                } else {
+                    log[log::warning] << "Failed to reconnect to jackd";
+                    return true;
+                }
+            }
+            return base_type::step();
         }
 
     } /* namespace jack_output */
