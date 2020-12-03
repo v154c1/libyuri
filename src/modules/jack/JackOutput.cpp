@@ -483,6 +483,10 @@ namespace yuri {
 
         }
 
+        namespace {
+            void null_output(const char *) {}
+        }
+
         bool JackOutput::step() {
             if (jackd_down_) {
                 log[log::info] << "Releasing jackd resources";
@@ -493,11 +497,14 @@ namespace yuri {
             if (!handle_) {
                 // Disconnected from server
                 if (!reconnect_) {
-                    log[log::fatal] << "Not connected to jackd server and reconnect notallowed, quitting";
+                    log[log::fatal] << "Not connected to jackd server and reconnect not allowed, quitting";
                     request_end(yuri::core::yuri_exit_interrupted);
                     return false;
                 }
-                if (connect_to_jackd()) {
+                jack_set_error_function(null_output);
+                const auto reconnected = connect_to_jackd();
+                jack_set_error_function(nullptr);
+                if (reconnected) {
                     log[log::info] << "Successfully reconnected to jackd";
                 } else {
                     log[log::warning] << "Failed to reconnect to jackd";
