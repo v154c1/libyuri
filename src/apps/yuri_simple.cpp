@@ -52,6 +52,7 @@ int main(int argc, char** argv)
 	act.sa_sigaction = &sigHandler;
 	act.sa_flags = SA_SIGINFO;
 	sigaction(SIGINT,&act,0);
+    sigaction(SIGTERM,&act,0);
 	sigaction(SIGPIPE,&act,0);
 #if !defined YURI_APPLE && !defined YURI_BSD
 	sigaction(SIGRTMIN,&act,0);
