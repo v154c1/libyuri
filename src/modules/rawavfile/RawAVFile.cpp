@@ -148,6 +148,7 @@ RawAVFile::RawAVFile(const log::Log& _log, core::pwThreadBase parent, const core
       BasicEventConsumer(log),
       BasicEventProducer(log),
       fmtctx_(nullptr, [](AVFormatContext* ctx) { avformat_close_input(&ctx); }),
+      format_out_(0),
       video_format_out_(0),
       audio_format_out_(0),
       decode_(true),
