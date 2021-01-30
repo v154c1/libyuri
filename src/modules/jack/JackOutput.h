@@ -79,11 +79,15 @@ public:
 	JackOutput(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters);
 	virtual ~JackOutput() noexcept;
 	int process_audio(jack_nframes_t nframes);
+    void notify_jack_shutdown(const char* reason);
+
 private:
 	
 	virtual core::pFrame do_special_single_step(core::pRawAudioFrame frame) override;
 	virtual bool set_param(const core::Parameter& param) override;
     bool do_process_event(const std::string &event_name, const event::pBasicEvent &event) override;
+    bool step() override;
+    bool connect_to_jackd();
 
 	handle_t handle_;
 	std::vector<port_t> ports_;
@@ -100,9 +104,14 @@ private:
 	bool auto_connect_;
 	std::vector<float> gains_;
     bool clamp_;
+    bool reconnect_;
+    bool allow_unconnected_;
 
 	std::condition_variable buffer_cv_;
-
+	bool jackd_down_ = false;
+	size_t report_max_;
+	size_t current_missing_;
+    timestamp_t last_reconnect_;
 };
 
 } /* namespace jack_output */

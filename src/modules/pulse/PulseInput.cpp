@@ -144,8 +144,6 @@ bool PulseInput::set_format() {
 		return false;
     }
 
-	log[log::error] << "wtf ";
-
 	struct pa_channel_map map;
 	map.channels = 0;
 	if (channels_ == 1)
