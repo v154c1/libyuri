@@ -78,6 +78,7 @@ private:
 	bool 					decorations_;
 	bool					on_top_;
 	bool					fullscreen_;
+	bool					keys_autorepeat_;
 	std::vector<core::pFrame>
 							frames_;
 	std::vector<core::pFrame>

@@ -41,6 +41,7 @@ core::Parameters GlxWindow::configure()
 	p["show_cursor"]["Enable or disable cursor in the window"]=true;
 	p["on_top"]["Stay on top"]=false;
 	p["fullscreen"]["Set window fullscreen"]=false;
+	p["keys_autorepeat"]["Allows autorepeating hold keys."]=false;
 	p["pbo"]["Use PBO to update display (larger latency, faster update"]=false;
 	return p;
 }
@@ -92,7 +93,7 @@ display_str_{":0"},display_(nullptr,[](Display*d) { XCloseDisplay(d);}),
 screen_number_{0},attributes_{GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None},
 geometry_{800,600,0,0},visual_{nullptr},flip_x_{false},flip_y_{false},
 read_back_{false},stereo_mode_{stereo_mode_t::none},decorations_{false},
-on_top_{false},fullscreen_{false},swap_eyes_{false},delta_x_{0.0},delta_y_{0.0},needs_move_{false},
+on_top_{false},fullscreen_{false},keys_autorepeat_{false},swap_eyes_{false},delta_x_{0.0},delta_y_{0.0},needs_move_{false},
 show_cursor_{true},
 counter_(0),
 wm_delete_window_(0)
@@ -259,7 +260,7 @@ void GlxWindow::resize_window(resolution_t res)
 
 bool GlxWindow::process_x11_events()
 {
-	XEvent event_;
+	XEvent event_, next_event_;
 	bool processed_any = false;
 	// auto x11_fd = ConnectionNumber(display_.get());
 	// pollfd fds = {x11_fd, POLLIN, 0};
@@ -300,6 +301,14 @@ bool GlxWindow::process_x11_events()
 				if (event_.xkey.keycode==9) request_end(core::yuri_exit_interrupted);
 				break;
 			case KeyRelease:
+				// Prevent autorepeat
+				if (!keys_autorepeat_ && XEventsQueued(display_.get(), QueuedAfterReading)) {
+					XPeekEvent(display_.get(), &next_event_);
+					if (next_event_.type == KeyPress && event_.xkey.keycode == next_event_.xkey.keycode && event_.xkey.time == next_event_.xkey.time) {
+						XNextEvent(display_.get(), &event_);
+						break;
+					}
+				}
 				emit_event("key"+std::to_string(event_.xkey.keycode), false);
 				emit_event("key_up",event_.xkey.keycode);
 				break;
@@ -544,6 +553,7 @@ bool GlxWindow::set_param(const core::Parameter& param)
 			(decorations_, "decorations")
 			(on_top_, "on_top")
 			(fullscreen_, "fullscreen")
+			(keys_autorepeat_, "keys_autorepeat")
 			(swap_eyes_, "swap_eyes")
 			(delta_x_, "delta_x")
 			(delta_y_, "delta_y")
