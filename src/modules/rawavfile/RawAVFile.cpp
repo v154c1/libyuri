@@ -73,11 +73,35 @@ struct RawAVFile::stream_detail_t {
             }
         }
     }
+    stream_detail_t(const stream_detail_t&) = delete;
+    stream_detail_t& operator=(const stream_detail_t&) = delete;
+    stream_detail_t(stream_detail_t&& rhs) {
+        *this = std::move(rhs);
+    }
+    stream_detail_t& operator=(stream_detail_t&& rhs) {
+        // FIXME: replacing ctx and swr_ctx with unique_ptr<> should remove the need for copy/move ctors and dtor
+        stream = rhs.stream;
+        ctx = rhs.ctx;
+        codec = rhs.codec;
+        swr_ctx = rhs.swr_ctx;
+        format = rhs.format;
+        format_out = rhs.format_out;
+        resolution = rhs.resolution;
+        delta = rhs.delta;
+        sample_rate = rhs.sample_rate;
+        rhs.stream = nullptr;
+        rhs.ctx = nullptr;
+        return *this;
+    }
+
     ~stream_detail_t()
     {
         if (swr_ctx) {
             swr_close(swr_ctx);
             swr_free(&swr_ctx);
+        }
+        if (ctx) {
+            avcodec_free_context(&ctx);
         }
     }
     AVStream*       stream;
@@ -124,6 +148,7 @@ RawAVFile::RawAVFile(const log::Log& _log, core::pwThreadBase parent, const core
       BasicEventConsumer(log),
       BasicEventProducer(log),
       fmtctx_(nullptr, [](AVFormatContext* ctx) { avformat_close_input(&ctx); }),
+      format_out_(0),
       video_format_out_(0),
       audio_format_out_(0),
       decode_(true),
