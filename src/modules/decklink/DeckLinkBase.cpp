@@ -326,7 +326,32 @@ core::InputDeviceInfo enum_input_device(IDeckLink* dev, uint16_t device_index)
 		auto m = mode->GetDisplayMode();
 		cfg.params["format"]=bm_mode_to_yuri(m);
 		for (const auto& pixfmt: pixel_format_map) {
-#ifdef DECKLINK_API_11
+#ifdef DECKLINK_API_12
+            bool supported = false;
+            // FIXME - connection enumeration (?)
+            BMDDisplayMode  actual_mode;
+            if (input->DoesSupportVideoMode(0, m, pixfmt.first, bmdNoVideoOutputConversion, bmdVideoInputFlagDefault, &actual_mode, &supported) == S_OK) {
+                if (supported) {
+                    try {
+                        const auto& fi = get_format_info(pixfmt.second);
+                        if (fi.short_names.empty()) continue;
+                        auto cfg2 = cfg;
+                        cfg2.params["pixel_format"]=fi.short_names[0];
+                        cfg2.params["stereo"]=false;
+// FIXME missing 3D support
+//                        if (res_mode->GetFlags() & bmdDisplayModeSupports3D) {
+//                            auto cfg3 = cfg2;
+//                            cfg3.params["stereo"]=true;
+//                            push_cfg_connections(device, std::move(cfg3), connections);
+//                        }
+                        push_cfg_connections(device, std::move(cfg2), connections);
+                    }
+                    catch (...) {
+
+                    }
+                }
+            }
+#elif defined(DECKLINK_API_11)
 		    bool supported = false;
 		    // FIXME - connection enumeration (?)
             if (input->DoesSupportVideoMode(0, m, pixfmt.first, bmdVideoInputFlagDefault, &supported) == S_OK) {
