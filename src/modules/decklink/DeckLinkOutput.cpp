@@ -122,7 +122,22 @@ bool DeckLinkOutput::verify_display_mode()
 	yuri::lock_t l(schedule_mutex);
     IDeckLinkDisplayMode *dm;
 
-#ifdef DECKLINK_API_11
+#ifdef DECKLINK_API_12
+    BMDDisplayMode actual_mode;
+    bool supported = false;
+    stereo_usable= false;
+    if (output->DoesSupportVideoMode(0, mode,pixel_format,bmdNoVideoOutputConversion, bmdVideoOutputFlagDefault,&actual_mode,&supported)!=S_OK) {
+        return false;
+    }
+    if (!supported) {
+        return false;
+    }
+    output->GetDisplayMode(actual_mode, &dm);
+//    if (support==bmdDisplayModeNotSupported) return false;
+//    if (support == bmdDisplayModeSupportedWithConversion) {
+//        log[log::warning] << "Display mode supported, but conversion is required";
+//    }
+#elif defined(DECKLINK_API_11)
     BMDDisplayMode actual_mode;
 	bool supported = false;
     stereo_usable= false;

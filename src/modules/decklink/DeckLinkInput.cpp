@@ -54,7 +54,10 @@ DeckLinkInput::DeckLinkInput(const log::Log &log_, core::pwThreadBase parent,con
 
 DeckLinkInput::~DeckLinkInput() noexcept
 {
-	if (input) input->Release();
+	if (input) {
+        input->StopStreams();
+	    input->Release();
+	}
 	if (device) device->Release();
 }
 
@@ -312,7 +315,17 @@ bool DeckLinkInput::verify_display_mode()
 	yuri::lock_t l(schedule_mutex);
 	IDeckLinkDisplayMode *dm;
 	BMDVideoInputFlags input_flags = capture_stereo?bmdVideoInputDualStream3D:bmdVideoInputFlagDefault;
-#ifdef DECKLINK_API_11
+#ifdef DECKLINK_API_12
+    bool supported = false;
+    BMDDisplayMode actual_mode;
+    if (input->DoesSupportVideoMode(0, mode, pixel_format, bmdNoVideoOutputConversion, input_flags, &actual_mode, &supported) == S_OK) {
+        if (!supported) {
+            return false;
+        }
+    }
+
+    input->GetDisplayMode(mode, &dm);
+#elif defined(DECKLINK_API_11)
     bool supported = false;
     if (input->DoesSupportVideoMode(0, mode, pixel_format, input_flags, &supported) == S_OK) {
         if (!supported) {
