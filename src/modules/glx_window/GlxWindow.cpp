@@ -41,6 +41,8 @@ core::Parameters GlxWindow::configure()
 	p["show_cursor"]["Enable or disable cursor in the window"]=true;
 	p["on_top"]["Stay on top"]=false;
 	p["pbo"]["Use PBO to update display (larger latency, faster update"]=false;
+	p["use_30bit"]["Use 30 bit colors"]=false;
+    p["fullscreen"]["Fullscreen window"]=false;
 	return p;
 }
 
@@ -91,7 +93,7 @@ display_str_{":0"},display_(nullptr,[](Display*d) { XCloseDisplay(d);}),
 screen_number_{0},attributes_{GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None},
 geometry_{800,600,0,0},visual_{nullptr},flip_x_{false},flip_y_{false},
 read_back_{false},stereo_mode_{stereo_mode_t::none},decorations_{false},
-on_top_{false},swap_eyes_{false},delta_x_{0.0},delta_y_{0.0},needs_move_{false},
+on_top_{false},fullscreen_{false},use_30bit_{false},swap_eyes_{false},delta_x_{0.0},delta_y_{0.0},needs_move_{false},
 show_cursor_{true},
 counter_(0),
 wm_delete_window_(0)
@@ -100,6 +102,14 @@ wm_delete_window_(0)
 	IOTHREAD_INIT(parameters)
 	if (stereo_mode_ == stereo_mode_t::quadbuffer) {
 		add_attribute(GLX_STEREO, attributes_);
+	}
+	if(use_30bit_) {
+        add_attribute(GLX_RED_SIZE, attributes_);
+        add_attribute(10, attributes_);
+        add_attribute(GLX_GREEN_SIZE, attributes_);
+        add_attribute(10, attributes_);
+        add_attribute(GLX_BLUE_SIZE, attributes_);
+        add_attribute(10, attributes_);
 	}
 	if (!create_window()) {
 		throw exception::InitializationFailed("Failed to create window");
@@ -125,6 +135,7 @@ void GlxWindow::run()
 		show_window();
 		move_window({geometry_.x, geometry_.y});
 		set_on_top(on_top_);
+        set_fullscreen(fullscreen_);
 		// Let's keep local converter until MultiIOThread supports this behaviour.
 		converter_.reset(new core::Convert(log, get_this_ptr(), core::Convert::configure()));
 		add_child(converter_);
@@ -357,6 +368,46 @@ bool GlxWindow::show_decorations(bool decorations)
 	return true;
 }
 
+bool GlxWindow::set_fullscreen(bool fs) {
+
+//    const Atom state = XInternAtom (display_.get(), "_NET_WM_STATE", true );
+//    const Atom fullscreen = XInternAtom (display_.get(), "_NET_WM_STATE_FULLSCREEN", true );
+//
+//    const auto r = XChangeProperty(display_.get(), win_, state, XA_ATOM, 32,
+//                    PropModeReplace, (unsigned char *)&fullscreen, fs ? 1 : 0);
+//    log[log::info] << "XChangeProperty for fullscreen returned " << r;
+//    return true;
+    Atom nwsf=XInternAtom(display_.get(), "_NET_WM_STATE_FULLSCREEN", 1);
+    if (nwsf == None) {
+        log[log::warning] << "Display doesn't support _NET_WM_STATE_FULLSCREEN property";
+        return false;
+    }
+
+    Atom nws=XInternAtom(display_.get(),"_NET_WM_STATE",1);
+    if (nws == None) {
+        log[log::warning] << "Display doesn't support _NET_WM_STATE property";
+        return false;
+    }
+    XClientMessageEvent xclient;
+    std::memset( &xclient, 0, sizeof (xclient) );
+
+    xclient.type = ClientMessage;
+    xclient.window = win_;
+    xclient.message_type = nws;
+    xclient.format = 32;
+    xclient.data.l[0] = fs?1:0;
+    xclient.data.l[1] = nwsf;
+    xclient.data.l[2] = 0;
+    xclient.data.l[3] = 0;
+    xclient.data.l[4] = 0;
+    XSendEvent( display_.get(),
+                root_,  False,
+                SubstructureRedirectMask | SubstructureNotifyMask,
+                (XEvent *)&xclient );
+    log[log::info] << "setting fullscreen: " << fs;
+    return true;
+}
+
 bool GlxWindow::set_on_top(bool on_top)
 {
 //	wm_hints hints;
@@ -526,6 +577,8 @@ bool GlxWindow::set_param(const core::Parameter& param)
 			(display_str_, "display")
 			(show_cursor_, "show_cursor")
 			(gl_.use_pbo, "pbo")
+            (use_30bit_, "use_30bit")
+            (fullscreen_, "fullscreen")
 			(stereo_mode_, "stereo", [](const core::Parameter& p){return get_mode(p.get<std::string>());}))
 		return true;
 
