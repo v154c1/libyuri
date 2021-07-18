@@ -54,7 +54,10 @@ DeckLinkInput::DeckLinkInput(const log::Log &log_, core::pwThreadBase parent,con
 
 DeckLinkInput::~DeckLinkInput() noexcept
 {
-	if (input) input->Release();
+	if (input) {
+        input->StopStreams();
+	    input->Release();
+	}
 	if (device) device->Release();
 }
 
@@ -201,9 +204,17 @@ HRESULT DeckLinkInput::VideoInputFrameArrived (IDeckLinkVideoInputFrame* videoFr
 bool DeckLinkInput::init()
 {
 	if (!init_decklink()) return false;
+#ifdef DECKLINK_API_11
 	IDeckLinkProfileAttributes *attr = nullptr;
 	assert(device);
+	device->QueryInterface(IID_IDeckLinkProfileAttributes, reinterpret_cast<void**>(&attr));
+
+#else
+	IDeckLinkAttributes *attr;
+	assert(device);
 	device->QueryInterface(IID_IDeckLinkProfileAttributes,reinterpret_cast<void**>(&attr));
+
+#endif
 
 	if (device->QueryInterface(IID_IDeckLinkInput,reinterpret_cast<void**>(&input))!=S_OK) {
 		log[log::fatal] << "Failed to get input interface";
@@ -302,13 +313,35 @@ bool DeckLinkInput::verify_display_mode()
 {
 	assert(input);
 	yuri::lock_t l(schedule_mutex);
-	BMDDisplayMode dsp_mode;
-	bool supported;
-	BMDVideoInputFlags input_flags = capture_stereo?bmdVideoInputDualStream3D:bmdVideoInputFlagDefault;
-	if (input->DoesSupportVideoMode(bmdVideoConnectionSDI, mode, pixel_format, bmdNoVideoInputConversion, input_flags, &dsp_mode, &supported)!=S_OK) return false;
-	if (!supported) return false;
 	IDeckLinkDisplayMode *dm;
-	input->GetDisplayMode(dsp_mode, &dm);
+	BMDVideoInputFlags input_flags = capture_stereo?bmdVideoInputDualStream3D:bmdVideoInputFlagDefault;
+#ifdef DECKLINK_API_12
+    bool supported = false;
+    BMDDisplayMode actual_mode;
+    if (input->DoesSupportVideoMode(0, mode, pixel_format, bmdNoVideoOutputConversion, input_flags, &actual_mode, &supported) == S_OK) {
+        if (!supported) {
+            return false;
+        }
+    }
+
+    input->GetDisplayMode(mode, &dm);
+#elif defined(DECKLINK_API_11)
+    bool supported = false;
+    if (input->DoesSupportVideoMode(0, mode, pixel_format, input_flags, &supported) == S_OK) {
+        if (!supported) {
+            return false;
+        }
+    }
+
+	input->GetDisplayMode(mode, &dm);
+#else
+    BMDDisplayModeSupport support;
+	if (input->DoesSupportVideoMode(mode,pixel_format,input_flags,&support,&dm)!=S_OK) return false;
+	if (support == bmdDisplayModeNotSupported) return false;
+	if (support == bmdDisplayModeSupportedWithConversion) {
+		log[log::warning] << "Display mode supported, but conversion is required";
+	}
+#endif
 	width = dm->GetWidth();
 	height = dm->GetHeight();
 	dm->GetFrameRate(&value,&scale);

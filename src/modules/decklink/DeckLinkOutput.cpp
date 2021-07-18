@@ -61,8 +61,14 @@ DeckLinkOutput::~DeckLinkOutput() noexcept
 bool DeckLinkOutput::init()
 {
 	if (!init_decklink()) return false;
-	IDeckLinkProfileAttributes *attr;
-	device->QueryInterface(IID_IDeckLinkProfileAttributes,reinterpret_cast<void**>(&attr));
+#ifdef DECKLINK_API_11
+	IDeckLinkProfileAttributes *attr = nullptr;
+	device->QueryInterface(IID_IDeckLinkProfileAttributes, reinterpret_cast<void**>(&attr));
+
+#else
+	IDeckLinkAttributes *attr;
+	device->QueryInterface(IID_IDeckLinkAttributes,reinterpret_cast<void**>(&attr));
+#endif
 	//int64_t video_con;
 	//attr->GetInt(BMDDeckLinkVideoOutputConnections,&video_con);
 	if (device->QueryInterface(IID_IDeckLinkOutput,reinterpret_cast<void**>(&output))!=S_OK) {
@@ -114,8 +120,49 @@ bool DeckLinkOutput::verify_display_mode()
 {
 	assert(output);
 	yuri::lock_t l(schedule_mutex);
-	BMDDisplayMode dsp_mode;
-	bool supported;
+    IDeckLinkDisplayMode *dm;
+
+#ifdef DECKLINK_API_12
+    BMDDisplayMode actual_mode;
+    bool supported = false;
+    stereo_usable= false;
+    if (output->DoesSupportVideoMode(0, mode,pixel_format,bmdNoVideoOutputConversion, bmdVideoOutputFlagDefault,&actual_mode,&supported)!=S_OK) {
+        return false;
+    }
+    if (!supported) {
+        return false;
+    }
+    output->GetDisplayMode(actual_mode, &dm);
+//    if (support==bmdDisplayModeNotSupported) return false;
+//    if (support == bmdDisplayModeSupportedWithConversion) {
+//        log[log::warning] << "Display mode supported, but conversion is required";
+//    }
+#elif defined(DECKLINK_API_11)
+    BMDDisplayMode actual_mode;
+	bool supported = false;
+    stereo_usable= false;
+    if (stereo_mode) {
+        if (output->DoesSupportVideoMode(0, mode,pixel_format, bmdVideoOutputDualStream3D, &actual_mode, &supported)!=S_OK || !supported) {
+            log[log::warning] << "Selected format does not work with 3D. Re-trying without 3D support";
+            if (output->DoesSupportVideoMode(0, mode,pixel_format,bmdVideoOutputFlagDefault, &actual_mode, &supported)!=S_OK || !supported) {
+                return false;
+            }
+        } else {
+            stereo_usable = true;
+        }
+
+    } else if (output->DoesSupportVideoMode(0, mode,pixel_format,bmdVideoOutputFlagDefault,&actual_mode,&supported)!=S_OK) return false;
+    if (!supported) {
+        return false;
+    }
+    output->GetDisplayMode(actual_mode, &dm);
+//    if (support==bmdDisplayModeNotSupported) return false;
+//    if (support == bmdDisplayModeSupportedWithConversion) {
+//        log[log::warning] << "Display mode supported, but conversion is required";
+//    }
+#else
+
+	BMDDisplayModeSupport support;
 	stereo_usable= false;
 	if (stereo_mode) {
 		if (output->DoesSupportVideoMode(bmdVideoConnectionSDI, mode, pixel_format, bmdNoVideoOutputConversion, bmdVideoOutputDualStream3D, &dsp_mode, &supported)!=S_OK) {
@@ -125,10 +172,12 @@ bool DeckLinkOutput::verify_display_mode()
 			stereo_usable = true;
 		}
 
-	} else if (output->DoesSupportVideoMode(bmdVideoConnectionSDI, mode, pixel_format, bmdNoVideoOutputConversion, bmdVideoOutputFlagDefault, &dsp_mode, &supported)!=S_OK) return false;
-	if (!supported) return false;
-	IDeckLinkDisplayMode *dm;
-	output->GetDisplayMode(dsp_mode, &dm);
+	} else if (output->DoesSupportVideoMode(mode,pixel_format,bmdVideoOutputFlagDefault,&support,&dm)!=S_OK) return false;
+	if (support==bmdDisplayModeNotSupported) return false;
+	if (support == bmdDisplayModeSupportedWithConversion) {
+		log[log::warning] << "Display mode supported, but conversion is required";
+	}
+#endif
 	width = dm->GetWidth();
 	height = dm->GetHeight();
 	dm->GetFrameRate(&value,&scale);

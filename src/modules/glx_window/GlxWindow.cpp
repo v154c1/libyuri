@@ -43,6 +43,7 @@ core::Parameters GlxWindow::configure()
 	p["fullscreen"]["Set window fullscreen"]=false;
 	p["keys_autorepeat"]["Allows autorepeating hold keys."]=false;
 	p["pbo"]["Use PBO to update display (larger latency, faster update"]=false;
+	p["use_30bit"]["Use 30 bit colors"]=false;
 	return p;
 }
 
@@ -93,7 +94,7 @@ display_str_{":0"},display_(nullptr,[](Display*d) { XCloseDisplay(d);}),
 screen_number_{0},attributes_{GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None},
 geometry_{800,600,0,0},visual_{nullptr},flip_x_{false},flip_y_{false},
 read_back_{false},stereo_mode_{stereo_mode_t::none},decorations_{false},
-on_top_{false},fullscreen_{false},keys_autorepeat_{false},swap_eyes_{false},delta_x_{0.0},delta_y_{0.0},needs_move_{false},
+on_top_{false},fullscreen_{false},use_30bit_{false},keys_autorepeat_{false},swap_eyes_{false},delta_x_{0.0},delta_y_{0.0},needs_move_{false},
 show_cursor_{true},
 counter_(0),
 wm_delete_window_(0)
@@ -102,6 +103,14 @@ wm_delete_window_(0)
 	IOTHREAD_INIT(parameters)
 	if (stereo_mode_ == stereo_mode_t::quadbuffer) {
 		add_attribute(GLX_STEREO, attributes_);
+	}
+	if(use_30bit_) {
+        add_attribute(GLX_RED_SIZE, attributes_);
+        add_attribute(10, attributes_);
+        add_attribute(GLX_GREEN_SIZE, attributes_);
+        add_attribute(10, attributes_);
+        add_attribute(GLX_BLUE_SIZE, attributes_);
+        add_attribute(10, attributes_);
 	}
 	if (!create_window()) {
 		throw exception::InitializationFailed("Failed to create window");
@@ -560,6 +569,8 @@ bool GlxWindow::set_param(const core::Parameter& param)
 			(display_str_, "display")
 			(show_cursor_, "show_cursor")
 			(gl_.use_pbo, "pbo")
+            (use_30bit_, "use_30bit")
+            (fullscreen_, "fullscreen")
 			(stereo_mode_, "stereo", [](const core::Parameter& p){return get_mode(p.get<std::string>());}))
 		return true;
 

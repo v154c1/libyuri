@@ -83,6 +83,7 @@ private:
 							frames_;
 	std::vector<core::pFrame>
 							old_frames_;
+	bool                    use_30bit_;
 	core::pConvert			converter_;
 	std::vector<format_t>	supported_formats_;
 	bool 					swap_eyes_;
