@@ -66,14 +66,58 @@ const format_t argb64		= 0x111;	// ARGB 16:16:16:16
 const format_t bgra32		= 0x112;	// BGRA 8:8:8:8
 const format_t bgra64		= 0x113;	// BGRA 16:16:16:16
 
-const format_t rgb_r10k		= 0x120;	// RGBx 10:10:10:2
-const format_t bgr_r10k		= 0x121;	// BGRx 10:10:10:2
+// byte 0: x(1-0), r(9-4)
+// byte 1: r(3-0), g(9-6)
+// byte 3: g(5-0), b(9-8)
+// byte 4: b(7-0)
+const format_t rgb_r10k_be		= 0x120;	// xRGB 2:10:10:10
+const format_t bgr_r10k_be		= 0x121;	// xBGR 2:10:10:10
+
+// byte 0: r(9-2)
+// byte 1: r(1-2), g(9-4)
+// byte 3: g(3-0), b(9-6)
+// byte 4: b(5-0), x(1-0)
+const format_t rgbx_r10k_be		= 0x122;	// RGBx 10:10:10:2
+const format_t bgrx_r10k_be		= 0x123;	// BGRx 10:10:10:2
+
+// byte 0: b(5-0), x(1-0)
+// byte 1: g(3-0), b(9-6)
+// byte 2: r(1-0), g(9-4)
+// byte 3: r(9-2)
+const format_t rgb_r10k_le		= 0x124;	// RGB 2:10:10:10
+const format_t bgr_r10k_le		= 0x125;	// xBGR 2:10:10:10
+
 
 const format_t gbr8			= 0x130;	// BGR 2:3:3
 const format_t gbr15		= 0x131;	// BGR 5:5:5
 const format_t gbr16		= 0x132;	// BGR 5:6:5
 const format_t gbr24		= 0x133;	// BGR 8:8:8
 const format_t gbr48		= 0x134;	// BGR 16:16:16
+
+// R12B as per decklink specs. 8 pixels in 36 bytes
+// byte 0: B0(7-0)
+// byte 1: G0(11-4)
+// byte 2: G0(3-0), R0(11-8)
+// byte 3: R0(7-0)
+// byte 4: B1(3-0), G1(11-8)
+// byte 5: G1(7-0)
+// byte 6: R1(11-4)
+// byte 7: r1(3-0), B0(11-8)
+// etc.
+const format_t rgb_r12k_be		= 0x140;	// xRGB 2:10:10:10
+
+// R12l, 8pixels in 36bytes
+// byte 0: R0(7-0)
+// byte 1: G0(3-0), R0(11-8)
+// byte 2: G0(11-4)
+// byte 3: B0(7-0)
+// byte 4: R1(3-0), B0(11-8)
+// byte 5: R1(11-4)
+// byte 6: G1(7-0)
+// byte 7: B1(3-0), G1(11-8)
+// etc
+const format_t rgb_r12k_le		= 0x141;	// xRGB 2:10:10:10
+
 
 
 const format_t yuv411		= 0x200;	// YYUYYV	4pixels, 8bit
