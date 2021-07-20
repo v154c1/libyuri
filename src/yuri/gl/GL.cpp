@@ -60,6 +60,8 @@ std::tuple<GLenum, GLenum, GLenum> get_rgb_format(const format_t fmt)
 			return std::make_tuple(GL_RGB, GL_R3_G3_B2,  GL_UNSIGNED_BYTE_3_3_2);
 		case raw_format::rgb16:
 			return std::make_tuple(GL_RGB, GL_RGB5,  GL_UNSIGNED_SHORT_5_6_5);
+	    case raw_format::rgb_r10k_le:
+            return std::make_tuple(GL_RGBA, GL_RGBA,  GL_UNSIGNED_INT_10_10_10_2);
 
 	}
 	return std::make_tuple(GL_RGB, GL_RGB, GL_UNSIGNED_BYTE);
@@ -105,6 +107,9 @@ size_t get_pixel_size(GLenum fmt, GLenum data_type)
 		case GL_UNSIGNED_SHORT:
 			comp_size = 2;
 			break;
+	    case GL_UNSIGNED_INT_2_10_10_10_REV:
+	    case GL_UNSIGNED_INT_10_10_10_2:
+	        return 4;
 	}
 
 	switch (fmt) {
@@ -153,6 +158,7 @@ const std::vector<format_t> gl_supported_formats = {
 		raw_format::depth16,
 		raw_format::rgb8,
 		raw_format::rgb16,
+        raw_format::rgb_r10k_le,
 };
 
 }
@@ -261,6 +267,7 @@ void GL::generate_texture(index_t tid, const format_t frame_format, const resolu
 		case raw_format::depth16:
 		case raw_format::rgb8:
 		case raw_format::rgb16:
+		case raw_format::rgb_r10k_le:
 		{
 			GLenum fmt_in = GL_RGB;
 			GLenum fmt_out = GL_RGB;
