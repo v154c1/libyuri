@@ -191,6 +191,12 @@ namespace {
 			ADD_CONVERSION(core::raw_format::rgb24,			core::raw_format::rgb16,	10)
 			ADD_CONVERSION(core::raw_format::rgb24,			core::raw_format::bgr16,	10)
 
+            ADD_CONVERSION(core::raw_format::rgb_r10k_be, core::raw_format::rgb24, 30)
+            ADD_CONVERSION(core::raw_format::rgb_r10k_be, core::raw_format::bgr24, 30)
+            ADD_CONVERSION(core::raw_format::rgb_r10k_be, core::raw_format::rgba32, 30)
+            ADD_CONVERSION(core::raw_format::rgb_r10k_be, core::raw_format::bgra32, 30)
+            ADD_CONVERSION(core::raw_format::rgb_r10k_le, core::raw_format::rgb24, 30)
+            ADD_CONVERSION(core::raw_format::rgb24, core::raw_format::rgb_r10k_le, 50)
 	};
 
 }
