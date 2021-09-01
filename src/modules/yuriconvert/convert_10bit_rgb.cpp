@@ -22,6 +22,10 @@ namespace yuri {
                            ((static_cast<uint16_t>(src1) & m1) >> off1);
 
                 }
+
+                uint32_t extend_8bit(uint8_t value) {
+                    return static_cast<uint32_t>(value) << 2;
+                }
             }
             namespace r10k_be {
                 inline uint16_t r10k_component_0(core::Plane::const_iterator src) {
@@ -54,6 +58,19 @@ namespace yuri {
                     return r10k::shifted_component<0x0F, 6, 0xFC, 2>(src[1], src[0]);// >> 2;
 //            return ((src[1] * 0x03) << 8) | ((src[0] & 0xFF) >> 0);
                 }
+
+                inline void store_components(core::Plane::iterator dest, uint32_t c0, uint32_t c1, uint32_t c2) {
+                    *dest++ = ((c2 << 2) & 0xFC);
+                    *dest++ = ((c1 << 4) & 0xF0) | ((c2 >> 6) & 0x0F);
+                    *dest++ = ((c0 << 6) & 0xC0) | ((c1 >> 4) & 0x3F);
+                    *dest++ = (c0 >> 2) & 0xFF;
+                }
+
+                inline void store_components_8bit(core::Plane::iterator dest, uint8_t c0, uint8_t c1, uint8_t c2) {
+                    store_components(dest, r10k::extend_8bit(c0), r10k::extend_8bit(c1), r10k::extend_8bit(c2));
+                }
+
+
             }
         }
 
@@ -120,6 +137,19 @@ namespace yuri {
         }
 
         template<>
+        void convert_line<core::raw_format::rgb_r10k_le, core::raw_format::bgr24>
+                (core::Plane::const_iterator src, core::Plane::iterator dest, size_t width) {
+            for (size_t pixel = 0; pixel < width; ++pixel) {
+                // Skipping lowest 2 bits for every component
+                *dest++ = r10k_le::r10k_component_2(src) >> 2;
+                *dest++ = r10k_le::r10k_component_1(src) >> 2;
+                *dest++ = r10k_le::r10k_component_0(src) >> 2;
+                src += 4;
+            }
+        }
+
+
+        template<>
         void convert_line<core::raw_format::rgb_r10k_le, core::raw_format::rgb48>
                 (core::Plane::const_iterator src, core::Plane::iterator dest, size_t width) {
             for (size_t pixel = 0; pixel < width; ++pixel) {
@@ -132,36 +162,37 @@ namespace yuri {
         }
 
         template<>
+        void convert_line<core::raw_format::rgb_r10k_le, core::raw_format::bgr48>
+                (core::Plane::const_iterator src, core::Plane::iterator dest, size_t width) {
+            for (size_t pixel = 0; pixel < width; ++pixel) {
+                // Skipping lowest 2 bits for every component
+                *dest++ = r10k_le::r10k_component_2(src) << 6;
+                *dest++ = r10k_le::r10k_component_1(src) << 6;
+                *dest++ = r10k_le::r10k_component_0(src) << 6;
+                src += 4;
+            }
+        }
+
+        template<>
         void convert_line<core::raw_format::rgb24, core::raw_format::rgb_r10k_le>
                 (core::Plane::const_iterator src, core::Plane::iterator dest, size_t width) {
             for (size_t pixel = 0; pixel < width; ++pixel) {
-                const auto r = static_cast<uint32_t>(src[0]) << 2;//* 896 /256 + 64;
-                const auto g = static_cast<uint32_t>(src[1]) << 2;//* 896 /256 + 64 ;
-                const auto b = static_cast<uint32_t>(src[2]) << 2;//* 896 /256 + 64;
-//
-//        *dest++=0x00;
-//
-//        *dest++=0x00;
-//
-//        *dest++=0xC0;
-//
-//        *dest++=0xFF;
 
-//        *dest++ = ((b  << 0) & 0xFF );
-//        *dest++ = ((g  << 2) & 0xFC ) | ((b >> 8) & 0x03);
-//        *dest++ = ((r  << 4) & 0xF0 ) | ((g >> 6) & 0x0F);
-//        *dest++ = (r >> 4)  &0x3F;
-
-                *dest++ = ((b << 2) & 0xFC);
-                *dest++ = ((g << 4) & 0xF0) | ((b >> 6) & 0x0F);
-                *dest++ = ((r << 6) & 0xC0) | ((g >> 4) & 0x3F);
-                *dest++ = (r >> 2) & 0xFF;
-
-
+                r10k_le::store_components_8bit(dest, src[0], src[1], src[2]);
+                dest += 4;
                 src += 3;
             }
-//            }
+        }
 
+        template<>
+        void convert_line<core::raw_format::bgr24, core::raw_format::rgb_r10k_le>
+                (core::Plane::const_iterator src, core::Plane::iterator dest, size_t width) {
+            for (size_t pixel = 0; pixel < width; ++pixel) {
+
+                r10k_le::store_components_8bit(dest, src[2], src[1], src[0]);
+                dest += 4;
+                src += 3;
+            }
         }
 
         converter_map get_converters_rgb10bit() {
@@ -171,8 +202,11 @@ namespace yuri {
                     ADD_CONVERSION(core::raw_format::rgb_r10k_be, core::raw_format::rgba32, 30)
                     ADD_CONVERSION(core::raw_format::rgb_r10k_be, core::raw_format::bgra32, 30)
                     ADD_CONVERSION(core::raw_format::rgb_r10k_le, core::raw_format::rgb24, 30)
+                    ADD_CONVERSION(core::raw_format::rgb_r10k_le, core::raw_format::bgr24, 30)
                     ADD_CONVERSION(core::raw_format::rgb_r10k_le, core::raw_format::rgb48, 30)
+                    ADD_CONVERSION(core::raw_format::rgb_r10k_le, core::raw_format::bgr48, 30)
                     ADD_CONVERSION(core::raw_format::rgb24, core::raw_format::rgb_r10k_le, 50)
+                    ADD_CONVERSION(core::raw_format::bgr24, core::raw_format::rgb_r10k_le, 50)
             };
             return converters_rgb10bit;
         }
