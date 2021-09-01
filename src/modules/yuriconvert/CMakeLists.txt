@@ -1,7 +1,14 @@
 SET (MODULE yuri_convert)
 
-SET (SRC YuriConvert.cpp
-		 YuriConvert.h
+SET (SRC YuriConvert.h YuriConvert.cpp
+		convert_common.h
+		convert_10bit_rgb.h convert_10bit_rgb.cpp
+		convert_yuv422.h convert_yuv422.cpp
+		convert_rgb.h convert_rgb.cpp
+		convert_yuv_rgb.h convert_yuv_rgb.cpp
+		convert_yuv.h convert_yuv.cpp
+		convert_single.h convert_single.cpp
+
 		 )
 
 SET(LINK ${LIBNAME})

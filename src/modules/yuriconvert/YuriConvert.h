@@ -14,6 +14,7 @@
 #include "yuri/core/thread/SpecializedIOFilter.h"
 #include "yuri/core/frame/RawVideoFrame.h"
 #include "yuri/core/thread/ConverterThread.h"
+#include "convert_common.h"
 namespace yuri {
 
 namespace video {
@@ -42,6 +43,7 @@ private:
 	bool full_range_;
 	yuri::format_t format_;
 	size_t threads_;
+    converter_map converters_;
 };
 
 }
