@@ -5,7 +5,7 @@
 /* ***************************************************************************
  * 					RGB conversions
  *************************************************************************** */
-#include "convert_rgb.h"
+#include "convert_common.h"
 
 namespace yuri {
     namespace video {

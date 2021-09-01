@@ -2,8 +2,7 @@
 // Created by neneko on 01.09.21.
 //
 
-#include "convert_single.h"
-
+#include "convert_common.h"
 
 namespace yuri {
     namespace video {

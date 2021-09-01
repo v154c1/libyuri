@@ -17,12 +17,7 @@
 #include "yuri/core/utils/irange.h"
 #include <future>
 #include <cassert>
-#include "convert_10bit_rgb.h"
-#include "convert_rgb.h"
-#include "convert_yuv.h"
-#include "convert_yuv422.h"
-#include "convert_yuv_rgb.h"
-#include "convert_single.h"
+#include "converters_all.h"
 
 namespace yuri {
 
@@ -43,26 +38,6 @@ namespace yuri {
 
 
         namespace {
-            void insert_partial_map(converter_map &conv, const converter_map &part) {
-                conv.insert(part.cbegin(), part.cend());
-            }
-
-            converter_map get_all_converters() {
-                converter_map conv;
-                insert_partial_map(conv, get_converters_single());
-                insert_partial_map(conv, get_converters_yuv());
-                insert_partial_map(conv, get_converters_yuv422());
-                insert_partial_map(conv, get_converters_yuv_rgb());
-                insert_partial_map(conv, get_converters_rgb());
-                insert_partial_map(conv, get_converters_rgb10bit());
-                return conv;
-            }
-
-            converter_map all_converters() {
-                static converter_map conv = get_all_converters();
-                return conv;
-            }
-
 
             template<class T>
             void register_converters(const T &converter_map) {

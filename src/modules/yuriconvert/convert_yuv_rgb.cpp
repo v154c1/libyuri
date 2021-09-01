@@ -2,7 +2,7 @@
 // Created by neneko on 01.09.21.
 //
 
-#include "convert_yuv_rgb.h"
+#include "convert_common.h"
 #include "YuriConvert.h"
 
 namespace yuri{
