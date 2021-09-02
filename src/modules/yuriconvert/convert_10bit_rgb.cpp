@@ -197,16 +197,16 @@ namespace yuri {
 
         converter_map get_converters_rgb10bit() {
             static std::map<format_pair_t, std::pair<converter_t, size_t>> converters_rgb10bit = {
-                    ADD_CONVERSION(core::raw_format::rgb_r10k_be, core::raw_format::rgb24, 30)
-                    ADD_CONVERSION(core::raw_format::rgb_r10k_be, core::raw_format::bgr24, 30)
-                    ADD_CONVERSION(core::raw_format::rgb_r10k_be, core::raw_format::rgba32, 30)
-                    ADD_CONVERSION(core::raw_format::rgb_r10k_be, core::raw_format::bgra32, 30)
-                    ADD_CONVERSION(core::raw_format::rgb_r10k_le, core::raw_format::rgb24, 30)
-                    ADD_CONVERSION(core::raw_format::rgb_r10k_le, core::raw_format::bgr24, 30)
-                    ADD_CONVERSION(core::raw_format::rgb_r10k_le, core::raw_format::rgb48, 30)
-                    ADD_CONVERSION(core::raw_format::rgb_r10k_le, core::raw_format::bgr48, 30)
-                    ADD_CONVERSION(core::raw_format::rgb24, core::raw_format::rgb_r10k_le, 50)
-                    ADD_CONVERSION(core::raw_format::bgr24, core::raw_format::rgb_r10k_le, 50)
+                    define_conversion<core::raw_format::rgb_r10k_be, core::raw_format::rgb24>(30),
+                    define_conversion<core::raw_format::rgb_r10k_be, core::raw_format::bgr24>(30),
+                    define_conversion<core::raw_format::rgb_r10k_be, core::raw_format::rgba32>(30),
+                    define_conversion<core::raw_format::rgb_r10k_be, core::raw_format::bgra32>(30),
+                    define_conversion<core::raw_format::rgb_r10k_le, core::raw_format::rgb24>(30),
+                    define_conversion<core::raw_format::rgb_r10k_le, core::raw_format::bgr24>(30),
+                    define_conversion<core::raw_format::rgb_r10k_le, core::raw_format::rgb48>(30),
+                    define_conversion<core::raw_format::rgb_r10k_le, core::raw_format::bgr48>(30),
+                    define_conversion<core::raw_format::rgb24, core::raw_format::rgb_r10k_le>(50),
+                    define_conversion<core::raw_format::bgr24, core::raw_format::rgb_r10k_le>(50),
             };
             return converters_rgb10bit;
         }

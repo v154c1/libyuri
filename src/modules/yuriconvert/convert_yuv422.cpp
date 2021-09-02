@@ -143,18 +143,18 @@ namespace yuri {
 
         converter_map get_converters_yuv422() {
             static std::map<format_pair_t, std::pair<converter_t, size_t>> converters_yuv422 = {
-                    ADD_CONVERSION(core::raw_format::yuyv422, core::raw_format::uyvy422, 10)
-                    ADD_CONVERSION(core::raw_format::uyvy422, core::raw_format::yuyv422, 10)
-                    ADD_CONVERSION(core::raw_format::yvyu422, core::raw_format::vyuy422, 10)
-                    ADD_CONVERSION(core::raw_format::vyuy422, core::raw_format::yvyu422, 10)
-                    ADD_CONVERSION(core::raw_format::uyvy422, core::raw_format::vyuy422, 10)
-                    ADD_CONVERSION(core::raw_format::vyuy422, core::raw_format::uyvy422, 10)
-                    ADD_CONVERSION(core::raw_format::yuyv422, core::raw_format::yvyu422, 10)
-                    ADD_CONVERSION(core::raw_format::yvyu422, core::raw_format::yuyv422, 10)
-                    ADD_CONVERSION(core::raw_format::uyvy422, core::raw_format::yvyu422, 10)
-                    ADD_CONVERSION(core::raw_format::vyuy422, core::raw_format::yuyv422, 10)
-                    ADD_CONVERSION(core::raw_format::yuyv422, core::raw_format::vyuy422, 10)
-                    ADD_CONVERSION(core::raw_format::yvyu422, core::raw_format::uyvy422, 10)
+                    define_conversion<core::raw_format::yuyv422, core::raw_format::uyvy422>(10),
+                    define_conversion<core::raw_format::uyvy422, core::raw_format::yuyv422>(10),
+                    define_conversion<core::raw_format::yvyu422, core::raw_format::vyuy422>(10),
+                    define_conversion<core::raw_format::vyuy422, core::raw_format::yvyu422>(10),
+                    define_conversion<core::raw_format::uyvy422, core::raw_format::vyuy422>(10),
+                    define_conversion<core::raw_format::vyuy422, core::raw_format::uyvy422>(10),
+                    define_conversion<core::raw_format::yuyv422, core::raw_format::yvyu422>(10),
+                    define_conversion<core::raw_format::yvyu422, core::raw_format::yuyv422>(10),
+                    define_conversion<core::raw_format::uyvy422, core::raw_format::yvyu422>(10),
+                    define_conversion<core::raw_format::vyuy422, core::raw_format::yuyv422>(10),
+                    define_conversion<core::raw_format::yuyv422, core::raw_format::vyuy422>(10),
+                    define_conversion<core::raw_format::yvyu422, core::raw_format::uyvy422>(10),
             };
             return converters_yuv422;
         }

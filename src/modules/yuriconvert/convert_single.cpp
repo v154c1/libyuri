@@ -301,42 +301,42 @@ namespace yuri {
         }
         converter_map get_converters_single() {
             static std::map<format_pair_t, std::pair<converter_t, size_t>> converters_single = {
-                    ADD_CONVERSION(core::raw_format::u8, core::raw_format::y8, 1)
-                    ADD_CONVERSION(core::raw_format::v8, core::raw_format::y8, 1)
-                    ADD_CONVERSION(core::raw_format::r8, core::raw_format::y8, 1)
-                    ADD_CONVERSION(core::raw_format::g8, core::raw_format::y8, 1)
-                    ADD_CONVERSION(core::raw_format::b8, core::raw_format::y8, 1)
-                    ADD_CONVERSION(core::raw_format::depth8, core::raw_format::y8, 1)
-                    ADD_CONVERSION(core::raw_format::y8, core::raw_format::y16, 10)
-                    ADD_CONVERSION(core::raw_format::y16, core::raw_format::y8, 20)
-                    ADD_CONVERSION(core::raw_format::yuyv422, core::raw_format::y8, 40)
-                    ADD_CONVERSION(core::raw_format::yuyv422, core::raw_format::y16, 40)
-                    ADD_CONVERSION(core::raw_format::yvyu422, core::raw_format::y8, 40)
-                    ADD_CONVERSION(core::raw_format::yvyu422, core::raw_format::y16, 40)
-                    ADD_CONVERSION(core::raw_format::uyvy422, core::raw_format::y8, 40)
-                    ADD_CONVERSION(core::raw_format::uyvy422, core::raw_format::y16, 40)
-                    ADD_CONVERSION(core::raw_format::vyuy422, core::raw_format::y8, 40)
-                    ADD_CONVERSION(core::raw_format::vyuy422, core::raw_format::y16, 40)
-                    ADD_CONVERSION(core::raw_format::y8, core::raw_format::yuyv422, 20)
-                    ADD_CONVERSION(core::raw_format::y8, core::raw_format::yvyu422, 20)
-                    ADD_CONVERSION(core::raw_format::y8, core::raw_format::uyvy422, 20)
-                    ADD_CONVERSION(core::raw_format::y8, core::raw_format::vyuy422, 20)
-                    ADD_CONVERSION(core::raw_format::y8, core::raw_format::yuv411, 20)
-                    ADD_CONVERSION(core::raw_format::y8, core::raw_format::yuv444, 20)
-                    ADD_CONVERSION(core::raw_format::y16, core::raw_format::yuyv422, 30)
-                    ADD_CONVERSION(core::raw_format::y16, core::raw_format::yvyu422, 30)
-                    ADD_CONVERSION(core::raw_format::y16, core::raw_format::uyvy422, 30)
-                    ADD_CONVERSION(core::raw_format::y16, core::raw_format::vyuy422, 30)
-                    ADD_CONVERSION(core::raw_format::y16, core::raw_format::yuv411, 30)
-                    ADD_CONVERSION(core::raw_format::y16, core::raw_format::yuv444, 30)
-                    ADD_CONVERSION(core::raw_format::y8, core::raw_format::rgb24, 10)
-                    ADD_CONVERSION(core::raw_format::rgb24, core::raw_format::y8, 50)
-                    ADD_CONVERSION(core::raw_format::rgb48, core::raw_format::rgb24, 30)
-                    ADD_CONVERSION(core::raw_format::bgr48, core::raw_format::bgr24, 30)
-                    ADD_CONVERSION(core::raw_format::rgb48, core::raw_format::bgr24, 30)
-                    ADD_CONVERSION(core::raw_format::bgr48, core::raw_format::rgb24, 30)
-                    ADD_CONVERSION(core::raw_format::rgb24, core::raw_format::rgb16, 10)
-                    ADD_CONVERSION(core::raw_format::rgb24, core::raw_format::bgr16, 10)
+                    define_conversion<core::raw_format::u8, core::raw_format::y8>(1),
+                    define_conversion<core::raw_format::v8, core::raw_format::y8>(1),
+                    define_conversion<core::raw_format::r8, core::raw_format::y8>(1),
+                    define_conversion<core::raw_format::g8, core::raw_format::y8>(1),
+                    define_conversion<core::raw_format::b8, core::raw_format::y8>(1),
+                    define_conversion<core::raw_format::depth8, core::raw_format::y8>(1),
+                    define_conversion<core::raw_format::y8, core::raw_format::y16>(10),
+                    define_conversion<core::raw_format::y16, core::raw_format::y8>(20),
+                    define_conversion<core::raw_format::yuyv422, core::raw_format::y8>(40),
+                    define_conversion<core::raw_format::yuyv422, core::raw_format::y16>(40),
+                    define_conversion<core::raw_format::yvyu422, core::raw_format::y8>(40),
+                    define_conversion<core::raw_format::yvyu422, core::raw_format::y16>(40),
+                    define_conversion<core::raw_format::uyvy422, core::raw_format::y8>(40),
+                    define_conversion<core::raw_format::uyvy422, core::raw_format::y16>(40),
+                    define_conversion<core::raw_format::vyuy422, core::raw_format::y8>(40),
+                    define_conversion<core::raw_format::vyuy422, core::raw_format::y16>(40),
+                    define_conversion<core::raw_format::y8, core::raw_format::yuyv422>(20),
+                    define_conversion<core::raw_format::y8, core::raw_format::yvyu422>(20),
+                    define_conversion<core::raw_format::y8, core::raw_format::uyvy422>(20),
+                    define_conversion<core::raw_format::y8, core::raw_format::vyuy422>(20),
+                    define_conversion<core::raw_format::y8, core::raw_format::yuv411>(20),
+                    define_conversion<core::raw_format::y8, core::raw_format::yuv444>(20),
+                    define_conversion<core::raw_format::y16, core::raw_format::yuyv422>(30),
+                    define_conversion<core::raw_format::y16, core::raw_format::yvyu422>(30),
+                    define_conversion<core::raw_format::y16, core::raw_format::uyvy422>(30),
+                    define_conversion<core::raw_format::y16, core::raw_format::vyuy422>(30),
+                    define_conversion<core::raw_format::y16, core::raw_format::yuv411>(30),
+                    define_conversion<core::raw_format::y16, core::raw_format::yuv444>(30),
+                    define_conversion<core::raw_format::y8, core::raw_format::rgb24>(10),
+                    define_conversion<core::raw_format::rgb24, core::raw_format::y8>(50),
+                    define_conversion<core::raw_format::rgb48, core::raw_format::rgb24>(30),
+                    define_conversion<core::raw_format::bgr48, core::raw_format::bgr24>(30),
+                    define_conversion<core::raw_format::rgb48, core::raw_format::bgr24>(30),
+                    define_conversion<core::raw_format::bgr48, core::raw_format::rgb24>(30),
+                    define_conversion<core::raw_format::rgb24, core::raw_format::rgb16>(10),
+                    define_conversion<core::raw_format::rgb24, core::raw_format::bgr16>(10),
             };
             return converters_single;
         }

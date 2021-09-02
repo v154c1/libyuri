@@ -626,25 +626,25 @@ namespace yuri{
 
         converter_map get_converters_yuv_rgb() {
             static std::map<format_pair_t, std::pair<converter_t, size_t>> converters_yuv_rgb = {
-                    ADD_CONVERSION(core::raw_format::rgb24, core::raw_format::yuv444, 20)
-                    ADD_CONVERSION(core::raw_format::rgba32, core::raw_format::yuv444, 20)
-                    ADD_CONVERSION(core::raw_format::argb32, core::raw_format::yuv444, 20)
-                    ADD_CONVERSION(core::raw_format::bgr24, core::raw_format::yuv444, 20)
-                    ADD_CONVERSION(core::raw_format::bgra32, core::raw_format::yuv444, 20)
-                    ADD_CONVERSION(core::raw_format::abgr32, core::raw_format::yuv444, 20)
-                    ADD_CONVERSION(core::raw_format::rgb24, core::raw_format::yuyv422, 25)
-                    ADD_CONVERSION(core::raw_format::rgba32, core::raw_format::yuyv422, 25)
-                    ADD_CONVERSION(core::raw_format::argb32, core::raw_format::yuyv422, 25)
-                    ADD_CONVERSION(core::raw_format::bgr24, core::raw_format::yuyv422, 25)
-                    ADD_CONVERSION(core::raw_format::bgra32, core::raw_format::yuyv422, 25)
-                    ADD_CONVERSION(core::raw_format::abgr32, core::raw_format::yuyv422, 25)
-                    ADD_CONVERSION(core::raw_format::rgba32, core::raw_format::yuva4444, 25)
-                    ADD_CONVERSION(core::raw_format::bgra32, core::raw_format::yuva4444, 25)
-                    ADD_CONVERSION(core::raw_format::argb32, core::raw_format::yuva4444, 25)
-                    ADD_CONVERSION(core::raw_format::abgr32, core::raw_format::yuva4444, 25)
-                    ADD_CONVERSION(core::raw_format::yuv444, core::raw_format::rgb24, 20)
-                    ADD_CONVERSION(core::raw_format::yuyv422, core::raw_format::rgb24, 25)
-                    ADD_CONVERSION(core::raw_format::uyvy422, core::raw_format::rgb24, 25)
+                    define_conversion<core::raw_format::rgb24, core::raw_format::yuv444>(20),
+                    define_conversion<core::raw_format::rgba32, core::raw_format::yuv444>(20),
+                    define_conversion<core::raw_format::argb32, core::raw_format::yuv444>(20),
+                    define_conversion<core::raw_format::bgr24, core::raw_format::yuv444>(20),
+                    define_conversion<core::raw_format::bgra32, core::raw_format::yuv444>(20),
+                    define_conversion<core::raw_format::abgr32, core::raw_format::yuv444>(20),
+                    define_conversion<core::raw_format::rgb24, core::raw_format::yuyv422>(25),
+                    define_conversion<core::raw_format::rgba32, core::raw_format::yuyv422>(25),
+                    define_conversion<core::raw_format::argb32, core::raw_format::yuyv422>(25),
+                    define_conversion<core::raw_format::bgr24, core::raw_format::yuyv422>(25),
+                    define_conversion<core::raw_format::bgra32, core::raw_format::yuyv422>(25),
+                    define_conversion<core::raw_format::abgr32, core::raw_format::yuyv422>(25),
+                    define_conversion<core::raw_format::rgba32, core::raw_format::yuva4444>(25),
+                    define_conversion<core::raw_format::bgra32, core::raw_format::yuva4444>(25),
+                    define_conversion<core::raw_format::argb32, core::raw_format::yuva4444>(25),
+                    define_conversion<core::raw_format::abgr32, core::raw_format::yuva4444>(25),
+                    define_conversion<core::raw_format::yuv444, core::raw_format::rgb24>(20),
+                    define_conversion<core::raw_format::yuyv422, core::raw_format::rgb24>(25),
+                    define_conversion<core::raw_format::uyvy422, core::raw_format::rgb24>(25),
             };
             return converters_yuv_rgb;
         }

@@ -37,8 +37,11 @@ namespace yuri {
         template<format_t fmt_in, format_t fmt_out>
         core::pRawVideoFrame convert_formats(const core::pRawVideoFrame &frame, const YuriConvertor &, size_t threads);
 
-#define ADD_CONVERSION(fmt1, fmt2, cost) {std::make_pair(fmt1, fmt2), std::make_pair(&convert_formats<fmt1, fmt2>, cost)},
 
+        template<format_t fmt_in, format_t fmt_out>
+        std::pair<const format_pair_t, std::pair<converter_t , size_t>> define_conversion(size_t cost) {
+            return std::make_pair(std::make_pair(fmt_in, fmt_out), std::make_pair(&convert_formats<fmt_in, fmt_out>, cost));
+        }
 
 
         /* ***************************************************************************

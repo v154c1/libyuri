@@ -422,40 +422,41 @@ namespace yuri {
             }
         }
 
+
         converter_map get_converters_rgb() {
             static std::map<format_pair_t, std::pair<converter_t, size_t>> converters_rgb = {
-                    ADD_CONVERSION(core::raw_format::rgb24, core::raw_format::rgba32, 12)
-                    ADD_CONVERSION(core::raw_format::bgr24, core::raw_format::bgra32, 12)
-                    ADD_CONVERSION(core::raw_format::rgb24, core::raw_format::argb32, 12)
-                    ADD_CONVERSION(core::raw_format::bgr24, core::raw_format::abgr32, 12)
-                    ADD_CONVERSION(core::raw_format::rgba32, core::raw_format::rgb24, 12)
-                    ADD_CONVERSION(core::raw_format::bgra32, core::raw_format::bgr24, 12)
-                    ADD_CONVERSION(core::raw_format::argb32, core::raw_format::rgb24, 12)
-                    ADD_CONVERSION(core::raw_format::abgr32, core::raw_format::bgr24, 12)
-                    ADD_CONVERSION(core::raw_format::rgba32, core::raw_format::argb32, 10)
-                    ADD_CONVERSION(core::raw_format::rgba32, core::raw_format::abgr32, 10)
-                    ADD_CONVERSION(core::raw_format::rgba32, core::raw_format::bgra32, 10)
-                    ADD_CONVERSION(core::raw_format::argb32, core::raw_format::rgba32, 10)
-                    ADD_CONVERSION(core::raw_format::argb32, core::raw_format::abgr32, 10)
-                    ADD_CONVERSION(core::raw_format::argb32, core::raw_format::bgra32, 10)
-                    ADD_CONVERSION(core::raw_format::bgra32, core::raw_format::rgba32, 10)
-                    ADD_CONVERSION(core::raw_format::bgra32, core::raw_format::argb32, 10)
-                    ADD_CONVERSION(core::raw_format::bgra32, core::raw_format::abgr32, 10)
-                    ADD_CONVERSION(core::raw_format::abgr32, core::raw_format::argb32, 10)
-                    ADD_CONVERSION(core::raw_format::abgr32, core::raw_format::rgba32, 10)
-                    ADD_CONVERSION(core::raw_format::abgr32, core::raw_format::bgra32, 10)
-                    ADD_CONVERSION(core::raw_format::rgb24, core::raw_format::bgra32, 12)
-                    ADD_CONVERSION(core::raw_format::bgr24, core::raw_format::rgba32, 12)
-                    ADD_CONVERSION(core::raw_format::rgb24, core::raw_format::abgr32, 12)
-                    ADD_CONVERSION(core::raw_format::bgr24, core::raw_format::argb32, 12)
-                    ADD_CONVERSION(core::raw_format::rgba32, core::raw_format::bgr24, 12)
-                    ADD_CONVERSION(core::raw_format::bgra32, core::raw_format::rgb24, 12)
-                    ADD_CONVERSION(core::raw_format::argb32, core::raw_format::bgr24, 12)
-                    ADD_CONVERSION(core::raw_format::abgr32, core::raw_format::rgb24, 12)
-                    ADD_CONVERSION(core::raw_format::bgr24, core::raw_format::rgb24, 10)
-                    ADD_CONVERSION(core::raw_format::rgb24, core::raw_format::bgr24, 10)
-                    ADD_CONVERSION(core::raw_format::gbr24, core::raw_format::rgb24, 10)
-                    ADD_CONVERSION(core::raw_format::rgb24, core::raw_format::gbr24, 10)
+                    define_conversion<core::raw_format::rgb24, core::raw_format::rgba32>(12),
+                    define_conversion<core::raw_format::bgr24, core::raw_format::bgra32>(12),
+                    define_conversion<core::raw_format::rgb24, core::raw_format::argb32>(12),
+                    define_conversion<core::raw_format::bgr24, core::raw_format::abgr32>(12),
+                    define_conversion<core::raw_format::rgba32, core::raw_format::rgb24>(12),
+                    define_conversion<core::raw_format::bgra32, core::raw_format::bgr24>(12),
+                    define_conversion<core::raw_format::argb32, core::raw_format::rgb24>(12),
+                    define_conversion<core::raw_format::abgr32, core::raw_format::bgr24>(12),
+                    define_conversion<core::raw_format::rgba32, core::raw_format::argb32>(10),
+                    define_conversion<core::raw_format::rgba32, core::raw_format::abgr32>(10),
+                    define_conversion<core::raw_format::rgba32, core::raw_format::bgra32>(10),
+                    define_conversion<core::raw_format::argb32, core::raw_format::rgba32>(10),
+                    define_conversion<core::raw_format::argb32, core::raw_format::abgr32>(10),
+                    define_conversion<core::raw_format::argb32, core::raw_format::bgra32>(10),
+                    define_conversion<core::raw_format::bgra32, core::raw_format::rgba32>(10),
+                    define_conversion<core::raw_format::bgra32, core::raw_format::argb32>(10),
+                    define_conversion<core::raw_format::bgra32, core::raw_format::abgr32>(10),
+                    define_conversion<core::raw_format::abgr32, core::raw_format::argb32>(10),
+                    define_conversion<core::raw_format::abgr32, core::raw_format::rgba32>(10),
+                    define_conversion<core::raw_format::abgr32, core::raw_format::bgra32>(10),
+                    define_conversion<core::raw_format::rgb24, core::raw_format::bgra32>(12),
+                    define_conversion<core::raw_format::bgr24, core::raw_format::rgba32>(12),
+                    define_conversion<core::raw_format::rgb24, core::raw_format::abgr32>(12),
+                    define_conversion<core::raw_format::bgr24, core::raw_format::argb32>(12),
+                    define_conversion<core::raw_format::rgba32, core::raw_format::bgr24>(12),
+                    define_conversion<core::raw_format::bgra32, core::raw_format::rgb24>(12),
+                    define_conversion<core::raw_format::argb32, core::raw_format::bgr24>(12),
+                    define_conversion<core::raw_format::abgr32, core::raw_format::rgb24>(12),
+                    define_conversion<core::raw_format::bgr24, core::raw_format::rgb24>(10),
+                    define_conversion<core::raw_format::rgb24, core::raw_format::bgr24>(10),
+                    define_conversion<core::raw_format::gbr24, core::raw_format::rgb24>(10),
+                    define_conversion<core::raw_format::rgb24, core::raw_format::gbr24>(10),
             };
             return converters_rgb;
         }
