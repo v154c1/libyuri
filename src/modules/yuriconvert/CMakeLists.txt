@@ -1,8 +1,14 @@
 SET (MODULE yuri_convert)
 
-SET (SRC YuriConvert.cpp
-		 YuriConvert.h
-		 )
+SET (SRC YuriConvert.h YuriConvert.cpp
+		convert_common.h
+		convert_10bit_rgb.cpp
+		convert_yuv422.cpp
+		convert_rgb.cpp
+		convert_yuv_rgb.cpp
+		convert_yuv.cpp
+		convert_single.cpp
+		converters_all.h converters_all.cpp)
 
 SET(LINK ${LIBNAME})
 IF(${CORE_CUDA} AND FALSE)

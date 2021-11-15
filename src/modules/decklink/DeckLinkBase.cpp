@@ -123,10 +123,17 @@ mode_strings = {
 std::map<std::string, BMDPixelFormat, compare_insensitive>
 pixfmt_strings = {
 		{"yuv", 		bmdFormat8BitYUV},
-		{"v210", 		bmdFormat10BitYUV},
+		{"v210", 	bmdFormat10BitYUV},
 		{"argb",		bmdFormat8BitARGB},
 		{"bgra",		bmdFormat8BitBGRA},
 		{"r210",		bmdFormat10BitRGB},
+        {"r12b",		bmdFormat12BitRGB},
+        {"r12l",		bmdFormat12BitRGBLE},
+        {"r10l",		bmdFormat10BitRGBXLE},
+        {"r10b",		bmdFormat10BitRGBX},
+
+
+
 };
 
 std::map<std::string, BMDVideoConnection, compare_insensitive>
@@ -140,11 +147,15 @@ connection_strings = {
 };
 
 std::map<BMDPixelFormat, yuri::format_t> pixel_format_map = {
-		{bmdFormat8BitYUV,	uyvy422},
-		{bmdFormat10BitYUV,	yuv422_v210},
-		{bmdFormat8BitARGB,	argb32},
-		{bmdFormat8BitBGRA,	bgra32},
-		{bmdFormat10BitRGB,	rgb_r10k},
+		{bmdFormat8BitYUV,  uyvy422},
+		{bmdFormat10BitYUV, yuv422_v210},
+		{bmdFormat8BitARGB, argb32},
+		{bmdFormat8BitBGRA, bgra32},
+		{bmdFormat10BitRGB, rgb_r10k_be},
+        {bmdFormat12BitRGB, rgb_r12k_be},
+        {bmdFormat12BitRGBLE, rgb_r12k_le},
+        {bmdFormat10BitRGBXLE, rgb_r10k_le},
+        {bmdFormat10BitRGBX, rgbx_r10k_be},
 };
 
 std::map<std::string, std::string>
