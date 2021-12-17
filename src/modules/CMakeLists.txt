@@ -138,6 +138,10 @@ IF(CORE_LIBAV AND libavcodec_FOUND AND libavformat_FOUND)
 	add_subdirectory(rawavfile)
 ENDIF()
 
+IF(CORE_LIBAV AND libavcodec_FOUND AND libavformat_FOUND AND libswscale_FOUND AND libavutil_FOUND)
+	add_subdirectory(rtmp)
+ENDIF()
+
 find_package(PNG)
 IF(PNG_FOUND)
 	add_subdirectory(png)
