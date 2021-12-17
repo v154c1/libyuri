@@ -24,8 +24,8 @@ Test application streaming data using RTMP
 <node class="v4l2source" name="webcam">
   <parameter name="path">@device</parameter>
   <parameter name="resolution">@resolution</parameter>
-  <parameter name="fps">MJPEG</parameter>
-  <parameter name="format">@format</parameter>
+  <parameter name="fps">@fps</parameter>
+  <parameter name="format">MJPEG</parameter>
 </node>
 
 <!-- ALSA audio device source, more fmts/sample rates should be supported, mono is supported -->
