@@ -375,7 +375,7 @@ bool RTMP::step() {
 	}
 
 	if (av_initialized_ && yuri_video_frame &&
-        av_compare_ts(video_st_.next_pts, video_st_.enc->time_base, audio_st_.next_pts, audio_st_.enc->time_base) <= 0) {
+        (!audio_ || av_compare_ts(video_st_.next_pts, video_st_.enc->time_base, audio_st_.next_pts, audio_st_.enc->time_base) <= 0)) {
         AVFrame *av_pic = video_st_.tmp_frame;
 		auto no_planes = yuri_video_frame->get_planes_count();
 		auto line_size = PLANE_DATA(yuri_video_frame,0).get_line_size();
