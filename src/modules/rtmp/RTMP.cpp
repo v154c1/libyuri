@@ -124,15 +124,31 @@ AVFrame *alloc_audio_frame(enum AVSampleFormat sample_fmt, uint64_t channel_layo
     return frame;
 }
 
-int write_frame(AVFormatContext *fmt_ctx, const AVRational *time_base, AVStream *st, AVPacket *pkt) {
-    av_packet_rescale_ts(pkt, *time_base, st->time_base);
-    pkt->stream_index = st->index;
-    return av_interleaved_write_frame(fmt_ctx, pkt);
+bool write_frame(AVFormatContext *fmt_ctx, AVCodecContext *codec_ctx, AVStream *st, AVFrame *frame, AVPacket *pkt) {
+    auto ret = avcodec_send_frame(codec_ctx, frame);
+    if (ret < 0)
+        throw(std::runtime_error("Error sending a frame to the encoder."));
+ 
+    while (ret >= 0) {
+        ret = avcodec_receive_packet(codec_ctx, pkt);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+            break;
+        else if (ret < 0)
+            throw(std::runtime_error("Error encoding a frame."));
+
+        av_packet_rescale_ts(pkt, codec_ctx->time_base, st->time_base);
+        pkt->stream_index = st->index;
+
+        ret = av_interleaved_write_frame(fmt_ctx, pkt);
+
+        if (ret < 0)
+            throw(std::runtime_error("Error while writing output packet."));
+    }
+    return ret == AVERROR_EOF ? false : true;
 }
 
-int write_video_frame(AVFormatContext *fmt_ctx, StreamDescription *output_stream) {
+bool write_video_frame(AVFormatContext *fmt_ctx, StreamDescription *output_stream) {
     AVCodecContext *codec_ctx = output_stream->enc;
-    int got_packet = 0;
     AVPacket pkt = {};
     av_init_packet(&pkt);
 
@@ -149,25 +165,13 @@ int write_video_frame(AVFormatContext *fmt_ctx, StreamDescription *output_stream
     av_frame_make_writable(output_stream->frame);
     sws_scale(output_stream->sws_ctx, output_stream->tmp_frame->data, output_stream->tmp_frame->linesize, 0, output_stream->tmp_frame->height, output_stream->frame->data, output_stream->frame->linesize);
 
-    output_stream->frame->pts = output_stream->next_pts++;
-    auto ret = avcodec_encode_video2(codec_ctx, &pkt, output_stream->frame, &got_packet);
-    if (ret < 0)
-        throw(std::runtime_error("Error encoding video frame."));
-    if (got_packet) {
-        ret = write_frame(fmt_ctx, &codec_ctx->time_base, output_stream->stream, &pkt);
-    } else {
-        ret = 0;
-    }
-    if (ret < 0)
-        throw(std::runtime_error("Error while writing video frame."));
-
-    return (output_stream->tmp_frame || got_packet) ? 0 : 1;
+    output_stream->frame->pts = output_stream->next_pts++; 
+    return write_frame(fmt_ctx, codec_ctx, output_stream->stream, output_stream->frame, &pkt);
 }
 
-int write_audio_frame(AVFormatContext *fmt_ctx, StreamDescription *output_stream) {
+bool write_audio_frame(AVFormatContext *fmt_ctx, StreamDescription *output_stream) {
     AVCodecContext *codec_ctx;
     AVPacket pkt = {};
-    int got_packet;
     int dst_nb_samples;
     av_init_packet(&pkt);
     codec_ctx = output_stream->enc;
@@ -187,16 +191,7 @@ int write_audio_frame(AVFormatContext *fmt_ctx, StreamDescription *output_stream
         output_stream->tmp_frame->pts = av_rescale_q(output_stream->samples_count, av_make_q(1, codec_ctx->sample_rate), codec_ctx->time_base);
         output_stream->samples_count += dst_nb_samples;
     }
-    auto ret = avcodec_encode_audio2(codec_ctx, &pkt, output_stream->tmp_frame, &got_packet);
-    if (ret < 0)
-        throw(std::runtime_error("Error encoding audio frame."));
-
-    if (got_packet) {
-        ret = write_frame(fmt_ctx, &codec_ctx->time_base, output_stream->stream, &pkt);
-        if (ret < 0)
-            throw(std::runtime_error("Error while writing audio frame."));
-    }
-    return (output_stream->tmp_frame || got_packet) ? 0 : 1;
+    return write_frame(fmt_ctx, codec_ctx, output_stream->stream, output_stream->tmp_frame, &pkt);
 }
 
 void open_video(AVCodec *codec, StreamDescription *output_stream, AVDictionary *opt_arg) {
@@ -246,18 +241,18 @@ void open_audio(AVCodec *codec, StreamDescription *output_stream, AVDictionary *
     if (ret < 0)
         throw(std::runtime_error("Could not copy the stream parameters."));
 
-    /* create resampler context */
+    // create resampler context
     output_stream->swr_ctx = swr_alloc();
     if (!output_stream->swr_ctx)
         throw(std::runtime_error("Could not allocate resampler context."));
-    /* set options */
+    // set options
     av_opt_set_int       (output_stream->swr_ctx, "in_channel_count",   output_stream->channels,     0);
     av_opt_set_int       (output_stream->swr_ctx, "in_sample_rate",     output_stream->sample_rate,  0);
     av_opt_set_sample_fmt(output_stream->swr_ctx, "in_sample_fmt",      output_stream->audio_format, 0);
     av_opt_set_int       (output_stream->swr_ctx, "out_channel_count",  codec_ctx->channels,         0);
     av_opt_set_int       (output_stream->swr_ctx, "out_sample_rate",    codec_ctx->sample_rate,      0);
     av_opt_set_sample_fmt(output_stream->swr_ctx, "out_sample_fmt",     codec_ctx->sample_fmt,       0);
-    /* initialize the resampling context */
+    // initialize the resampling context
     if ((ret = swr_init(output_stream->swr_ctx)) < 0)
         throw(std::runtime_error("Failed to initialize the resampling context."));
 }
@@ -381,7 +376,8 @@ bool RTMP::step() {
 			}
 		}
         try {
-            write_video_frame(fmt_ctx_, &video_st_);
+            if (!write_video_frame(fmt_ctx_, &video_st_))
+                log[log::warning] << "Temporary error in sending video frame.";
         } catch(const std::exception& e) {
             log[log::error] << "Not able to send video frame: " << e.what();
             deinitialize();
@@ -398,7 +394,8 @@ bool RTMP::step() {
         frame->pts = audio_st_.next_pts;
         audio_st_.next_pts  += frame->nb_samples;
         try {
-            write_audio_frame(fmt_ctx_, &audio_st_);
+            if (!write_audio_frame(fmt_ctx_, &audio_st_))
+                log[log::warning] << "Temporary error in sending audio frame.";
         } catch(const std::exception& e) {
             log[log::error] << "Not able to send audio frame: " << e.what();
             deinitialize();
