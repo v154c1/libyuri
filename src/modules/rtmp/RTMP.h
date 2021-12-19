@@ -39,7 +39,7 @@ struct StreamDescription {
     int            fps;            // Video only
     AVPixelFormat  video_format;   // Video only
     int            sample_rate;    // Audio only
-    int            samples_count;  // Audio only
+    int64_t        samples_count;  // Audio only
     size_t         channels;       // Audio only
     uint64_t       channel_layout; // Audio only
     AVSampleFormat audio_format;   // Audio only
