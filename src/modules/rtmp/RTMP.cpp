@@ -33,7 +33,17 @@ core::Parameters RTMP::configure() {
 namespace {
 
 void add_stream(StreamDescription *output_stream, AVFormatContext *fmt_ctx, AVCodec **codec, enum AVCodecID codec_id) {
-    *codec = avcodec_find_encoder(codec_id);
+    #ifdef __arm__
+        if (codec_id == AV_CODEC_ID_H264) {
+            *codec = avcodec_find_encoder_by_name("h264_v4l2m2m");
+        } else if (codec_id == AV_CODEC_ID_MPEG4) {
+            *codec = avcodec_find_encoder_by_name("mpeg4_v4l2m2m");
+        }
+        if (!(*codec))
+            *codec = avcodec_find_encoder(codec_id);
+    #else
+        *codec = avcodec_find_encoder(codec_id);
+    #endif
     if (!(*codec))
         throw(std::runtime_error("Could not find encoder for codec."));
     output_stream->stream = avformat_new_stream(fmt_ctx, nullptr);
