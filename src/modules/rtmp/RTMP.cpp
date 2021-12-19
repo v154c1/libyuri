@@ -280,11 +280,11 @@ void start_stream(AVFormatContext *fmt_ctx, AVDictionary *opt_arg, std::string a
 }
 
 static void close_stream(StreamDescription *output_stream) {
-    avcodec_free_context(&output_stream->enc);
-    av_frame_free(&output_stream->frame);
-    av_frame_free(&output_stream->tmp_frame);
-    sws_freeContext(output_stream->sws_ctx);
-    swr_free(&output_stream->swr_ctx);
+    if (output_stream->enc)       avcodec_free_context(&output_stream->enc);
+    if (output_stream->frame)     av_frame_free(&output_stream->frame);
+    if (output_stream->tmp_frame) av_frame_free(&output_stream->tmp_frame);
+    if (output_stream->sws_ctx)   sws_freeContext(output_stream->sws_ctx);
+    if (output_stream->swr_ctx)   swr_free(&output_stream->swr_ctx);
 }
 
 }
