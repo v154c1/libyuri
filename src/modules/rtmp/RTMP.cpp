@@ -34,15 +34,16 @@ namespace {
 
 void add_stream(StreamDescription *output_stream, AVFormatContext *fmt_ctx, AVCodec **codec, enum AVCodecID codec_id) {
     #ifdef __arm__
-        if (codec_id == AV_CODEC_ID_H264) {
-            *codec = avcodec_find_encoder_by_name("h264_v4l2m2m");
-        } else if (codec_id == AV_CODEC_ID_MPEG4) {
-            *codec = avcodec_find_encoder_by_name("mpeg4_v4l2m2m");
-        }
-        if (!(*codec))
-            *codec = avcodec_find_encoder(codec_id);
-    #else
+    // Should be Raspberry specific, not all arm, uses HW encoders for video
+    if (codec_id == AV_CODEC_ID_H264) {
+        *codec = avcodec_find_encoder_by_name("h264_v4l2m2m");
+    } else if (codec_id == AV_CODEC_ID_MPEG4) {
+        *codec = avcodec_find_encoder_by_name("mpeg4_v4l2m2m");
+    }
+    if (!(*codec))
         *codec = avcodec_find_encoder(codec_id);
+    #else
+    *codec = avcodec_find_encoder(codec_id);
     #endif
     if (!(*codec))
         throw(std::runtime_error("Could not find encoder for codec."));
@@ -331,7 +332,12 @@ void RTMP::initialize() {
         audio_st_.channels = yuri_audio_frame_->get_channel_count();
         audio_st_.channel_layout = (audio_st_.channels == 1) ? AV_CH_LAYOUT_MONO : AV_CH_LAYOUT_STEREO;
         audio_st_.audio_format = libav::avsampleformat_from_yuri(yuri_audio_frame_->get_format());
+        #ifdef __arm__
+        // Should be Raspberry specific, not all arm, AAC codec seems to be broken in current Raspbian
+        add_stream(&audio_st_, fmt_ctx_, &audio_codec, AV_CODEC_ID_MP3);
+        #else
         add_stream(&audio_st_, fmt_ctx_, &audio_codec, AV_CODEC_ID_AAC);
+        #endif
     }
 
 	if (yuri_video_frame_) open_video(video_codec, &video_st_, opt);
