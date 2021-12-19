@@ -39,9 +39,9 @@ void add_stream(StreamDescription *output_stream, AVFormatContext *fmt_ctx, AVCo
         *codec = avcodec_find_encoder_by_name("h264_v4l2m2m");
     } else if (codec_id == AV_CODEC_ID_MPEG4) {
         *codec = avcodec_find_encoder_by_name("mpeg4_v4l2m2m");
-    }
-    if (!(*codec))
+    } else {
         *codec = avcodec_find_encoder(codec_id);
+    }
     #else
     *codec = avcodec_find_encoder(codec_id);
     #endif
