@@ -78,14 +78,13 @@ void add_stream(StreamDescription *output_stream, AVFormatContext *fmt_ctx, AVCo
         }
         codec_ctx->channels = av_get_channel_layout_nb_channels(codec_ctx->channel_layout);
         output_stream->stream->time_base = av_make_q(1, codec_ctx->sample_rate);
+        codec_ctx->time_base = output_stream->stream->time_base;
         break;
     case AVMEDIA_TYPE_VIDEO:
         codec_ctx->codec_id = codec_id;
         codec_ctx->bit_rate = output_stream->bitrate;
         codec_ctx->width    = output_stream->width;
         codec_ctx->height   = output_stream->height;
-        output_stream->stream->time_base = av_make_q(1, output_stream->fps);
-        codec_ctx->time_base       = output_stream->stream->time_base;
         codec_ctx->gop_size      = 12;
         codec_ctx->pix_fmt       = AV_PIX_FMT_YUV420P;
         if (codec_ctx->codec_id == AV_CODEC_ID_MPEG2VIDEO) {
@@ -94,6 +93,8 @@ void add_stream(StreamDescription *output_stream, AVFormatContext *fmt_ctx, AVCo
         if (codec_ctx->codec_id == AV_CODEC_ID_MPEG1VIDEO) {
             codec_ctx->mb_decision = 2;
         }
+        output_stream->stream->time_base = av_make_q(1, output_stream->fps);
+        codec_ctx->time_base       = output_stream->stream->time_base;
     break;
     default:
         break;
@@ -199,8 +200,8 @@ bool write_audio_frame(AVFormatContext *fmt_ctx, StreamDescription *output_strea
         if (ret < 0)
             throw(std::runtime_error("Error while converting audio frame."));
         output_stream->tmp_frame = output_stream->frame;
-        output_stream->tmp_frame->pts = av_rescale_q(output_stream->samples_count, av_make_q(1, codec_ctx->sample_rate), codec_ctx->time_base);
-        output_stream->samples_count += dst_nb_samples;
+        output_stream->tmp_frame->pts = av_rescale_q(output_stream->next_pts, av_make_q(1, codec_ctx->sample_rate), codec_ctx->time_base);
+        output_stream->next_pts += dst_nb_samples;
     }
     return write_frame(fmt_ctx, codec_ctx, output_stream->stream, output_stream->tmp_frame, &pkt);
 }
@@ -358,8 +359,8 @@ bool RTMP::step() {
 	auto yuri_video_frame = std::dynamic_pointer_cast<core::RawVideoFrame>(pop_frame(0));
 	auto yuri_audio_frame = std::dynamic_pointer_cast<core::RawAudioFrame>(pop_frame(1));
 
-    if (yuri_video_frame) yuri_video_frame_ = yuri_video_frame;
-    if (yuri_audio_frame) yuri_audio_frame_ = yuri_audio_frame;
+    yuri_video_frame ? yuri_video_frame_ = yuri_video_frame : yuri_video_frame = yuri_video_frame_;
+    yuri_audio_frame ? yuri_audio_frame_ = yuri_audio_frame : yuri_audio_frame = yuri_audio_frame_;
 
 	if (!av_initialized_) {
         try {
@@ -373,7 +374,8 @@ bool RTMP::step() {
         }
 	}
 
-	if (av_initialized_ && yuri_video_frame) {
+	if (av_initialized_ && yuri_video_frame &&
+        av_compare_ts(video_st_.next_pts, video_st_.enc->time_base, audio_st_.next_pts, audio_st_.enc->time_base) <= 0) {
         AVFrame *av_pic = video_st_.tmp_frame;
 		auto no_planes = yuri_video_frame->get_planes_count();
 		auto line_size = PLANE_DATA(yuri_video_frame,0).get_line_size();
@@ -394,12 +396,14 @@ bool RTMP::step() {
         try {
             if (!write_video_frame(fmt_ctx_, &video_st_))
                 log[log::warning] << "Temporary error in sending video frame.";
+            yuri_video_frame_ = nullptr;
         } catch(const std::exception& e) {
             log[log::error] << "Not able to send video frame: " << e.what();
             deinitialize();
         }
     }
-	if (av_initialized_ && yuri_audio_frame) {
+    if (av_initialized_ && yuri_audio_frame &&
+        av_compare_ts(audio_st_.next_pts, audio_st_.enc->time_base, video_st_.next_pts, video_st_.enc->time_base) <= 0) {
         AVFrame *frame = audio_st_.tmp_frame;
         uint8_t* dst_data = reinterpret_cast<uint8_t*>(frame->data[0]);
         uint8_t* src_data = reinterpret_cast<uint8_t*>(yuri_audio_frame->data());
@@ -410,6 +414,7 @@ bool RTMP::step() {
         try {
             if (!write_audio_frame(fmt_ctx_, &audio_st_))
                 log[log::warning] << "Temporary error in sending audio frame.";
+            yuri_audio_frame_ = nullptr;
         } catch(const std::exception& e) {
             log[log::error] << "Not able to send audio frame: " << e.what();
             deinitialize();
