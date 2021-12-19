@@ -407,8 +407,6 @@ bool RTMP::step() {
         if (frame->nb_samples != static_cast<int>(yuri_audio_frame->get_sample_count()))
             log[log::warning] << "Codec samples are not the same as source samples (" << frame->nb_samples << " != " << yuri_audio_frame->get_sample_count() << ")!";
         std::copy(src_data,src_data+max_samples*(yuri_audio_frame->get_sample_size()/8),dst_data);
-        frame->pts = audio_st_.next_pts;
-        audio_st_.next_pts  += frame->nb_samples;
         try {
             if (!write_audio_frame(fmt_ctx_, &audio_st_))
                 log[log::warning] << "Temporary error in sending audio frame.";
