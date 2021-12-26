@@ -280,9 +280,11 @@ void start_stream(AVFormatContext *fmt_ctx, AVDictionary *opt_arg, std::string a
 
 static void close_stream(StreamDescription *output_stream) {
     if (output_stream->enc)       avcodec_free_context(&output_stream->enc);
+    if (output_stream->tmp_frame && output_stream->tmp_frame != output_stream->frame) {
+        av_frame_free(&output_stream->tmp_frame);
+    }
     if (output_stream->frame)     av_frame_free(&output_stream->frame);
     if (output_stream->tmp_pkt)   av_packet_free(&output_stream->tmp_pkt);
-    if (output_stream->tmp_frame) av_frame_free(&output_stream->tmp_frame);
     if (output_stream->sws_ctx)   sws_freeContext(output_stream->sws_ctx);
     if (output_stream->swr_ctx)   swr_free(&output_stream->swr_ctx);
 }
@@ -305,7 +307,7 @@ RTMP::RTMP(const log::Log& _log, core::pwThreadBase parent, const core::Paramete
 }
 
 RTMP::~RTMP() noexcept {
-
+    deinitialize();
 }
 
 void RTMP::initialize() {
@@ -349,14 +351,28 @@ void RTMP::initialize() {
 }
 
 void RTMP::deinitialize() {
-    if (yuri_video_frame_) close_stream(&video_st_);
-    if (yuri_audio_frame_) close_stream(&audio_st_);
     av_initialized_ = false;
+    av_write_trailer(fmt_ctx_);
+    close_stream(&video_st_);
+    close_stream(&audio_st_);
+    avio_closep(&fmt_ctx_->pb);
+    avformat_free_context(fmt_ctx_);
 }
 
 bool RTMP::step() {
-	auto yuri_video_frame = std::dynamic_pointer_cast<core::RawVideoFrame>(pop_frame(0));
-	auto yuri_audio_frame = std::dynamic_pointer_cast<core::RawAudioFrame>(pop_frame(1));
+    auto yuri_video_frame = std::dynamic_pointer_cast<core::RawVideoFrame>(pop_frame(0));
+    auto yuri_audio_frame = std::dynamic_pointer_cast<core::RawAudioFrame>(pop_frame(1));
+
+    if (av_initialized_ && yuri_video_frame &&
+        (  last_video_format != yuri_video_frame->get_format()
+        || last_video_width  != yuri_video_frame->get_width()
+        || last_video_height != yuri_video_frame->get_height())) {
+        // Different frame arrived, new initialization
+        log[log::warning] << "Different frame arrived, we have to repeat the initialization.";
+        yuri_video_frame_ = nullptr;
+        yuri_audio_frame_ = nullptr;
+        deinitialize();
+    }
 
     yuri_video_frame ? yuri_video_frame_ = yuri_video_frame : yuri_video_frame = yuri_video_frame_;
     yuri_audio_frame ? yuri_audio_frame_ = yuri_audio_frame : yuri_audio_frame = yuri_audio_frame_;
@@ -395,6 +411,9 @@ bool RTMP::step() {
         try {
             if (!write_video_frame(fmt_ctx_, &video_st_))
                 log[log::warning] << "Temporary error in sending video frame.";
+            last_video_format = yuri_video_frame_->get_format();
+            last_video_width  = yuri_video_frame_->get_width();
+            last_video_height = yuri_video_frame_->get_height();
             yuri_video_frame_ = nullptr;
         } catch(const std::exception& e) {
             log[log::error] << "Not able to send video frame: " << e.what();

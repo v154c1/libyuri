@@ -30,6 +30,7 @@ struct StreamDescription {
     AVCodecContext *enc;
     AVFrame        *frame;
     AVFrame        *tmp_frame;
+    AVPacket       *tmp_pkt;
     int64_t        next_pts;
     struct SwsContext *sws_ctx;
     struct SwrContext *swr_ctx;
@@ -73,6 +74,10 @@ private:
 
     std::shared_ptr<yuri::core::RawAudioFrame>  yuri_audio_frame_;
     std::shared_ptr<yuri::core::RawVideoFrame>  yuri_video_frame_;
+
+    size_t   last_video_width;
+    size_t   last_video_height;
+    format_t last_video_format;
 };
 
 } /* namespace rtmp */
