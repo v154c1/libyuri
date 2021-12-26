@@ -47,6 +47,9 @@ void add_stream(StreamDescription *output_stream, AVFormatContext *fmt_ctx, AVCo
     #endif
     if (!(*codec))
         throw(std::runtime_error("Could not find encoder for codec."));
+    output_stream->tmp_pkt = av_packet_alloc();
+    if (!output_stream->tmp_pkt)
+        throw(std::runtime_error("Could not allocate AVPacket."));
     output_stream->stream = avformat_new_stream(fmt_ctx, nullptr);
     if (!output_stream->stream)
         throw(std::runtime_error("Could not allocate stream."));
@@ -140,7 +143,6 @@ bool write_frame(AVFormatContext *fmt_ctx, AVCodecContext *codec_ctx, AVStream *
     auto ret = avcodec_send_frame(codec_ctx, frame);
     if (ret < 0)
         throw(std::runtime_error("Error sending a frame to the encoder."));
- 
     while (ret >= 0) {
         ret = avcodec_receive_packet(codec_ctx, pkt);
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
@@ -161,8 +163,6 @@ bool write_frame(AVFormatContext *fmt_ctx, AVCodecContext *codec_ctx, AVStream *
 
 bool write_video_frame(AVFormatContext *fmt_ctx, StreamDescription *output_stream) {
     AVCodecContext *codec_ctx = output_stream->enc;
-    AVPacket pkt = {};
-    av_init_packet(&pkt);
 
     if (!output_stream->sws_ctx) {
         output_stream->sws_ctx = sws_getContext(output_stream->enc->width, output_stream->enc->height,
@@ -178,14 +178,12 @@ bool write_video_frame(AVFormatContext *fmt_ctx, StreamDescription *output_strea
     sws_scale(output_stream->sws_ctx, output_stream->tmp_frame->data, output_stream->tmp_frame->linesize, 0, output_stream->tmp_frame->height, output_stream->frame->data, output_stream->frame->linesize);
 
     output_stream->frame->pts = output_stream->next_pts++; 
-    return write_frame(fmt_ctx, codec_ctx, output_stream->stream, output_stream->frame, &pkt);
+    return write_frame(fmt_ctx, codec_ctx, output_stream->stream, output_stream->frame, output_stream->tmp_pkt);
 }
 
 bool write_audio_frame(AVFormatContext *fmt_ctx, StreamDescription *output_stream) {
     AVCodecContext *codec_ctx;
-    AVPacket pkt = {};
     int dst_nb_samples;
-    av_init_packet(&pkt);
     codec_ctx = output_stream->enc;
     if (output_stream->tmp_frame) {
         dst_nb_samples = av_rescale_rnd(swr_get_delay(output_stream->swr_ctx, codec_ctx->sample_rate)
@@ -203,7 +201,7 @@ bool write_audio_frame(AVFormatContext *fmt_ctx, StreamDescription *output_strea
         output_stream->tmp_frame->pts = av_rescale_q(output_stream->next_pts, av_make_q(1, codec_ctx->sample_rate), codec_ctx->time_base);
         output_stream->next_pts += dst_nb_samples;
     }
-    return write_frame(fmt_ctx, codec_ctx, output_stream->stream, output_stream->tmp_frame, &pkt);
+    return write_frame(fmt_ctx, codec_ctx, output_stream->stream, output_stream->tmp_frame, output_stream->tmp_pkt);
 }
 
 void open_video(AVCodec *codec, StreamDescription *output_stream, AVDictionary *opt_arg) {
@@ -283,6 +281,7 @@ void start_stream(AVFormatContext *fmt_ctx, AVDictionary *opt_arg, std::string a
 static void close_stream(StreamDescription *output_stream) {
     if (output_stream->enc)       avcodec_free_context(&output_stream->enc);
     if (output_stream->frame)     av_frame_free(&output_stream->frame);
+    if (output_stream->tmp_pkt)   av_packet_free(&output_stream->tmp_pkt);
     if (output_stream->tmp_frame) av_frame_free(&output_stream->tmp_frame);
     if (output_stream->sws_ctx)   sws_freeContext(output_stream->sws_ctx);
     if (output_stream->swr_ctx)   swr_free(&output_stream->swr_ctx);
