@@ -1,9 +1,9 @@
 # Set name of the module
-SET (MODULE rtmp)
+SET (MODULE avoutput)
 
 # Set all source files module uses
-SET (SRC RTMP.cpp
-		 RTMP.h
+SET (SRC AVOutput.cpp
+		 AVOutput.h
 		 register.cpp )
 
 

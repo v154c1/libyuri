@@ -23,7 +23,7 @@ extern "C" {
 }
 
 namespace yuri {
-namespace rtmp {
+namespace avoutput {
 
 struct StreamDescription {
     AVStream       *stream;
@@ -45,14 +45,14 @@ struct StreamDescription {
     AVSampleFormat audio_format;   // Audio only
 };
 
-class RTMP: public yuri::core::IOThread {
+class AVOutput: public yuri::core::IOThread {
     using base_type = yuri::core::IOThread;
 
 public:
     IOTHREAD_GENERATOR_DECLARATION
     static core::Parameters configure();
-    RTMP(const log::Log& _log, core::pwThreadBase parent, const core::Parameters& parameters);
-    virtual ~RTMP() noexcept;
+    AVOutput(const log::Log& _log, core::pwThreadBase parent, const core::Parameters& parameters);
+    virtual ~AVOutput() noexcept;
     virtual bool set_param(const core::Parameter& param) override;
 
 private:
@@ -62,7 +62,7 @@ private:
 
     bool                av_initialized_;
 
-	std::string         address_;
+	std::string         url_;
 	double              fps_;
 	int                 audio_bitrate_;
     int                 video_bitrate_;

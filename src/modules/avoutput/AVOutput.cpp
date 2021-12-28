@@ -5,7 +5,7 @@
  * @date		13.12.2021
  */
 
-#include "RTMP.h"
+#include "AVOutput.h"
 #include "yuri/core/Module.h"
 #include "yuri/libav/libav.h"
 #include "yuri/core/frame/RawVideoFrame.h"
@@ -16,16 +16,18 @@
 #include <cassert>
 
 namespace yuri {
-namespace rtmp {
+namespace avoutput {
 
-IOTHREAD_GENERATOR(RTMP)
+IOTHREAD_GENERATOR(AVOutput)
 
-core::Parameters RTMP::configure() {
+core::Parameters AVOutput::configure() {
 	core::Parameters p = IOThread::configure();
-	p["address"]["RTMP address"]   = std::string("rtmp://a.rtmp.youtube.com/live2/key");
+	p["url"]["URL address, can be RTMP or path to file."] = std::string("");
 	p["fps"]["Specify framerate."] = 30;
 	p["audio_bitrate"]["Specify audio bitrate."] = 128000;
     p["video_bitrate"]["Specify video bitrate."] = 3584000;
+    p["video_codec"]["Specify codec for video output."] = std::string("");
+    p["audio_codec"]["Specify codec for audio output."] = std::string("");
 	p["audio"]["Allow audio in stream."] = true;
 	return p;
 }
@@ -291,10 +293,10 @@ static void close_stream(StreamDescription *output_stream) {
 
 }
 
-RTMP::RTMP(const log::Log& _log, core::pwThreadBase parent, const core::Parameters& parameters)
-    : base_type(_log, parent, 1, 1, "rtmp_output"),
+AVOutput::AVOutput(const log::Log& _log, core::pwThreadBase parent, const core::Parameters& parameters)
+    : base_type(_log, parent, 1, 1, "av_output"),
 	av_initialized_(false),
-	address_("rtmp://a.rtmp.youtube.com/live2/key"),
+	url_(""),
 	fps_(30),
     audio_bitrate_(128000),
 	video_bitrate_(3584000),
@@ -306,11 +308,11 @@ RTMP::RTMP(const log::Log& _log, core::pwThreadBase parent, const core::Paramete
     set_latency(10_us);
 }
 
-RTMP::~RTMP() noexcept {
+AVOutput::~AVOutput() noexcept {
     deinitialize();
 }
 
-void RTMP::initialize() {
+void AVOutput::initialize() {
 	video_st_ = {};
 	audio_st_ = {};
     AVCodec *audio_codec, *video_codec;
@@ -345,12 +347,12 @@ void RTMP::initialize() {
 	if (yuri_video_frame_) open_video(video_codec, &video_st_, opt);
 	if (yuri_audio_frame_) open_audio(audio_codec, &audio_st_, opt);
 
-    start_stream(fmt_ctx_, opt, address_);
+    start_stream(fmt_ctx_, opt, url_);
 
     av_initialized_ = true;
 }
 
-void RTMP::deinitialize() {
+void AVOutput::deinitialize() {
     av_initialized_ = false;
     av_write_trailer(fmt_ctx_);
     close_stream(&video_st_);
@@ -359,7 +361,7 @@ void RTMP::deinitialize() {
     avformat_free_context(fmt_ctx_);
 }
 
-bool RTMP::step() {
+bool AVOutput::step() {
     auto yuri_video_frame = std::dynamic_pointer_cast<core::RawVideoFrame>(pop_frame(0));
     auto yuri_audio_frame = std::dynamic_pointer_cast<core::RawAudioFrame>(pop_frame(1));
 
@@ -442,9 +444,9 @@ bool RTMP::step() {
     return true;
 }
 
-bool RTMP::set_param(const core::Parameter &parameter) {
+bool AVOutput::set_param(const core::Parameter &parameter) {
     if (assign_parameters(parameter)
-    	(address_,       "address")
+    	(url_,           "url")
 		(fps_,           "fps")
 		(audio_bitrate_, "audio_bitrate")
         (video_bitrate_, "video_bitrate")
