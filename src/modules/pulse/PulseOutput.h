@@ -18,6 +18,8 @@
 namespace yuri {
 namespace pulse {
 
+const size_t pulse_max_output_channels = 6;
+
 class PulseOutput: public core::SpecializedIOFilter<core::RawAudioFrame>
 {
 public:

@@ -148,6 +148,10 @@ bool PulseOutput::set_format(const core::pRawAudioFrame& frame) {
 
 	format_ = frame->get_format();
 	channels_ = forced_channels_ ? forced_channels_ : frame->get_channel_count();
+	if (channels_ > pulse_max_output_channels) {
+		forced_channels_ = pulse_max_output_channels;
+		channels_ = forced_channels_;
+	}
 	sample_rate_ = frame->get_sampling_frequency();
 
     pa_sample_spec ss = {
