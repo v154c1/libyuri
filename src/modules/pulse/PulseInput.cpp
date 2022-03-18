@@ -59,7 +59,7 @@ unsigned int get_yuri_format_bytes(format_t fmt) {
 
 PulseInput::PulseInput(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters):
 core::IOThread(log_,parent,0,1,std::string("pulse_input")),
-device_name_(""),format_(signed_16bit),channels_(2),frames_(1024),latency_(128) {
+device_name_(""),format_(signed_16bit),channels_(2),frames_(1024),latency_(128),pa_s_(nullptr) {
 	IOTHREAD_INIT(parameters)
 }
 
