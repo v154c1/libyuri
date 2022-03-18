@@ -35,7 +35,7 @@ core::Parameters AVOutput::configure() {
 namespace {
 
 void add_stream(StreamDescription *output_stream, AVFormatContext *fmt_ctx, AVCodec **codec, enum AVCodecID codec_id) {
-    #ifdef __arm__
+    #if defined(__arm__) || defined(__aarch64__)
     // Should be Raspberry specific, not all arm, uses HW encoders for video
     if (codec_id == AV_CODEC_ID_H264) {
         *codec = avcodec_find_encoder_by_name("h264_v4l2m2m");
@@ -318,6 +318,7 @@ void AVOutput::initialize() {
     AVCodec *audio_codec, *video_codec;
     AVDictionary *opt = nullptr;
 
+    memset(&fmt_ctx_, 0, sizeof(fmt_ctx_));
 	auto ret = avformat_alloc_output_context2(&fmt_ctx_, nullptr, "flv", nullptr);
 	if (ret < 0)
         throw(std::runtime_error("Could not allocate output format context."));
@@ -336,7 +337,7 @@ void AVOutput::initialize() {
         audio_st_.channels = yuri_audio_frame_->get_channel_count();
         audio_st_.channel_layout = (audio_st_.channels == 1) ? AV_CH_LAYOUT_MONO : AV_CH_LAYOUT_STEREO;
         audio_st_.audio_format = libav::avsampleformat_from_yuri(yuri_audio_frame_->get_format());
-        #ifdef __arm__
+        #if defined(__arm__) || defined(__aarch64__)
         // Should be Raspberry specific, not all arm, AAC codec seems to be broken in current Raspbian
         add_stream(&audio_st_, fmt_ctx_, &audio_codec, AV_CODEC_ID_MP3);
         #else
@@ -353,12 +354,16 @@ void AVOutput::initialize() {
 }
 
 void AVOutput::deinitialize() {
+    if (av_initialized_) {
+        av_write_trailer(fmt_ctx_);
+        close_stream(&video_st_);
+        close_stream(&audio_st_);
+        if (fmt_ctx_->pb)
+            avio_closep(&fmt_ctx_->pb);
+        if (fmt_ctx_)
+            avformat_free_context(fmt_ctx_);
+    }
     av_initialized_ = false;
-    av_write_trailer(fmt_ctx_);
-    close_stream(&video_st_);
-    close_stream(&audio_st_);
-    avio_closep(&fmt_ctx_->pb);
-    avformat_free_context(fmt_ctx_);
 }
 
 bool AVOutput::step() {
