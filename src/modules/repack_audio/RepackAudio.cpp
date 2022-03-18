@@ -56,7 +56,6 @@ size_t RepackAudio::store_samples(const uint8_t* start, size_t count, size_t sam
 	while (count > 0) {
 		const size_t to_copy = std::min(count, samples_missing_);
 		const size_t sample_offset = total_samples_ - samples_missing_;
-//		log[log::info] << "Storing " << to_copy << " samples";
 		std::copy(start,start+sample_size*to_copy*channels_,samples_.begin()+sample_size*sample_offset*channels_);
 		count -= to_copy;
 		stored += to_copy;
@@ -69,7 +68,6 @@ size_t RepackAudio::store_samples(const uint8_t* start, size_t count, size_t sam
 }
 
 void RepackAudio::push_current_frame(size_t sample_size) {
-	samples_.resize(total_samples_*channels_*sample_size,0);
 	auto f = core::RawAudioFrame::create_empty(current_format_, channels_, sampling_frequency_, &samples_[0], total_samples_*sample_size*channels_);
 	push_frame(0,f);
 	samples_missing_ = total_samples_;
@@ -92,6 +90,7 @@ core::pFrame RepackAudio::do_special_single_step(core::pRawAudioFrame frame) {
 	const uint8_t* data = frame->data();
 	size_t available_samples = frame->get_sample_count();
 	size_t sample_size = frame->get_sample_size()/frame->get_channel_count()/8;
+	samples_.resize(total_samples_*channels_*sample_size,0);
 	store_samples(data, available_samples, sample_size);
 	return {};
 }
