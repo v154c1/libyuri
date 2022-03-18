@@ -122,6 +122,10 @@
 
 #if defined (__arm__) || defined(_M_ARM)
 	#define YURI_ARCH_ARM 1
+	#define YURI_ARCH_ARM_32 1
+#elif defined( __aarch64__) || defined(_M_ARM64)
+	#define YURI_ARCH_ARM 1
+	#define YURI_ARCH_ARM_64 1
 #elif defined( __x86_64__) || defined(_M_X64)
 	#define YURI_ARCH_X86 1
 	#define YURI_ARCH_X86_64 1
