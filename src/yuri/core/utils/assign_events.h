@@ -91,7 +91,7 @@ struct assign_events {
 		{
 			const auto& vec = vec_event->get_value();
 			if (vec.size() < sizeof...(args)) return *this;
-			return vector_values_impl(vec.cbegin(), args...);
+			return vector_values_impl(vec.cbegin(), vec.end(), args...);
 		}
 		return *this;
 	}
@@ -115,16 +115,19 @@ struct assign_events {
 		return *this;
 	}
 private:
-	template<class It>
-	assign_events& vector_values_impl(It)
+	template<class It, class It2>
+	assign_events& vector_values_impl(It, It2)
 	{
 		return *this;
 	}
-	template<class It, class First, class... Arg>
-	assign_events& vector_values_impl(It iter, First& first, Arg&... rest)
+	template<class It, class It2, class First, class... Arg>
+	assign_events& vector_values_impl(It iter, It2 last, First& first, Arg&... rest)
 	{
+        if (iter == last) {
+            return *this;
+        }
 		first = event::lex_cast_value<First>(*iter++);
-		return vector_values_impl(iter, rest...);
+		return vector_values_impl(iter, last, rest...);
 	}
 private:
 	const std::string& event_name;
