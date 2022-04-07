@@ -30,14 +30,14 @@ public:
     IOTHREAD_GENERATOR_DECLARATION
     static core::Parameters configure();
     RawAVFile(const log::Log& _log, core::pwThreadBase parent, const core::Parameters& parameters);
-    virtual ~RawAVFile() noexcept;
-    virtual bool set_param(const core::Parameter& param) override;
+    ~RawAVFile() noexcept override;
+    bool set_param(const core::Parameter& param) override;
 
     struct stream_detail_t;
 
 protected:
-    virtual void run() override;
-    virtual bool do_process_event(const std::string& event_name, const event::pBasicEvent& event) override;
+    void run() override;
+    bool do_process_event(const std::string& event_name, const event::pBasicEvent& event) override;
 
     bool open_file(const std::string& filename);
     bool push_ready_frames();
@@ -87,6 +87,8 @@ private:
     int         last_params_emitted_;
     bool        separate_extra_data_;
     bool        paused_;
+    bool        keep_open_;
+    bool        black_on_end_;
     timestamp_t pause_start_;
 };
 
