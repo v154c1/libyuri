@@ -94,6 +94,7 @@ private:
 	timestamp_t				counter_start_;
 	size_t					counter_;
 	Atom					wm_delete_window_;
+    std::array<float,8>     corners_;
 };
 
 } /* namespace glx_window */
