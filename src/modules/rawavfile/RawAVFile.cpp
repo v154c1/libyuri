@@ -12,7 +12,7 @@
 #include "yuri/core/Module.h"
 #include "yuri/core/frame/RawVideoFrame.h"
 #include "yuri/core/frame/RawAudioFrame.h"
-//#include "yuri/core/frame/raw_frame_types.h"
+#include "yuri/core/frame/raw_frame_types.h"
 #include "yuri/core/frame/raw_frame_params.h"
 //#include "yuri/core/frame/raw_audio_frame_types.h"
 #include "yuri/core/frame/raw_audio_frame_params.h"
@@ -380,14 +380,16 @@ bool RawAVFile::process_file_end()
         filename_ = get_next_filename();
         log[log::info] << "Opening: " << filename_;
         return open_file(filename_);
-    } else if (keep_open_) {
+    } else if (black_on_end_) {
         fmtctx_.reset();
         for (auto i: irange(video_streams_.size())) {
             const auto& stream = video_streams_[i];
-            const auto frame = core::RawVideoFrame::create_empty(stream.format_out, stream.resolution);
-            for (auto pi: irange(frame->get_planes_count())) {
-                std::fill(PLANE_RAW_DATA(frame, pi), PLANE_RAW_DATA(frame, pi) + PLANE_SIZE(frame, pi), pi ? 128 : 0);
-            }
+            const auto frame = core::RawVideoFrame::create_empty(core::raw_format::rgb24, stream.resolution);
+                for (auto pi: irange(frame->get_planes_count())) {
+                    std::fill(PLANE_RAW_DATA(frame, pi), PLANE_RAW_DATA(frame, pi) + PLANE_SIZE(frame, pi),
+                              pi ? 128 : 0);
+                }
+
 
             push_frame(i, frame);
 //            stream.
