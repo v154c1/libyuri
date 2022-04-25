@@ -382,6 +382,9 @@ bool RawAVFile::process_file_end()
         return open_file(filename_);
     } else if (black_on_end_) {
         fmtctx_.reset();
+        if (!blank_converter_) {
+            blank_converter_ = make_unique<core::Convert>(log, get_this_ptr(), core::Convert::configure());
+        }
         for (auto i: irange(video_streams_.size())) {
             const auto& stream = video_streams_[i];
             const auto frame = core::RawVideoFrame::create_empty(core::raw_format::rgb24, stream.resolution);
@@ -391,7 +394,7 @@ bool RawAVFile::process_file_end()
                 }
 
 
-            push_frame(i, frame);
+            push_frame(i, blank_converter_->convert_frame(frame, stream.format_out));
 //            stream.
         }
         return true;

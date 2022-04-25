@@ -16,6 +16,7 @@
 #include "yuri/event/BasicEventConsumer.h"
 #include "yuri/event/BasicEventProducer.h"
 #include "yuri/core/utils/managed_resource.h"
+#include "yuri/core/thread/Convert.h"
 extern "C" {
 #include <libavformat/avformat.h>
 }
@@ -90,6 +91,8 @@ private:
     bool        keep_open_;
     bool        black_on_end_;
     timestamp_t pause_start_;
+
+    std::unique_ptr<core::Convert> blank_converter_;
 };
 
 } /* namespace video */
