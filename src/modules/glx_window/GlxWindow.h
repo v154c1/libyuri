@@ -95,6 +95,7 @@ private:
 	size_t					counter_;
 	Atom					wm_delete_window_;
     std::array<float,8>     corners_;
+    bool                    keep_aspect_;
 };
 
 } /* namespace glx_window */
