@@ -97,7 +97,8 @@ read_back_{false},stereo_mode_{stereo_mode_t::none},decorations_{false},
 on_top_{false},fullscreen_{false},use_30bit_{false},keys_autorepeat_{false},swap_eyes_{false},delta_x_{0.0},delta_y_{0.0},needs_move_{false},
 show_cursor_{true},
 counter_(0),
-wm_delete_window_(0)
+wm_delete_window_(0),
+corners_(gl_.corners)
 {
 	set_latency(100_ms);
 	IOTHREAD_INIT(parameters)
@@ -474,9 +475,9 @@ bool GlxWindow::fetch_frames()
 }
 
 namespace {
-void draw_part(gl::GL& gl_, int i, core::pFrame frame, bool fx, bool fy, float x0 = -1.0, float y0 = -1.0, float x1 = 1.0, float y1 = 1.0)
+void draw_part(gl::GL& gl_, int i, core::pFrame frame, bool fx, bool fy, const std::array<float, 8>& corners)
 {
-	gl_.corners = {{x0, y0, x1, y0, x1, y1, x0, y1}};
+	gl_.corners = corners;
 	gl_.generate_texture(i, frame, fx, fy);
 	gl_.draw_texture(i);
 	gl_.finish_frame();
@@ -520,33 +521,54 @@ bool GlxWindow::display_frames_impl(const std::vector<core::pFrame>& frames)
 	gl_.clear();
 	gl_.set_texture_delta(0,  delta_x_,  delta_y_);
 	gl_.set_texture_delta(1, -delta_x_, -delta_y_);
+    const auto avg = [&](size_t a, size_t b){return (corners_[a]+corners_[b])/2.0f;};
 	switch(stereo_mode_) {
 		case stereo_mode_t::none:
-			draw_part(gl_, 0, frames[0], flip_x_, flip_y_);
+			draw_part(gl_, 0, frames[0], flip_x_, flip_y_, corners_);
 			break;
 		case stereo_mode_t::quadbuffer:
 			{
-				draw_part(gl_, 0, frames_[0], flip_x_, flip_y_);
+				draw_part(gl_, 0, frames_[0], flip_x_, flip_y_, corners_);
 				glDrawBuffer(GL_BACK_RIGHT);
 				gl_.clear();
-				draw_part(gl_, 1, frames[1], flip_x_, flip_y_);
+				draw_part(gl_, 1, frames[1], flip_x_, flip_y_, corners_);
 			}; break;
 		case stereo_mode_t::anaglyph:
 				glColorMask(GL_TRUE, GL_FALSE, GL_FALSE, GL_FALSE);
-				draw_part(gl_, 0, frames[0], flip_x_, flip_y_);
+				draw_part(gl_, 0, frames[0], flip_x_, flip_y_, corners_);
 				glColorMask(GL_FALSE, GL_TRUE, GL_TRUE, GL_FALSE);
-				draw_part(gl_, 1, frames[1], flip_x_, flip_y_);
+				draw_part(gl_, 1, frames[1], flip_x_, flip_y_, corners_);
 				break;
 
 		case stereo_mode_t::side_by_side:
 			{
-				draw_part(gl_, 0, frames[0], flip_x_, flip_y_, -1.0, -1.0, 0.0, 1.0);
-				draw_part(gl_, 1, frames[1], flip_x_, flip_y_,  0.0, -1.0, 1.0, 1.0);
+                auto corners1 = corners_;
+                corners1[2] = avg(0, 2);
+                corners1[3] = avg(1, 3);
+                corners1[4] = avg(4, 6);
+                corners1[5] = avg(5, 7);
+				draw_part(gl_, 0, frames[0], flip_x_, flip_y_, corners1);
+                auto corners2 = corners_;
+                corners2[0] = avg(0, 2);
+                corners2[1] = avg(1, 3);
+                corners2[6] = avg(4, 6);
+                corners2[7] = avg(5, 7);
+				draw_part(gl_, 1, frames[1], flip_x_, flip_y_,  corners2);
 			}; break;
 		case stereo_mode_t::top_bottom:
 			{
-				draw_part(gl_, 0, frames[0], flip_x_, flip_y_, -1.0, -1.0, 1.0, 0.0);
-				draw_part(gl_, 1, frames[1], flip_x_, flip_y_,  -1.0, 0.0, 1.0, 1.0);
+                auto corners1 = corners_;
+                corners1[4] = avg(2, 4);
+                corners1[5] = avg(3, 5);
+                corners1[6] = avg(0, 6);
+                corners1[7] = avg(1, 7);
+				draw_part(gl_, 0, frames[0], flip_x_, flip_y_, corners1);
+                auto corners2 = corners_;
+                corners2[2] = avg(2, 4);
+                corners2[3] = avg(3, 5);
+                corners2[0] = avg(0, 6);
+                corners2[1] = avg(1, 7);
+				draw_part(gl_, 1, frames[1], flip_x_, flip_y_,  corners2);
 			}; break;
 		default:break;
 	}
@@ -589,7 +611,20 @@ bool GlxWindow::do_process_event(const std::string& event_name, const event::pBa
 {
 	if (assign_events(event_name, event)
 			(delta_x_, "dx", "delta_x")
-			(delta_y_, "dy", "delta_y"))
+			(delta_y_, "dy", "delta_y")
+            .vector_values("corners", corners_[0], corners_[1], corners_[2], corners_[3], corners_[4], corners_[5], corners_[6], corners_[7])
+            .vector_values("corner0", corners_[0], corners_[1])
+            .vector_values("corner1", corners_[2], corners_[3])
+            .vector_values("corner2", corners_[4], corners_[5])
+            .vector_values("corner3", corners_[6], corners_[7])
+                    (corners_[0], "x0")
+                    (corners_[1], "y0")
+                    (corners_[2], "x1")
+                    (corners_[3], "y1")
+                    (corners_[4], "x2")
+                    (corners_[5], "y2")
+                    (corners_[6], "x3")
+                    (corners_[7], "y3"))
 		return true;
 
 	if (assign_events(event_name, event)

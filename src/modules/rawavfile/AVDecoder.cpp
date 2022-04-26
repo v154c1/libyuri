@@ -44,7 +44,7 @@ AVDecoder::AVDecoder(const log::Log& _log, core::pwThreadBase parent, const core
 
 AVDecoder::~AVDecoder() noexcept
 {
-    av_free_packet(&avpkt_);
+    av_packet_unref(&avpkt_);
     av_frame_free(&avframe);
 }
 

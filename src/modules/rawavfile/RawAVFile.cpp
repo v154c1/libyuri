@@ -12,17 +12,17 @@
 #include "yuri/core/Module.h"
 #include "yuri/core/frame/RawVideoFrame.h"
 #include "yuri/core/frame/RawAudioFrame.h"
-#include "yuri/core/frame/raw_frame_types.h"
+//#include "yuri/core/frame/raw_frame_types.h"
 #include "yuri/core/frame/raw_frame_params.h"
-#include "yuri/core/frame/raw_audio_frame_types.h"
+//#include "yuri/core/frame/raw_audio_frame_types.h"
 #include "yuri/core/frame/raw_audio_frame_params.h"
 #include "yuri/core/frame/CompressedVideoFrame.h"
 #include "yuri/core/frame/compressed_frame_types.h"
 #include "yuri/core/frame/compressed_frame_params.h"
 #include "yuri/core/utils/irange.h"
 #include "yuri/core/utils/assign_events.h"
-#include <cassert>
-#include "libavcodec/version.h"
+//#include <cassert>
+//#include "libavcodec/version.h"
 #include "yuri/event/EventHelpers.h"
 #include "h264_helper.h"
 extern "C" {
@@ -55,8 +55,20 @@ const std::string& get_format_name_no_throw(format_t fmt)
 }
 
 struct RawAVFile::stream_detail_t {
+    struct AVCodecContextDeleter {
+        void operator()(AVCodecContext* c) {
+            avcodec_free_context(&c);
+        }
+    };
+    struct SwrContextDeleter {
+        void operator()(SwrContext* c) {
+            swr_close(c);
+            swr_free(&c);
+        }
+    };
+    stream_detail_t() = delete;
     explicit stream_detail_t(AVStream* stream = nullptr, format_t fmt_out = 0)
-        : stream(stream), ctx(nullptr), codec(nullptr), swr_ctx(nullptr), format(0), format_out(fmt_out), sample_rate(0)
+        : stream(stream), codec(nullptr), format(0), format_out(fmt_out), sample_rate(0)
     {
         if (stream && stream->codecpar) {
             const auto& par = *(stream->codecpar);
@@ -64,50 +76,35 @@ struct RawAVFile::stream_detail_t {
             if (codec == nullptr) {
                 throw std::runtime_error("Failed to find decoder");
             }
-            ctx = avcodec_alloc_context3(codec);
+            ctx.reset(avcodec_alloc_context3(codec));
             if (ctx == nullptr) {
                 throw std::runtime_error("Failed to allocate decoder context");
             }
-            if (avcodec_parameters_to_context(ctx, &par) < 0) {
+            if (avcodec_parameters_to_context(ctx.get(), &par) < 0) {
                 throw std::runtime_error("Failed to setup decoder context");
             }
         }
     }
-    stream_detail_t(const stream_detail_t&) = delete;
-    stream_detail_t& operator=(const stream_detail_t&) = delete;
-    stream_detail_t(stream_detail_t&& rhs) {
-        *this = std::move(rhs);
-    }
-    stream_detail_t& operator=(stream_detail_t&& rhs) {
-        // FIXME: replacing ctx and swr_ctx with unique_ptr<> should remove the need for copy/move ctors and dtor
-        stream = rhs.stream;
-        ctx = rhs.ctx;
-        codec = rhs.codec;
-        swr_ctx = rhs.swr_ctx;
-        format = rhs.format;
-        format_out = rhs.format_out;
-        resolution = rhs.resolution;
-        delta = rhs.delta;
-        sample_rate = rhs.sample_rate;
-        rhs.stream = nullptr;
-        rhs.ctx = nullptr;
-        return *this;
+    void prepare_swr_ctx(AVSampleFormat audio_fmt_libav) {
+        swr_ctx.reset(swr_alloc());
+        libav::set_opt(swr_ctx.get(), "isf", ctx->sample_fmt, 0);
+        libav::set_opt(swr_ctx.get(), "osf", audio_fmt_libav, 0);
+        libav::set_opt(swr_ctx.get(), "icl", ctx->channel_layout, 0);
+        libav::set_opt(swr_ctx.get(), "ocl", ctx->channel_layout, 0);
+        libav::set_opt(swr_ctx.get(), "isr", ctx->sample_rate, 0);
+        libav::set_opt(swr_ctx.get(), "osr", sample_rate, 0);
+        libav::set_opt(swr_ctx.get(), "ich", ctx->channels, 0);
+        libav::set_opt(swr_ctx.get(), "och", ctx->channels, 0);
+
+        swr_init(swr_ctx.get());
     }
 
-    ~stream_detail_t()
-    {
-        if (swr_ctx) {
-            swr_close(swr_ctx);
-            swr_free(&swr_ctx);
-        }
-        if (ctx) {
-            avcodec_free_context(&ctx);
-        }
-    }
     AVStream*       stream;
-    AVCodecContext* ctx;
+    std::unique_ptr<AVCodecContext, AVCodecContextDeleter>
+                    ctx;
     AVCodec*        codec;
-    SwrContext*     swr_ctx;
+    std::unique_ptr<SwrContext, SwrContextDeleter>
+                    swr_ctx;
     format_t        format;
     format_t        format_out;
     resolution_t    resolution{};
@@ -139,6 +136,8 @@ core::Parameters RawAVFile::configure()
     p["separate_extra_data"]["Send extradata for h264 (SPS, PPS) as separate frames instead of prepending them to IDR frames"] = false;
     p["threads"]["Number of threads. Set to 0 to auto select"]                                     = 0;
     p["thread_type"]["Type of threaded decoding - slice, frame or any"]                            = "any";
+    p["keep_open"]["Keep player running after ending file in no-loop mode, waiting for next filename"] = false;
+    p["black_on_end"]["Send a black frame after finishing playback"] = false;
     return p;
 }
 
@@ -157,6 +156,7 @@ RawAVFile::RawAVFile(const log::Log& _log, core::pwThreadBase parent, const core
       max_audio_streams_(1),
       threads_(0),
       thread_type_(libav::thread_type_t::any),
+      audio_sample_rate_{0},
       loop_(true),
       reset_(false),
       allow_empty_(false),
@@ -164,6 +164,7 @@ RawAVFile::RawAVFile(const log::Log& _log, core::pwThreadBase parent, const core
       ignore_timestamps_(false),
       emit_params_interval_{ 1 },
       last_params_emitted_{ -1 },
+      separate_extra_data_{false},
       paused_(false)
 {
     IOTHREAD_INIT(parameters)
@@ -175,7 +176,7 @@ RawAVFile::RawAVFile(const log::Log& _log, core::pwThreadBase parent, const core
         max_audio_streams_ = 0;
     }
 #endif
-    resize(0, max_video_streams_ + max_audio_streams_);
+    IOThread::resize(0, max_video_streams_ + max_audio_streams_);
     libav::init_libav();
 
     if (filename_.empty()) {
@@ -189,10 +190,6 @@ RawAVFile::RawAVFile(const log::Log& _log, core::pwThreadBase parent, const core
             log[log::warning] << "Failed to open file, but allow_empty was specified, so waiting for new filename";
         }
     }
-}
-
-RawAVFile::~RawAVFile() noexcept
-{
 }
 
 bool RawAVFile::open_file(const std::string& filename)
@@ -278,7 +275,7 @@ bool RawAVFile::open_file(const std::string& filename)
                 video_streams_[i].ctx->thread_count = threads_;
             }
 
-            if (avcodec_open2(video_streams_[i].ctx, video_streams_[i].codec, 0) < 0) {
+            if (avcodec_open2(video_streams_[i].ctx.get(), video_streams_[i].codec, nullptr) < 0) {
                 log[log::error] << "Failed to open codec for video stream " << i;
                 return false;
             }
@@ -292,35 +289,25 @@ bool RawAVFile::open_file(const std::string& filename)
         }
     }
     if (decode_) {
-        for (size_t i = 0; i < audio_streams_.size(); ++i) {
-            audio_streams_[i].codec = avcodec_find_decoder(audio_streams_[i].ctx->codec_id);
-            if (!audio_streams_[i].codec) {
+        for (auto& stream: audio_streams_) {
+            stream.codec = avcodec_find_decoder(stream.ctx->codec_id);
+            if (!stream.codec) {
                 throw exception::InitializationFailed("Failed to find decoder");
             }
-            if (avcodec_open2(audio_streams_[i].ctx, audio_streams_[i].codec, 0) < 0) {
+            if (avcodec_open2(stream.ctx.get(), stream.codec, nullptr) < 0) {
                 throw exception::InitializationFailed("Failed to open codec!");
             }
-            audio_streams_[i].format      = libav::yuri_format_from_avcodec(audio_streams_[i].ctx->codec_id);
-            auto fmt_out                  = libav::yuri_audio_from_av(audio_streams_[i].ctx->sample_fmt);
-            audio_streams_[i].sample_rate = audio_sample_rate_ > 0 ? audio_sample_rate_ : audio_streams_[i].ctx->sample_rate;
-            if (fmt_out != audio_format_out_ || audio_streams_[i].sample_rate != audio_streams_[i].ctx->sample_rate) {
+            stream.format      = libav::yuri_format_from_avcodec(stream.ctx->codec_id);
+            auto fmt_out                  = libav::yuri_audio_from_av(stream.ctx->sample_fmt);
+            stream.sample_rate = audio_sample_rate_ > 0 ? audio_sample_rate_ : stream.ctx->sample_rate;
+            if (fmt_out != audio_format_out_ || stream.sample_rate != stream.ctx->sample_rate) {
                 auto audio_fmt_libav      = libav::avsampleformat_from_yuri(audio_format_out_);
-                audio_streams_[i].swr_ctx = swr_alloc();
-                libav::set_opt(audio_streams_[i].swr_ctx, "isf", audio_streams_[i].ctx->sample_fmt, 0);
-                libav::set_opt(audio_streams_[i].swr_ctx, "osf", audio_fmt_libav, 0);
-                libav::set_opt(audio_streams_[i].swr_ctx, "icl", audio_streams_[i].ctx->channel_layout, 0);
-                libav::set_opt(audio_streams_[i].swr_ctx, "ocl", audio_streams_[i].ctx->channel_layout, 0);
-                libav::set_opt(audio_streams_[i].swr_ctx, "isr", audio_streams_[i].ctx->sample_rate, 0);
-                libav::set_opt(audio_streams_[i].swr_ctx, "osr", audio_streams_[i].sample_rate, 0);
-                libav::set_opt(audio_streams_[i].swr_ctx, "ich", audio_streams_[i].ctx->channels, 0);
-                libav::set_opt(audio_streams_[i].swr_ctx, "och", audio_streams_[i].ctx->channels, 0);
-
-                swr_init(audio_streams_[i].swr_ctx);
+                stream.prepare_swr_ctx(audio_fmt_libav);
             }
-            audio_streams_[i].format_out = audio_format_out_;
-            log[log::info] << "Found audio stream, format:" << get_format_name_no_throw(audio_streams_[i].format) << ", decoding to "
-                           << get_format_name_no_throw(audio_streams_[i].format_out);
-            log[log::debug] << "Orig fmt: " << audio_streams_[i].ctx->sample_fmt;
+            stream.format_out = audio_format_out_;
+            log[log::info] << "Found audio stream, format:" << get_format_name_no_throw(stream.format) << ", decoding to "
+                           << get_format_name_no_throw(stream.format_out);
+            log[log::debug] << "Orig fmt: " << stream.ctx->sample_fmt;
         }
     }
 
@@ -377,25 +364,38 @@ bool RawAVFile::push_ready_frames()
 bool RawAVFile::process_file_end()
 {
     emit_event("end", true);
-    if (loop_) {
-        if (!has_next_filename() && fmtctx_) {
-            log[log::debug] << "Seeking to the beginning";
-            av_seek_frame(fmtctx_, 0, 0, AVSEEK_FLAG_BACKWARD);
-            if (decode_) {
-                for (auto& s : video_streams_) {
-                    avcodec_flush_buffers(s.ctx);
-                }
-                for (auto& s : audio_streams_) {
-                    avcodec_flush_buffers(s.ctx);
-                }
+
+    if (loop_ && !has_next_filename() && fmtctx_) {
+        log[log::debug] << "Seeking to the beginning";
+        av_seek_frame(fmtctx_, 0, 0, AVSEEK_FLAG_BACKWARD);
+        if (decode_) {
+            for (auto& s : video_streams_) {
+                avcodec_flush_buffers(s.ctx.get());
             }
-        } else {
-            filename_ = get_next_filename();
-            log[log::info] << "Opening: " << filename_;
-            return open_file(filename_);
+            for (auto& s : audio_streams_) {
+                avcodec_flush_buffers(s.ctx.get());
+            }
+        }
+    } else if (has_next_filename() && (loop_ || keep_open_)){
+        filename_ = get_next_filename();
+        log[log::info] << "Opening: " << filename_;
+        return open_file(filename_);
+    } else if (keep_open_) {
+        fmtctx_.reset();
+        for (auto i: irange(video_streams_.size())) {
+            const auto& stream = video_streams_[i];
+            const auto frame = core::RawVideoFrame::create_empty(stream.format_out, stream.resolution);
+            for (auto pi: irange(frame->get_planes_count())) {
+                std::fill(PLANE_RAW_DATA(frame, pi), PLANE_RAW_DATA(frame, pi) + PLANE_SIZE(frame, pi), pi ? 128 : 0);
+            }
+
+            push_frame(i, frame);
+//            stream.
         }
         return true;
     }
+
+
     log[log::error] << "Failed to read next packet";
     request_end(core::yuri_exit_finished);
     return false;
@@ -490,11 +490,11 @@ bool RawAVFile::decode_video_frame(index_t idx, AVPacket& packet, AVFrame* av_fr
 {
     keep_packet      = false;
 
-    if (avcodec_send_packet(video_streams_[idx].ctx, &packet) < 0) {
+    if (avcodec_send_packet(video_streams_[idx].ctx.get(), &packet) < 0) {
         log[log::warning] << "Failed to send packet to video decoder";
     }
 
-    auto ret = avcodec_receive_frame(video_streams_[idx].ctx, av_frame);
+    auto ret = avcodec_receive_frame(video_streams_[idx].ctx.get(), av_frame);
 
     if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
         log[log::warning] << "Failed to receive frame from video decoder";
@@ -532,11 +532,11 @@ bool RawAVFile::decode_audio_frame(index_t idx, const AVPacket& packet, AVFrame*
 #else
     keep_packet     = false;
 
-    if (avcodec_send_packet(audio_streams_[idx].ctx, &packet) < 0) {
+    if (avcodec_send_packet(audio_streams_[idx].ctx.get(), &packet) < 0) {
         log[log::warning] << "Failed to send packet to video decoder";
     }
 
-    auto ret = avcodec_receive_frame(audio_streams_[idx].ctx, av_frame);
+    auto ret = avcodec_receive_frame(audio_streams_[idx].ctx.get(), av_frame);
 
     if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
         log[log::warning] << "Failed to receive frame from video decoder";
@@ -571,10 +571,10 @@ bool RawAVFile::decode_audio_frame(index_t idx, const AVPacket& packet, AVFrame*
                                                    output_sample_count);
         auto            out_buffer = f->data();
         const auto** in_buffer  = const_cast<const uint8_t**>(av_frame->data);
-        auto            ret        = swr_convert(audio_streams_[idx].swr_ctx, &out_buffer, av_frame->nb_samples, in_buffer, av_frame->nb_samples);
+        auto            ret2        = swr_convert(audio_streams_[idx].swr_ctx.get(), &out_buffer, av_frame->nb_samples, in_buffer, av_frame->nb_samples);
         auto            real_buffer_size
-            = av_samples_get_buffer_size(nullptr, av_frame->channels, ret, libav::avsampleformat_from_yuri(audio_streams_[idx].format_out), 1);
-        log[log::verbose_debug] << "Received " << av_frame->nb_samples << " samples, expected to convert to " << output_sample_count << ", actually got " << ret
+            = av_samples_get_buffer_size(nullptr, av_frame->channels, ret2, libav::avsampleformat_from_yuri(audio_streams_[idx].format_out), 1);
+        log[log::verbose_debug] << "Received " << av_frame->nb_samples << " samples, expected to convert to " << output_sample_count << ", actually got " << ret2
                                 << " stored in " << f->size() << " bytes, real size: " << real_buffer_size;
         f->resize(real_buffer_size);
         push_frame(idx + max_video_streams_, std::move(f));
@@ -620,8 +620,10 @@ void RawAVFile::run()
         if (reset_ || !fmtctx_) {
             log[log::info] << "RESET";
             if (!process_file_end()) {
-                if (!loop_)
+                if (!loop_ && !keep_open_) {
+                    log[log::info] << "loop disabled, ending";
                     break;
+                }
             }
             reset_ = false;
             if (!fmtctx_) {
@@ -708,6 +710,8 @@ bool RawAVFile::set_param(const core::Parameter& parameter)
         (emit_params_interval_, "emit_params_interval")                           //
         (separate_extra_data_, "separate_extra_data")                             //
         (threads_, "threads")                                                     //
+        (keep_open_, "keep_open")                                                 //
+        (black_on_end_, "black_on_end")                                           //
         .parsed<std::string>(thread_type_, "thread_type", libav::parse_thread_type)//
         )
         return true;
@@ -769,6 +773,8 @@ std::string RawAVFile::get_next_filename() {
     std::swap (next_filename_, n);
     return n;
 }
+
+RawAVFile::~RawAVFile() noexcept = default;
 
 } /* namespace video */
 } /* namespace yuri */

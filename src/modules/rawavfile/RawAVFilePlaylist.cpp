@@ -79,7 +79,7 @@ namespace yuri {
             if (playlist_index_ >= static_cast<int>(playlist_.size())) {
                 playlist_index_ %= playlist_.size();
             }
-            log[log::debug] << "Returning " << playlist_[playlist_index_];
+            log[log::debug] << "Retufirning " << playlist_[playlist_index_];
             emit_event("playlist_position", playlist_index_);
             return playlist_[playlist_index_++];
         }
