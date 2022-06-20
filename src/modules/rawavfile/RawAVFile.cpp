@@ -376,26 +376,29 @@ bool RawAVFile::process_file_end()
                 avcodec_flush_buffers(s.ctx.get());
             }
         }
+        return true;
     } else if (has_next_filename() && (loop_ || keep_open_)){
         filename_ = get_next_filename();
         log[log::info] << "Opening: " << filename_;
         return open_file(filename_);
-    } else if (black_on_end_) {
+    } else if (black_on_end_ || keep_open_) {
         fmtctx_.reset();
-        if (!blank_converter_) {
-            blank_converter_ = make_unique<core::Convert>(log, get_this_ptr(), core::Convert::configure());
-        }
-        for (auto i: irange(video_streams_.size())) {
-            const auto& stream = video_streams_[i];
-            const auto frame = core::RawVideoFrame::create_empty(core::raw_format::rgb24, stream.resolution);
+        if (black_on_end_) {
+            if (!blank_converter_) {
+                blank_converter_ = make_unique<core::Convert>(log, get_this_ptr(), core::Convert::configure());
+            }
+            for (auto i: irange(video_streams_.size())) {
+                const auto &stream = video_streams_[i];
+                const auto frame = core::RawVideoFrame::create_empty(core::raw_format::rgb24, stream.resolution);
                 for (auto pi: irange(frame->get_planes_count())) {
                     std::fill(PLANE_RAW_DATA(frame, pi), PLANE_RAW_DATA(frame, pi) + PLANE_SIZE(frame, pi),
                               pi ? 128 : 0);
                 }
 
 
-            push_frame(i, blank_converter_->convert_frame(frame, stream.format_out));
+                push_frame(i, blank_converter_->convert_frame(frame, stream.format_out));
 //            stream.
+            }
         }
         return true;
     }
