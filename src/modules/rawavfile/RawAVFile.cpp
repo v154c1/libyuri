@@ -400,6 +400,7 @@ bool RawAVFile::process_file_end()
 //            stream.
             }
         }
+        emit_event("video_finished", true);
         return true;
     }
 
@@ -737,6 +738,7 @@ bool RawAVFile::do_process_event(const std::string& event_name, const event::pBa
     if (assign_events(event_name, event) //
         (next_filename_, "filename")     //
         (reset_, "reset")                //
+        (loop_, "loop")                  //
         (ignore_timestamps_, "ignore_timestamps"))
         return true;
     if (event_name == "pause" || event_name == "pause_toggle") {
