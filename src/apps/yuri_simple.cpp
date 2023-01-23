@@ -51,11 +51,11 @@ int main(int argc, char** argv)
 	memset (&act, '\0', sizeof(act));
 	act.sa_sigaction = &sigHandler;
 	act.sa_flags = SA_SIGINFO;
-	sigaction(SIGINT,&act,0);
-    sigaction(SIGTERM,&act,0);
-	sigaction(SIGPIPE,&act,0);
+    sigaction(SIGINT,&act,nullptr);
+    sigaction(SIGTERM,&act,nullptr);
+    sigaction(SIGPIPE,&act,nullptr);
 #if !defined YURI_APPLE && !defined YURI_BSD
-	sigaction(SIGRTMIN,&act,0);
+    sigaction(SIGRTMIN,&act,nullptr);
 #endif
 #endif
 
