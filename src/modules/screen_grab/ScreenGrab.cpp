@@ -135,9 +135,12 @@ ScreenGrab::~ScreenGrab() noexcept
 
 
 namespace {
-int error_handler(Display *, XErrorEvent *)
+int error_handler(Display *display, XErrorEvent *event)
 {
-	throw std::runtime_error("Gwahahaha");
+    char arr[65];
+    arr[64] = 0;
+    XGetErrorText(display, event->error_code, arr, 64);
+	throw std::runtime_error(std::string{"Xlib error: "} + arr);
 }
 }
 void ScreenGrab::run()
