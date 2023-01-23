@@ -56,6 +56,7 @@ private:
 	bool display_frames();
 	bool display_frames_impl(const std::vector<core::pFrame>& frames);
 	bool redraw_display();
+    bool set_title(const std::string& name);
 private:
 	gl::GL					gl_;
 	using display_deleter = std::function<void(Display*)>;
@@ -96,6 +97,7 @@ private:
 	Atom					wm_delete_window_;
     std::array<float,8>     corners_;
     bool                    keep_aspect_;
+    std::string             title_;
 };
 
 } /* namespace glx_window */

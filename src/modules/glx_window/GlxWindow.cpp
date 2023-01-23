@@ -44,6 +44,7 @@ core::Parameters GlxWindow::configure()
 	p["use_30bit"]["Use 30 bit colors"]=false;
     p["fullscreen"]["Fullscreen window"]=false;
     p["keep_aspect"]["Keep aspcet ratio"]=false;
+    p["title"]["Window title"]=false;
 	return p;
 }
 
@@ -138,6 +139,9 @@ void GlxWindow::run()
 		move_window({geometry_.x, geometry_.y});
 		set_on_top(on_top_);
         set_fullscreen(fullscreen_);
+        if (!title_.empty()) {
+            set_title(title_);
+        }
 		// Let's keep local converter until MultiIOThread supports this behaviour.
 		converter_.reset(new core::Convert(log, get_this_ptr(), core::Convert::configure()));
 		add_child(converter_);
@@ -631,6 +635,7 @@ bool GlxWindow::set_param(const core::Parameter& param)
             (use_30bit_, "use_30bit")
             (fullscreen_, "fullscreen")
             (keep_aspect_, "keep_aspect")
+            (title_, "title")
 			(stereo_mode_, "stereo", [](const core::Parameter& p){return get_mode(p.get<std::string>());}))
 		return true;
 
@@ -675,6 +680,10 @@ bool GlxWindow::do_process_event(const std::string& event_name, const event::pBa
 	}
 
 	return false;
+}
+    bool GlxWindow::set_title(const std::string& name) {
+        XStoreName(display_.get(), win_, name.c_str());
+        return true;
 }
 } /* namespace glx_window */
 } /* namespace yuri */
