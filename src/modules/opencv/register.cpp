@@ -20,7 +20,12 @@ namespace opencv {
 MODULE_REGISTRATION_BEGIN("opencv")
 		REGISTER_IOTHREAD("opencv_convert",OpenCVConvert)
 		for (auto x: convert_format_map) {
-			REGISTER_CONVERTER(x.first.first, x.first.second, "opencv_convert", 8);
+            if (x.first.second != yuri::core::raw_format::y8 && x.first.second != yuri::core::raw_format::y16) {
+                REGISTER_CONVERTER(x.first.first, x.first.second, "opencv_convert", 8);
+            } else {
+                // make conversions to y8 and y16 expensive
+                REGISTER_CONVERTER(x.first.first, x.first.second, "opencv_convert", 48);
+            }
 		}
 
 		REGISTER_IOTHREAD("opencv_face_detection",OpenCVFaceDetect)
