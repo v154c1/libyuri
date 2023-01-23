@@ -20,8 +20,10 @@ namespace exception {
 class OutOfRange: public yuri::exception::Exception {
 public:
 	EXPORT OutOfRange():Exception(std::string("index of of range")) {}
-	EXPORT OutOfRange(std::string msg):Exception(msg) {}
-	EXPORT virtual ~OutOfRange() throw();
+	EXPORT explicit OutOfRange(const std::string& msg) noexcept :Exception(msg) {}
+	EXPORT ~OutOfRange() noexcept override = default;
+	EXPORT OutOfRange(const OutOfRange&) noexcept = default;
+
 };
 
 }

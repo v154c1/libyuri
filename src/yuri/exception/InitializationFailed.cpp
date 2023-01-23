@@ -20,12 +20,10 @@ namespace yuri {
 
 namespace exception {
 
-InitializationFailed::InitializationFailed(std::string reason):Exception(std::move(reason))
+InitializationFailed::InitializationFailed(const std::string& reason):Exception(reason)
 {
 
 }
-
-InitializationFailed::~InitializationFailed() noexcept = default;
 
 }
 

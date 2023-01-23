@@ -19,8 +19,9 @@ namespace exception {
 
 class InitializationFailed: public yuri::exception::Exception {
 public:
-	EXPORT InitializationFailed(std::string reason = "Failed to initialize object");
-	EXPORT ~InitializationFailed() noexcept override;
+	EXPORT explicit InitializationFailed(const std::string& reason = "Failed to initialize object");
+	EXPORT ~InitializationFailed() noexcept override = default;
+	EXPORT InitializationFailed(const InitializationFailed&) noexcept = default;
 
 };
 
