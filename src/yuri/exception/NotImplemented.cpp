@@ -14,11 +14,7 @@ namespace yuri {
 
 namespace exception {
 
-NotImplemented::NotImplemented(std::string reason):Exception(reason) {
-}
-
-NotImplemented::~NotImplemented() throw()
-{
+NotImplemented::NotImplemented(const std::string& reason) :Exception(reason) {
 }
 
 }

@@ -21,12 +21,13 @@ namespace exception {
 class Exception: public std::exception
 {
 public:
-	EXPORT Exception();
-	EXPORT Exception(std::string reason);
-	EXPORT virtual ~Exception()  noexcept;
-	EXPORT virtual const char* what() const noexcept;
+	EXPORT Exception() noexcept;
+	EXPORT explicit Exception(const std::string& reason) noexcept;
+	EXPORT ~Exception() noexcept override  = default;
+	EXPORT const char* what() const noexcept override;
+	EXPORT Exception(const Exception&) noexcept = default;
 protected:
-	std::string reason;
+	std::runtime_error err;
 };
 
 }

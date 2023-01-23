@@ -19,8 +19,9 @@ namespace exception {
 
 class NotImplemented: public yuri::exception::Exception {
 public:
-	EXPORT NotImplemented(std::string reason = "Not Implemented");
-	EXPORT virtual ~NotImplemented() throw();
+	EXPORT explicit NotImplemented(const std::string& reason = "Not Implemented");
+	EXPORT ~NotImplemented() noexcept override = default;
+    EXPORT NotImplemented(const NotImplemented&) noexcept = default;
 };
 
 }

@@ -15,21 +15,18 @@ namespace yuri
 namespace exception
 {
 
-Exception::Exception():reason("Generic exception")
+Exception::Exception() noexcept:err("Generic exception")
 {
 }
 
-Exception::Exception(std::string reason):reason(std::move(reason))
+Exception::Exception(const std::string& reason) noexcept :err(reason)
 {
 
-}
-Exception::~Exception() noexcept
-{
 }
 
 const char *Exception::what() const noexcept
 {
-	return (const char*) reason.c_str();
+    return err.what();
 }
 
 }

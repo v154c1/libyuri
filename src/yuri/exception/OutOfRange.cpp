@@ -14,11 +14,6 @@ namespace yuri {
 
 namespace exception {
 
-
-OutOfRange::~OutOfRange() throw ()
-{
-}
-
 }
 
 }
