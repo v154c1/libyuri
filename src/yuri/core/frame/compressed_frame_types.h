@@ -35,7 +35,8 @@ const format_t theora		= 0x1000e;
 const format_t h265			= 0x1000f;
 // h264 with AVC1 bit stream
 const format_t avc1			= 0x10010;
-
+// IntoPIX/MVTP proprietary codec
+const format_t jpegxs		= 0x10011;
 const format_t user_start 	= 0x11000;
 
 }

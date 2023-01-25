@@ -212,7 +212,7 @@ bool DeckLinkInput::init()
 #else
 	IDeckLinkAttributes *attr;
 	assert(device);
-	device->QueryInterface(IID_IDeckLinkAttributes,reinterpret_cast<void**>(&attr));
+	device->QueryInterface(IID_IDeckLinkProfileAttributes,reinterpret_cast<void**>(&attr));
 
 #endif
 

@@ -165,9 +165,9 @@ bool DeckLinkOutput::verify_display_mode()
 	BMDDisplayModeSupport support;
 	stereo_usable= false;
 	if (stereo_mode) {
-		if (output->DoesSupportVideoMode(mode,pixel_format,bmdVideoOutputDualStream3D,&support,&dm)!=S_OK) {
+		if (output->DoesSupportVideoMode(bmdVideoConnectionSDI, mode, pixel_format, bmdNoVideoOutputConversion, bmdVideoOutputDualStream3D, &dsp_mode, &supported)!=S_OK) {
 			log[log::warning] << "Selected format does not work with 3D. Re-trying without 3D support";
-			if (output->DoesSupportVideoMode(mode,pixel_format,bmdVideoOutputFlagDefault,&support,&dm)!=S_OK) return false;
+			if (output->DoesSupportVideoMode(bmdVideoConnectionSDI, mode, pixel_format, bmdNoVideoOutputConversion, bmdVideoOutputFlagDefault, &dsp_mode, &supported)!=S_OK) return false;
 		} else {
 			stereo_usable = true;
 		}

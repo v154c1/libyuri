@@ -37,6 +37,7 @@ namespace {
 			{theora,{theora,"THEORA", {"THEORA"}, {"video/theora"}}},
 			{h265,	{h265,	"H.265", {"H265","H.265"}, {"video/h265"}}},
 			{avc1, 	{avc1,	"H.264 (AVC1)", {"AVC1"}, {"video/avc1"} }},
+			{jpegxs,{jpegxs,"JPEGXS", {"JPEGXS"}, {"video/jpegxs"} }},
 	};
 
 	bool do_add_format(const compressed_frame_info_t& info)

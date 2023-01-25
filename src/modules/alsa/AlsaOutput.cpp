@@ -24,7 +24,7 @@ core::Parameters AlsaOutput::configure()
 	p["device"]["Alsa device to use"]="default";
 	p["force_channels"]["Force number of channels for the output (set to 0 to automatic channel count)"]=0;
 	p["mmap"]["Use mmap to access the device"]=false;
-	p["buffer_size"]["Buffer size"]=24000;
+	p["buffer_size"]["Buffer size, zero means that the size is computed by the periods and period_size"]=0;
     p["period_size"]["Period size"]=6000;
     p["periods"]["Periods"]=4;
 	return p;
@@ -34,7 +34,7 @@ core::Parameters AlsaOutput::configure()
 
 AlsaOutput::AlsaOutput(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters):
 core::SpecializedIOFilter<core::RawAudioFrame>(log_,parent, std::string("alsa_output")),
-format_(0),device_name_("default"),channels_(0),sampling_rate_(0),forced_channels_(0),buffer_size_{24000},
+format_(0),device_name_("default"),channels_(0),sampling_rate_(0),forced_channels_(0),buffer_size_{0},
 period_size_{6000},periods_{4},use_mmap_{false},handle_(0)
 {
 	IOTHREAD_INIT(parameters)
@@ -197,12 +197,25 @@ bool AlsaOutput::init_alsa(const core::pRawAudioFrame& frame)
 					"Failed to set resampling")) return false;
 
 
-	if(!error_call(snd_pcm_hw_params_set_buffer_size(handle_, hw_params, buffer_size_),
-		"Failed to set buffer size")) return false;
-	if(!error_call(snd_pcm_hw_params_set_period_size(handle_, hw_params, period_size_, 0),
+	auto period_size = period_size_;
+	if(!error_call(snd_pcm_hw_params_set_period_size_near(handle_, hw_params, &period_size, 0),
 		"Failed to set period size")) return false;
+	if (period_size != period_size_) {
+		log[log::warning] << "Cannot set period size to " << period_size_ << ", using " << period_size << " instead.";
+		period_size_ = period_size;
+	}
 	if(!error_call(snd_pcm_hw_params_set_periods(handle_, hw_params, periods_, 0),
 		"Failed to set periods")) return false;
+	auto buffer_size = buffer_size_ == 0 ? period_size_ * periods_ : buffer_size_;
+	if(!error_call(snd_pcm_hw_params_set_buffer_size_near(handle_, hw_params, &buffer_size),
+		"Failed to set buffer size")) return false;
+	if (buffer_size_ == 0) {
+		log[log::info] << "Buffer size set to " << buffer_size << ".";
+		buffer_size_ = buffer_size;
+	} else if (buffer_size != buffer_size_) {
+		log[log::warning] << "Cannot set buffer size to " << buffer_size_ << ", using " << buffer_size << " instead.";
+		buffer_size_ = buffer_size;
+	}
 
 	if(!error_call(snd_pcm_hw_params_set_rate_near (handle_, hw_params, &sampling_rate_, &dir),
 			"Failed to set sample rate")) return false;

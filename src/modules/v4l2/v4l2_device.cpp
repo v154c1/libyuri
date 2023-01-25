@@ -44,6 +44,33 @@ namespace {
 		}
 		return r;
 	}
+
+	std::vector<std::pair<size_t, size_t>> known_resolutions = {
+        {640,  360 },
+        {800,  600 },
+		{1024, 768 },
+		{1280, 720 },
+		{1280, 800 },
+		{1280, 1024},
+		{1600, 900 },
+		{1920, 1080},
+		{1920, 1200},
+		{2048, 1152},
+		{2560, 1440},
+		{3840, 2160}
+	};
+
+	std::vector<std::pair<size_t, size_t>> known_fps = {
+        {90, 1},
+        {60, 1},
+		{50, 1},
+		{30, 1},
+		{25, 1},
+		{15, 1},
+		{10, 1},
+		{5,  1},
+		{1,  1}
+	};
 }
 
 std::vector<std::string> enum_v4l2_devices()
@@ -185,13 +212,21 @@ std::vector<resolution_t> v4l2_device::enum_resolutions(uint32_t fmt)
 	while (xioctl(fd_,VIDIOC_ENUM_FRAMESIZES,&frms) == 0) {
 		switch (frms.type) {
 			case V4L2_FRMSIZE_TYPE_DISCRETE:
-				//l << "discrete " << resolution_t{frms.discrete.width, frms.discrete.height};
 				res.push_back({frms.discrete.width, frms.discrete.height});
 				break;
 			case V4L2_FRMSIZE_TYPE_CONTINUOUS:
-//				l << "continuous";
 				break;
 			case V4L2_FRMSIZE_TYPE_STEPWISE:
+				for (auto& k_res : known_resolutions) {
+					if (k_res.first >= frms.stepwise.min_width &&
+						k_res.first <= frms.stepwise.max_width &&
+						k_res.second >= frms.stepwise.min_height &&
+						k_res.second <= frms.stepwise.max_height &&
+						(k_res.first-frms.stepwise.min_width)%frms.stepwise.step_width == 0 &&
+						(k_res.second-frms.stepwise.min_height)%frms.stepwise.step_height == 0) {
+							res.push_back({k_res.first, k_res.second});
+						}
+				}
 //				l << "stepwise";
 				break;
 		}
@@ -211,15 +246,33 @@ std::vector<fraction_t> v4l2_device::enum_fps(uint32_t fmt, resolution_t res)
 	while (xioctl(fd_,VIDIOC_ENUM_FRAMEINTERVALS,&frmvalen) == 0) {
 		switch (frmvalen.type) {
 		case V4L2_FRMIVAL_TYPE_CONTINUOUS:
-//			log[log::info] << "Supports continuous frame_intervals from"
-//				<< frmvalen.stepwise.min.numerator << "/" << frmvalen.stepwise.min.denominator
-//				<< "s to " << frmvalen.stepwise.max.numerator << "/" << frmvalen.stepwise.max.denominator <<"s"<< std::endl;
+			// std::cout << "Supports continuous frame_intervals from"
+			// 	<< frmvalen.stepwise.min.numerator << "/" << frmvalen.stepwise.min.denominator
+			// 	<< "s to " << frmvalen.stepwise.max.numerator << "/" << frmvalen.stepwise.max.denominator <<"s"<< std::endl;
+			for (auto& k_fps : known_fps) {
+				if (k_fps.first <= frmvalen.stepwise.min.denominator &&
+					k_fps.first >= frmvalen.stepwise.max.denominator &&
+					k_fps.second >= frmvalen.stepwise.min.numerator &&
+					k_fps.second <= frmvalen.stepwise.max.numerator) {
+						fps_list.push_back({k_fps.first, k_fps.second});
+					}
+			}
 			break;
 		case V4L2_FRMIVAL_TYPE_STEPWISE:
-//			log[log::info] << "Supports stepwise frame_intervals from"
-//				<< frmvalen.stepwise.min.numerator << "/" << frmvalen.stepwise.min.denominator
-//				<< "s to " << frmvalen.stepwise.max.numerator << "/" << frmvalen.stepwise.max.denominator
-//				<< "s with step " << frmvalen.stepwise.step.numerator << "/" << frmvalen.stepwise.step.denominator<<"s"<< std::endl;
+			// std::cout << "Supports stepwise frame_intervals from"
+			// 	<< frmvalen.stepwise.min.numerator << "/" << frmvalen.stepwise.min.denominator
+			// 	<< "s to " << frmvalen.stepwise.max.numerator << "/" << frmvalen.stepwise.max.denominator
+			// 	<< "s with step " << frmvalen.stepwise.step.numerator << "/" << frmvalen.stepwise.step.denominator<<"s"<< std::endl;
+			for (auto& k_fps : known_fps) {
+				if (k_fps.first <= frmvalen.stepwise.min.denominator &&
+					k_fps.first >= frmvalen.stepwise.max.denominator &&
+					k_fps.second >= frmvalen.stepwise.min.numerator &&
+					k_fps.second <= frmvalen.stepwise.max.numerator &&
+					(k_fps.first-frmvalen.stepwise.min.denominator)%frmvalen.stepwise.step.denominator == 0 &&
+					(k_fps.second-frmvalen.stepwise.min.numerator)%frmvalen.stepwise.step.numerator == 0) {
+						fps_list.push_back({k_fps.first, k_fps.second});
+					}
+			}
 			break;
 		case V4L2_FRMIVAL_TYPE_DISCRETE:
 //			if (!frmvalen.index) log[log::info] << "Supports discrete frame_intervals:" << std::endl;

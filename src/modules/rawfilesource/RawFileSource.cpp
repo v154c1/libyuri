@@ -124,7 +124,7 @@ bool RawFileSource::read_chunk()
 		if (frame_type_ == frame_type_t::raw_video && width && height) {
 			const auto& fi = core::raw_format::get_format_info(output_format);
 			const auto bd = fi.planes[0].bit_depth;
-			length = width*bd.first/bd.second/8;
+			length = width*bd.first/bd.second/8*height;
 			if (fi.planes.size() > 1) {
 				planes.clear();
 				for (yuri::size_t i=0;i<fi.planes.size();++i)

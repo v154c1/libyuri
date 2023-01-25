@@ -203,6 +203,7 @@ core::pFrame Pad::do_special_single_step(core::pRawVideoFrame frame)
 	}
 
 	const yuri::size_t Bpp 			= info.planes[0].bit_depth.first / (8 * info.planes[0].bit_depth.second);
+	const yuri::size_t Bpc 			= info.planes[0].bit_depth.first / 8;
 
 	const size_t line_size_in		= width_in  * Bpp;
 	const size_t line_size_out		= width_out * Bpp;
@@ -217,7 +218,10 @@ core::pFrame Pad::do_special_single_step(core::pRawVideoFrame frame)
 	const size_t blank_cols_right 	= count_empty_cols_right(width_in, width_out, blank_cols_left, halign_);
 	//const size_t skip_cols_right 	= count_empty_cols_right(width_, width, skip_cols_left, halign_);
 
-	const size_t copy_width			= width_out - blank_cols_left - blank_cols_right;
+	const size_t offset_blank = (blank_cols_left*Bpp % Bpc) ? (Bpc - Bpp) : 0;
+	const size_t offset_skip = (skip_cols_left*Bpp % Bpc) ? (Bpc - Bpp) : 0;
+
+	const size_t copy_width			= width_out - blank_cols_left - blank_cols_right - offset_blank;
 	const size_t copy_size			= copy_width * Bpp;
 
 	log[log::verbose_debug] << "Padding with " << blank_cols_left << " pixels left, " << blank_cols_right << "pixels right, "
@@ -226,7 +230,7 @@ core::pFrame Pad::do_special_single_step(core::pRawVideoFrame frame)
 	//core::pBasicFrame output = allocate_empty_frame(format, width_, height_);
 	core::pRawVideoFrame output		= core::RawVideoFrame::create_empty(format, resolution_, true);
 
-	const auto data_in_start		= PLANE_DATA(frame,0).begin()+skip_lines_top*line_size_in+skip_cols_left*Bpp;
+	const auto data_in_start		= PLANE_DATA(frame,0).begin()+skip_lines_top*line_size_in+skip_cols_left*Bpp+offset_skip;
 //	const auto data_in_end			= PLANE_DATA(frame,0).end();
 	const auto data_out_start		= PLANE_DATA(output,0).begin();
 
@@ -248,7 +252,7 @@ core::pFrame Pad::do_special_single_step(core::pRawVideoFrame frame)
 	for (size_t line = blank_lines_top; line < height_out - blank_lines_bottom; ++line) {
 		const auto out_line_start			= data_out_start + line_size_out * line ;
 		const auto next_line_start 			= out_line_start + line_size_out;
-		const auto out_line_active_start 	= out_line_start + blank_cols_left * Bpp;
+		const auto out_line_active_start 	= out_line_start + blank_cols_left * Bpp + offset_blank;
 		const auto out_line_active_end 		= out_line_active_start + copy_size;
 		// Fill in blank pixels at left side
 		fill_from_sample(out_line_start, out_line_active_start, samples_black.begin());

@@ -22,7 +22,9 @@ SET (SRC register.cpp
 IF(YURI_PLATFORM_LINUX)
 SET(SRC ${SRC}
 		 EventDevice.cpp
-		 EventDevice.h)
+		 EventDevice.h
+		 EventJoystick.cpp
+		 EventJoystick.h)
 ENDIF()
 
  
