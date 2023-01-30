@@ -398,11 +398,11 @@ core::InputDeviceInfo enum_input_device(IDeckLink* dev, uint16_t device_index)
 						cfg2.params["pixel_format"]=fi.short_names[0];
 						cfg2.params["stereo"]=false;
 
-						if (res_mode->GetFlags() & bmdDisplayModeSupports3D) {
-							auto cfg3 = cfg2;
-							cfg3.params["stereo"]=true;
-							push_cfg_connections(device, std::move(cfg3), connections);
-						}
+						// if (res_mode->GetFlags() & bmdDisplayModeSupports3D) {
+						// 	auto cfg3 = cfg2;
+						// 	cfg3.params["stereo"]=true;
+						// 	push_cfg_connections(device, std::move(cfg3), connections);
+						// }
 						push_cfg_connections(device, std::move(cfg2), connections);
 					}
 					catch (...) {
@@ -431,11 +431,9 @@ std::vector<core::InputDeviceInfo> DeckLinkBase::enumerate_inputs()
 			continue;
 		}
 		devices.push_back(enum_input_device(dev, idx));
-
 		dev->Release();
 		idx++;
 	}
-
 	return devices;
 }
 

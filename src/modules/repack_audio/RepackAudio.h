@@ -28,8 +28,8 @@ private:
 //	virtual bool step();
 	virtual core::pFrame do_special_single_step(core::pRawAudioFrame frame) override;
 	virtual bool set_param(const core::Parameter& param) override;
-	size_t store_samples(const uint8_t* start, size_t count);
-	void push_current_frame();
+	size_t store_samples(const uint8_t* start, size_t count, size_t sample_size);
+	void push_current_frame(size_t sample_size);
 	std::string dummy_name;
 	std::vector<uint8_t> samples_;
 	size_t samples_missing_;

@@ -25,6 +25,7 @@ add_subdirectory(convert_planes)
 add_subdirectory(crop)
 add_subdirectory(delay)
 add_subdirectory(diff)
+add_subdirectory(draw)
 add_subdirectory(dup)
 add_subdirectory(extrapolate_events)
 add_subdirectory(event_info)
@@ -102,6 +103,11 @@ IF(ALSA_FOUND)
 	add_subdirectory(alsa)
 ENDIF()
 
+find_package(PULSEAUDIO)
+IF(PULSEAUDIO_FOUND)
+	add_subdirectory(pulse)
+ENDIF()
+
 find_package(JPEG)
 IF(JPEG_FOUND)
 #	add_subdirectory(jpegdecoder)
@@ -130,6 +136,10 @@ ENDIF()
 
 IF(CORE_LIBAV AND libavcodec_FOUND AND libavformat_FOUND)
 	add_subdirectory(rawavfile)
+ENDIF()
+
+IF(CORE_LIBAV AND libavcodec_FOUND AND libavformat_FOUND AND libswscale_FOUND AND libavutil_FOUND)
+	add_subdirectory(avoutput)
 ENDIF()
 
 find_package(PNG)
@@ -423,6 +433,7 @@ ENDIF()
 
 IF(UNIX)
 	add_subdirectory(event_device)
+	add_subdirectory(event_joystick)
 ENDIF()
 
 

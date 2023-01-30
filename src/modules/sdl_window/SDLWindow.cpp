@@ -80,6 +80,8 @@ core::Parameters SDLWindow::configure()
 	p["default_keys"]["Enable default key events. This includes ESC for quit and f for fullscreen toggle."]=true;
 	p["window_title"]["Window title"]=std::string();
 	p["decorations"]["Window decorations"]=true;
+	p["show_cursor"]["Enable or disable cursor in the window"]=true;
+	p["keep_aspect_gl"]["Enable or disable stable aspect ratio while resizing (only GL mode)"]=true;
 	p["position"]["Window position"]=coordinates_t{-1,-1};
 	p["display"]["Display for the window. Warning: It may affect other threads behavior as well."]="";
 #ifdef YURI_SDL_OPENGL
@@ -101,7 +103,7 @@ resolution_({800,600}),fullscreen_(false),default_keys_(true),use_gl_(false),
 overlay_{nullptr,[](SDL_Overlay*o){if(o) SDL_FreeYUVOverlay(o);}},
 rgb_surface_{nullptr,[](SDL_Surface*s){ if(s) SDL_FreeSurface(s);}},
 sdl_bpp_(32),title_(std::string("Yuri2 (")+yuri_version+")"),decorations_(true),
-position_(coordinates_t{-1, -1})
+show_cursor_{true},keep_aspect_gl_{true},position_(coordinates_t{-1, -1})
 #ifdef YURI_SDL_OPENGL
 ,gl_(log),flip_x_(false),flip_y_(false),read_back_(false),shader_version_(120)
 #endif
@@ -168,6 +170,7 @@ void SDLWindow::run()
 	}
 #endif
 	SDL_WM_SetCaption(title_.c_str(), "yuri2");
+	if (!show_cursor_) SDL_ShowCursor(SDL_DISABLE);
 #ifdef YURI_SDL_OPENGL
 	if (use_gl_) {
 		gl_.enable_smoothing();
@@ -191,6 +194,10 @@ core::pFrame SDLWindow::do_special_single_step(core::pRawVideoFrame frame)
 	Timer timer;
 	core::pFrame out_frame;
 	const resolution_t res = frame->get_resolution();
+	if (res != last_frame_res_) {
+		last_frame_res_ = res;
+		sdl_resize(resolution_);
+	}
 	const dimension_t src_linesize  = PLANE_DATA(frame,0).get_line_size();
 	auto it = PLANE_DATA(frame,0).begin();
 
@@ -263,6 +270,8 @@ bool SDLWindow::set_param(const core::Parameter& param)
 			(default_keys_, "default_keys")
 			(use_gl_, "opengl")
 			(decorations_, "decorations")
+			(show_cursor_, "show_cursor")
+			(keep_aspect_gl_, "keep_aspect_gl")
 			(position_, "position")
 			(display_, "display")
 #if YURI_SDL_OPENGL
@@ -348,7 +357,24 @@ void SDLWindow::sdl_resize(resolution_t new_res)
 		overlay_.reset();
 	} else {
 #ifdef YURI_SDL_OPENGL
-		glViewport( 0, 0, new_res.width, new_res.height );
+		if (keep_aspect_gl_) {
+			const auto ar_renderer = static_cast<double>(new_res.width)/new_res.height;
+			const auto ar_frame= static_cast<double>(last_frame_res_.width)/last_frame_res_.height;
+			geometry_t rect = {new_res.width, new_res.height, 0, 0};
+			if (ar_renderer > ar_frame) {
+				auto w = static_cast<int>(ar_frame * new_res.height);
+				rect.x = (new_res.width - w) / 2;
+				rect.width = w;
+			} else {
+				auto h = static_cast<int>(new_res.width / ar_frame);
+				rect.y = (new_res.height - h) / 2;
+				rect.height = h;
+			}
+			log[log::info] << "Keeping ratio, screen: " << new_res.width << "x" << new_res.height << ", display: " <<  rect.width << "x" << rect.height << "+" << rect.x << "+" << rect.y;
+			glViewport(rect.x, rect.y, rect.width, rect.height);
+		} else {
+			glViewport( 0, 0, new_res.width, new_res.height );
+		}
 		gl_.setup_ortho();
 #endif
 	}

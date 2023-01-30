@@ -44,47 +44,42 @@ base_type(log_,parent,std::string("repack")),samples_(2000,0)
 sampling_frequency_(48000)
 {
 	IOTHREAD_INIT(parameters)
-	samples_.resize(total_samples_*channels_*2,0);
 }
 
 RepackAudio::~RepackAudio() noexcept
 {
 }
-size_t RepackAudio::store_samples(const uint8_t* start, size_t count)
+size_t RepackAudio::store_samples(const uint8_t* start, size_t count, size_t sample_size)
 {
 	if (!total_samples_) return count;
 	size_t stored = 0;
 	while (count > 0) {
 		const size_t to_copy = std::min(count, samples_missing_);
 		const size_t sample_offset = total_samples_ - samples_missing_;
-//		log[log::info] << "Storing " << to_copy << " samples";
-		std::copy(start,start+2*to_copy*channels_,samples_.begin()+2*sample_offset*channels_);
+		std::copy(start,start+sample_size*to_copy*channels_,samples_.begin()+sample_size*sample_offset*channels_);
 		count -= to_copy;
 		stored += to_copy;
-		start+=to_copy*channels_*2;
+		start+=to_copy*channels_*sample_size;
 		samples_missing_ -= to_copy;
-		if (!samples_missing_) push_current_frame();
+		if (!samples_missing_) push_current_frame(sample_size);
 	}
 	return stored;
 
 }
 
-void RepackAudio::push_current_frame()
-{
-	auto f = core::RawAudioFrame::create_empty(current_format_, channels_, sampling_frequency_, &samples_[0], total_samples_*2*channels_);
+void RepackAudio::push_current_frame(size_t sample_size) {
+	auto f = core::RawAudioFrame::create_empty(current_format_, channels_, sampling_frequency_, &samples_[0], total_samples_*sample_size*channels_);
 	push_frame(0,f);
-//	core::pBasicFrame frame = allocate_frame_from_memory(&samples_[0],total_samples_*2*channels_);
-//	frame->set_parameters(current_format_,0,0,channels_,total_samples_);
-//	push_raw_audio_frame(0,frame);
 	samples_missing_ = total_samples_;
 }
-core::pFrame RepackAudio::do_special_single_step(core::pRawAudioFrame frame)
-//bool RepackAudio::step()
-{
+
+core::pFrame RepackAudio::do_special_single_step(core::pRawAudioFrame frame) {
 	current_format_ = frame->get_format();
 	if (current_format_!= core::raw_audio_format::signed_16bit &&
-			current_format_ != core::raw_audio_format::unsigned_16bit) {
-		log[log::warning] << "Unsupported format. Only 16bit formats supported";
+			current_format_ != core::raw_audio_format::unsigned_16bit &&
+			current_format_ != core::raw_audio_format::signed_32bit   &&
+			current_format_ != core::raw_audio_format::unsigned_32bit) {
+		log[log::warning] << "Unsupported format. Only 16bit/32bit formats supported";
 		return {};
 	}
 	if (frame->get_channel_count() != channels_) {
@@ -94,7 +89,9 @@ core::pFrame RepackAudio::do_special_single_step(core::pRawAudioFrame frame)
 	sampling_frequency_ = frame->get_sampling_frequency();
 	const uint8_t* data = frame->data();
 	size_t available_samples = frame->get_sample_count();
-	store_samples(data, available_samples);
+	size_t sample_size = frame->get_sample_size()/frame->get_channel_count()/8;
+	samples_.resize(total_samples_*channels_*sample_size,0);
+	store_samples(data, available_samples, sample_size);
 	return {};
 }
 bool RepackAudio::set_param(const core::Parameter& param)

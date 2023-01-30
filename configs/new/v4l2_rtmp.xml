@@ -1,0 +1,61 @@
+<?xml version="1.0" ?>
+
+<app name="webcam_rtmp">
+<description>
+Test application streaming data using RTMP
+</description>
+
+<!-- Specify variables for command line substitution -->
+<variable name="resolution" description="Capture resolution">1280x720</variable>
+<variable name="device" description="Camera device">/dev/video0</variable>
+<variable name="fps" description="Camera FPS">30</variable>
+<variable name="address" description="RTMP address for streaming">rtmp://a.rtmp.youtube.com/live2/x4ug-y06e-0sqr-5sym-8k1m</variable>
+
+<!-- General settings -->
+<general>
+<!-- Unlimited run time -->
+  <parameter name="run_limit">-1</parameter>
+<!-- Moderate debug informations -->
+  <parameter name="debug">0</parameter>
+</general>
+
+<!-- Units -->
+<!-- Video4Linux2 device source -->
+<node class="v4l2source" name="webcam">
+  <parameter name="path">@device</parameter>
+  <parameter name="resolution">@resolution</parameter>
+  <parameter name="fps">@fps</parameter>
+  <parameter name="format">MJPEG</parameter>
+</node>
+
+<!-- ALSA audio device source, more fmts/sample rates should be supported, mono is supported -->
+<node class="alsa_input" name="audio">
+  <parameter name="device">plughw:0,0</parameter>
+  <parameter name="channels">2</parameter>
+  <parameter name="format">s16</parameter>
+  <parameter name="sample_rate">44100</parameter>
+  <parameter name="frames">1024</parameter>
+</node>
+
+<!-- ALSA audio device source -->
+<node class="jpeg_decoder" name="decoder"/>
+
+<!-- Format convertor, more fmts should be supported -->
+<node class="convert" name="convertor">
+  <parameter name="format">BGR24</parameter>
+</node>
+
+<!-- RTMP sender node -->
+<node class="rtmp_output" name="sender">
+  <parameter name="fps">@fps</parameter>
+  <parameter name="address">@address</parameter>
+  <parameter name="audio">true</parameter>
+</node>
+
+<!-- Link specifications -->
+<link name="jpeg_image" class="single" source="webcam:0" target="decoder:0"/>
+<link name="raw_image" class="single" source="decoder:0" target="convertor:0"/>
+<link name="conv_image" class="unlimited" source="convertor:0" target="sender:0"/>
+<link name="raw_audio" class="unlimited" source="audio:0" target="sender:1"/>
+
+</app>
