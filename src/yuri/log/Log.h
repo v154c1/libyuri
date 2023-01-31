@@ -11,6 +11,7 @@
 #ifndef LOG_H_
 #define LOG_H_
 #include "yuri/core/utils/new_types.h"
+#include "LogUtils.h"
 #include "LogProxy.h"
 
 #include <iostream>
@@ -26,28 +27,6 @@ namespace yuri
 namespace log {
 
 /**
- * @brief Flags representing debug levels and flags
- */
-enum debug_flags_t: long {
-	silent 			=	0,
-	fatal 			=	1,			//!< Fatal error, application will probably quit
-	error	 		=	2,			//!< Error, application will recover, but some data or state may be lost
-	warning	 		=	3,			//!< Warning, application should continue (but may not work correctly)
-	info			=	4,			//!< Information about execution
-	debug 			=	5,			//!< Debug information not needed during normal usage
-	verbose_debug	=	6,			//!< Verbose debug, used for debugging only
-	trace			=	7,			//!< Tracing information, should never be needed during normal work
-	flag_mask		=   7,			//!< Mask representing all flags
-	show_time		=	1L << 4,	//!< Enables output of actual time with the output
-	show_thread_id	=	1L << 5,	//!< Enables showing thread id
-	show_level		=	1L << 6,	//!< Enables showing debug level name
-	use_colors		=	1L << 7,	//!< Enable usage of colors
-	show_date		=	1L << 8,	//!< Enables output of actual date with the output
-};
-
-typedef debug_flags_t  debug_flags;
-
-/**
  * @brief Main logging facility for libyuri
  */
 class Log
@@ -55,6 +34,8 @@ class Log
 public:
 	//! Constructs Log instance with @em out as a backend
 	EXPORT Log(std::ostream &out);
+    //! Constuct Log instance with a custom stream output
+    EXPORT Log(std::shared_ptr<generic_out_stream<char>> out);
 	//! Constructs Log instance as a copy of @em log, with a new id
 	EXPORT Log(const Log& log);
 	EXPORT Log(Log&& log) noexcept;
@@ -69,17 +50,19 @@ public:
 	EXPORT long get_flags() { return output_flags_; }
 	EXPORT void set_quiet(bool q) {quiet_ =q;}
 	EXPORT void adjust_log_level(long delta);
+
 private:
 	// Global counter for IDs
 	static std::atomic<int> uids;
 	// ID of current Log
 	int uid;
 	// Output stream
-	std::shared_ptr<guarded_stream<char> > out;
+	std::shared_ptr<generic_out_stream<char> > out;
 
 	std::string logger_name_;
 	long output_flags_;
 	bool quiet_;
+
 };
 
 }

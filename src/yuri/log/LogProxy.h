@@ -11,11 +11,28 @@
 #ifndef LOGPROXY_H_
 #define LOGPROXY_H_
 #include "yuri/core/utils/new_types.h"
+#include "LogUtils.h"
 #include <ostream>
 #include <sstream>
+#include <optional>
 
 namespace yuri {
 namespace log {
+
+template<
+        class CharT,
+        class Traits = std::char_traits<CharT>
+>
+struct generic_out_stream {
+    typedef std::basic_string<CharT, Traits> string_t;
+    typedef std::basic_ostream<CharT, Traits> stream_t;
+    typedef std::basic_stringstream<CharT, Traits> sstream_t;
+    typedef CharT char_t;
+
+    virtual ~generic_out_stream() = default;
+
+    virtual void put_message(const LogMessageInfo& info, const sstream_t& sstream) = 0;
+};
 /*!
  * @brief 		Wrapper struct for std::basic_ostream providing locking
  */
@@ -23,28 +40,25 @@ template<
     class CharT,
     class Traits = std::char_traits<CharT>
 >
-struct guarded_stream {
-	typedef std::basic_string<CharT, Traits> string_t;
+struct guarded_stream: public generic_out_stream<CharT, Traits> {
 	typedef std::basic_ostream<CharT, Traits> stream_t;
-	typedef CharT char_t;
-	/**
-	 * @brief 		Writes a string to the contained ostream
-	 * @param msg	String to write
-	 */
-	void write(const string_t msg) {
-		yuri::lock_t l(mutex_);
-		str_ << msg;
-	}
+    typedef std::basic_stringstream<CharT, Traits> sstream_t;
 
-	template<class T>
-	guarded_stream& operator<<(const T& val) {
-		yuri::lock_t _(mutex_);
-		str_ << val;
-		return *this;
-	}
+
+    void put_message(const LogMessageInfo& info, const sstream_t& sstream) override{
+        yuri::lock_t _(mutex_);
+
+            print_level(str_, info.level, info.output_flags);
+            if (info.output_flags & show_thread_id) {
+                str_ << info.uid << ": ";
+            }
+            str_ << info.time << info.logger_name;
+            str_ << sstream.rdbuf();
+            str_ << str_.widen('\n');
+    }
+
 	guarded_stream(stream_t& str):str_(str) {}
-	~guarded_stream() noexcept {}
-	char_t widen(char c) { return str_.widen(c); }
+	~guarded_stream() noexcept = default;
 private:
 	stream_t& str_;
 	yuri::mutex mutex_;
@@ -62,28 +76,34 @@ template<
 >
 class LogProxy {
 private:
-	typedef std::basic_ostream<CharT, Traits>& (*iomanip_t)(std::basic_ostream<CharT, Traits>&);
+    typedef generic_out_stream<CharT, Traits> gstream_t;
+    typedef std::basic_stringstream<CharT, Traits> sstream_t;
+
+
 public:
-	typedef guarded_stream<CharT, Traits> gstream_t;
-	typedef std::basic_stringstream<CharT, Traits> sstream_t;
+    typedef std::basic_ostream<CharT, Traits>& (*iomanip_t)(std::basic_ostream<CharT, Traits>&);
+//	typedef guarded_stream<CharT, Traits> gstream_t;
+
 	/*!
 	 * @param	str_	Reference to a @em guarded_stream to write the messages
 	 * @param	dummy	All input is discarded, when dummy is set to true
 	 */
-	LogProxy(gstream_t& str_,bool dummy):stream_(str_),dummy_(dummy) {}
-	
+	LogProxy(gstream_t & str_, std::optional<LogMessageInfo> info = std::nullopt):stream_(str_),info_(std::move(info)) {
+
+    }
+
 	LogProxy(const LogProxy&) = delete;
 	/*!
 	* @brief			Move constructor. Invalides the original LogProxy object
 	*/
 
-	LogProxy(LogProxy&& other) noexcept
-		:stream_(other.stream_), dummy_(std::move(other.dummy_)) {
-		if (!dummy_) {
-			buffer_ << other.buffer_.str();
-			other.dummy_ = true;
-		}
-	}
+	LogProxy(LogProxy&& other) noexcept = delete;//noexcept
+//		:stream_(std::move(other.stream_)), info_(std::move(other.info_)) {
+////		if (info_) {
+////            // TODO: Can't we just swap bufers?
+////			buffer_ << other.buffer_.str();
+////		}
+//	}
 #ifndef REF_QUALIFIED_MF_UNSUPPORTED
 	/*!
 	 * @brief			Provides ostream like operator << for inserting messages
@@ -93,7 +113,7 @@ public:
 	template<typename T>
 	LogProxy& operator<<(const T& val_) &
 	{
-		if (!dummy_) {
+		if (info_) {
 			buffer_ << val_;
 		}
 		return *this;
@@ -107,7 +127,7 @@ public:
 	template<typename T>
 	LogProxy&& operator<<(const T& val_) &&
 	{
-		if (!dummy_) {
+		if (info_) {
 			buffer_ << val_;
 		}
 		return std::move(*this);
@@ -136,7 +156,7 @@ public:
 	 */
 	LogProxy& operator<<(iomanip_t manip)
 	{
-		if (!dummy_) {
+		if (info_) {
 			// We can't call endl on std::stringstream, so let's filter it out
 			if (manip==static_cast<iomanip_t>(std::endl)) return *this << stream_.widen('\n');
 			else return *this << manip;
@@ -145,17 +165,16 @@ public:
 	}
 
 	~LogProxy() noexcept {
-		if (!dummy_) {
-			/*const typename gstream_t::string_t str = buffer_.str();
-			if (str.size()>0 && str[str.size()-1]!=stream_.widen('\n')) */ buffer_<<stream_.widen('\n');
-			// Avoiding unnecessary copy of the rdbuf by writing it directly
-			stream_ << buffer_.rdbuf();
+		if (info_) {
+            stream_.put_message(*info_, buffer_);
 		}
 	}
-private:
+
+
+    private:
 	gstream_t& stream_;
-	sstream_t buffer_;
-	bool dummy_;
+    sstream_t buffer_;
+    const std::optional<LogMessageInfo> info_;
 };
 
 }

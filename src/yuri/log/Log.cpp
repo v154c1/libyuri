@@ -20,35 +20,6 @@ namespace log
 
 std::atomic<int> Log::uids;
 
-namespace {
-const std::map<debug_flags_t, std::string> level_names= {
-	{fatal,			"FATAL ERROR"},
-	{error,			"ERROR"},
-	{warning,		"WARNING"},
-	{info,			"INFO"},
-	{debug,			"DEBUG"},
-	{verbose_debug,	"VERBOSE_DEBUG"},
-	{trace,			"TRACE"}};
-
-const std::map<debug_flags_t, std::string> level_colors = {
-#if defined(YURI_LINUX) || defined(YURI_BSD)
-	{fatal,			"\033[4;31;42m"}, // Red, underscore, bg
-	{error,			"\033[31m"}, // Red
-	{warning,		"\033[35m"},
-	{info,			"\033[00m"},
-	{debug,			"\033[35m"},
-	{verbose_debug,	"\033[36m"},
-	{trace,			"\033[4;36m"}
-#else
-	{fatal,			""},
-	{error,			""},
-	{warning,		""},
-	{info,			""},
-	{debug,			""},
-	{verbose_debug,	""},
-	{trace,			""}
-#endif
-};
 
 long adjust_level_flag(long f, long delta)
 {
@@ -58,49 +29,23 @@ long adjust_level_flag(long f, long delta)
 	return new_level | flags;
 }
 
-template<class Stream>
-void print_date_time(Stream& os)
+
+
+std::string generate_date_time()
 {
-	os << core::utils::generate_string("%lx ");
+    return core::utils::generate_string("%lx ");
 }
 
-template<class Stream>
-void print_date(Stream& os)
+std::string generate_date()
 {
-	os << core::utils::generate_string("%lT ");
+    return core::utils::generate_string("%lT ");
 }
 
-template<class Stream>
-void print_time(Stream& os)
+std::string generate_time()
 {
-	os << core::utils::generate_string("%lt ");
+    return core::utils::generate_string("%lt ");
 }
 
-
-template<class Stream>
-void print_level(Stream& os, debug_flags flags, const long output_flags)
-{
-	const auto f = static_cast<debug_flags>(flags&flag_mask);
-	const auto it = level_names.find(f);
-	if (it == level_names.end()) {
-		return;
-	}
-	const auto& name = it->second;
-
-	if (output_flags&use_colors) {
-		auto it_col = level_colors.find(f);
-		auto it_col2 = level_colors.find(info);
-		if (it_col!=level_colors.end() && it_col2 != level_colors.end()) {
-			const auto& color1 = it_col->second;
-			const auto& color2 = it_col2->second;
-			os <<  color1 << name << color2 << " ";
-			return;
-		}
-	}
-	os << name << " ";
-}
-
-}
 
 /**
  * Creates a new Log instance
@@ -108,6 +53,11 @@ void print_level(Stream& os, debug_flags flags, const long output_flags)
  */
 Log::Log(std::ostream &out):uid(uids++),out(std::make_shared<guarded_stream<char>>(out)),
 logger_name_(""),output_flags_(info|show_level),quiet_(false)
+{
+}
+
+Log::Log(std::shared_ptr<generic_out_stream<char>> out):uid(uids++),out(std::move(out)),
+                            logger_name_(""),output_flags_(info|show_level),quiet_(false)
 {
 }
 
@@ -168,28 +118,26 @@ void Log::set_label(std::string s)
 LogProxy<char> Log::operator[](debug_flags f) const
 {
 	const bool dummy = f > (output_flags_ & flag_mask);
-	if (!out) throw std::runtime_error("Invalid log object");
-	LogProxy<char> lp(*out, dummy);
-	if (!quiet_ && !dummy) {
-		if (output_flags_&show_level) {
-			print_level(lp, f, output_flags_);
-		}
-		lp <<  uid << ": ";
+    if (!out) throw std::runtime_error("Invalid log object");
+    if (dummy) {
+        return {*out, std::nullopt};
+    }
+	if (!quiet_) {
+        LogMessageInfo info(uid, f, output_flags_, logger_name_);
 		if (output_flags_&show_date && output_flags_&show_time) {
-			// Printing date and time together should be slightly faster than printing it separately.
-			// It also prevent problems with inconsistencies.
-			print_date_time(lp);
+            info.time = generate_date_time();
 		} else {
 			if (output_flags_&show_date) {
-				print_date(lp);
+                info.time = generate_date();
 			}
 			if (output_flags_&show_time) {
-				print_time(lp);
+                info.time = generate_time();
 			}
 		}
-		lp << logger_name_;
+        return {*out, std::move(info)};
+
 	}
-	return lp;
+    return {*out,  LogMessageInfo{uid, f, 0, {}}};
 }
 
 
@@ -197,7 +145,6 @@ void Log::adjust_log_level(long delta)
 {
 	output_flags_ = adjust_level_flag(output_flags_, delta);
 }
-
 
 }
 }

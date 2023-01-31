@@ -45,7 +45,9 @@ void print_cfgs_k(log::Log& log, log::debug_flags flags, const std::vector<core:
 		for (const auto& cfg: cfgs) {
 			auto keys = unused_keys(cfg, used);
 			// This move is necessary only for GCC4.7 which doesn't support ref-qualified member functions
-			auto l = std::move(log[flags] << prefix);
+//			auto l = std::move(log[flags] << prefix);
+            auto l = log[flags];
+            l << prefix;
 			for (const auto& key: keys) {
 				l << "key: " << cfg.params[key].get<std::string>() << ", ";
 			}
@@ -57,7 +59,9 @@ void print_cfgs_k(log::Log& log, log::debug_flags flags, const std::vector<core:
 	used_next.push_back(key);
 	if (is_last_key(cfgs, key, used)) {
 		// We have last key, so let's use short output
-		auto l = std::move(log[flags] << prefix << key << ": ");
+		//auto l = std::move(log[flags] << prefix << key << ": ");
+        auto l = log[flags];
+        l << prefix << key << ": ";
 		core::utils::print_list(l, find_map_key_values<std::string>(cfgs, key));
 	} else {
 		for (const auto& c: find_submap_by_key<std::string>(cfgs, key)) {

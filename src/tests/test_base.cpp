@@ -13,7 +13,7 @@ TEST_CASE( "logging basics", "[log]" ) {
 	using namespace yuri;
 	std::ostringstream ss;
     log::Log l(ss);
-    l.set_flags(log::info);
+    l.set_flags(log::info|log::show_thread_id);
     l[log::info] << "Hello world " << 5;
     const auto s = ss.str();
     // Delete the log id
