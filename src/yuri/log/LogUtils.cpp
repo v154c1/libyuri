@@ -4,7 +4,7 @@
 
 #include <map>
 #include "LogUtils.h"
-
+#include "yuri/core/utils/platform.h"
 namespace yuri {
     namespace log {
 

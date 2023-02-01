@@ -41,9 +41,8 @@ template<
     class Traits = std::char_traits<CharT>
 >
 struct guarded_stream: public generic_out_stream<CharT, Traits> {
-	typedef std::basic_ostream<CharT, Traits> stream_t;
-    typedef std::basic_stringstream<CharT, Traits> sstream_t;
-
+	using stream_t = typename generic_out_stream<CharT, Traits>::stream_t;
+    using sstream_t = typename generic_out_stream<CharT, Traits>::sstream_t;
 
     void put_message(const LogMessageInfo& info, const sstream_t& sstream) override{
         yuri::lock_t _(mutex_);
@@ -64,6 +63,19 @@ private:
 	yuri::mutex mutex_;
 };
 
+template<
+        class CharT,
+        class Traits = std::char_traits<CharT>
+>
+struct LogProxyData {
+    using gstream_t = generic_out_stream<CharT, Traits>;
+    using sstream_t = typename generic_out_stream<CharT, Traits>::sstream_t;
+
+    LogMessageInfo info;
+    gstream_t& out;
+    sstream_t buffer;
+};
+
 /**
  * @brief Proxy for output stream
  *
@@ -76,21 +88,20 @@ template<
 >
 class LogProxy {
 private:
-    typedef generic_out_stream<CharT, Traits> gstream_t;
-    typedef std::basic_stringstream<CharT, Traits> sstream_t;
-
 
 public:
     typedef std::basic_ostream<CharT, Traits>& (*iomanip_t)(std::basic_ostream<CharT, Traits>&);
-//	typedef guarded_stream<CharT, Traits> gstream_t;
+	using gstream_t = typename LogProxyData<CharT, Traits>::gstream_t;
 
 	/*!
 	 * @param	str_	Reference to a @em guarded_stream to write the messages
 	 * @param	dummy	All input is discarded, when dummy is set to true
 	 */
-	LogProxy(gstream_t & str_, std::optional<LogMessageInfo> info = std::nullopt):stream_(str_),info_(std::move(info)) {
+	LogProxy(gstream_t& out, LogMessageInfo info):data_{{std::move(info),out,{}}} {
 
     }
+
+    LogProxy() = default;
 
 	LogProxy(const LogProxy&) = delete;
 	/*!
@@ -113,8 +124,8 @@ public:
 	template<typename T>
 	LogProxy& operator<<(const T& val_) &
 	{
-		if (info_) {
-			buffer_ << val_;
+		if (data_) {
+            (data_->buffer) << val_;
 		}
 		return *this;
 	}
@@ -127,9 +138,9 @@ public:
 	template<typename T>
 	LogProxy&& operator<<(const T& val_) &&
 	{
-		if (info_) {
-			buffer_ << val_;
-		}
+        if (data_) {
+            (data_->buffer) << val_;
+        }
 		return std::move(*this);
 	}
 #else
@@ -156,25 +167,28 @@ public:
 	 */
 	LogProxy& operator<<(iomanip_t manip)
 	{
-		if (info_) {
-			// We can't call endl on std::stringstream, so let's filter it out
-			if (manip==static_cast<iomanip_t>(std::endl)) return *this << stream_.widen('\n');
-			else return *this << manip;
+        if (data_) {
+            auto& d = *data_;
+            // We can't call endl on std::stringstream, so let's filter it out
+			if (manip==static_cast<iomanip_t>(std::endl)) {
+                d.buffer << d.buffer.widen('\n');
+            } else {
+                d.buffer << manip;
+            }
 		}
 		return *this;
 	}
 
 	~LogProxy() noexcept {
-		if (info_) {
-            stream_.put_message(*info_, buffer_);
+		if (data_) {
+            auto& d = *data_;
+            d.out.put_message(d.info, d.buffer);
 		}
 	}
 
 
     private:
-	gstream_t& stream_;
-    sstream_t buffer_;
-    const std::optional<LogMessageInfo> info_;
+    std::optional<LogProxyData<CharT, Traits>> data_;
 };
 
 }

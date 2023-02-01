@@ -120,7 +120,7 @@ LogProxy<char> Log::operator[](debug_flags f) const
 	const bool dummy = f > (output_flags_ & flag_mask);
     if (!out) throw std::runtime_error("Invalid log object");
     if (dummy) {
-        return {*out, std::nullopt};
+        return {};
     }
 	if (!quiet_) {
         LogMessageInfo info(uid, f, output_flags_, logger_name_);
@@ -135,9 +135,8 @@ LogProxy<char> Log::operator[](debug_flags f) const
 			}
 		}
         return {*out, std::move(info)};
-
 	}
-    return {*out,  LogMessageInfo{uid, f, 0, {}}};
+    return {*out, LogMessageInfo{uid, f, 0, {}}};
 }
 
 
