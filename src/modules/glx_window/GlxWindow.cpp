@@ -135,14 +135,13 @@ void GlxWindow::run()
 		request_end(core::yuri_exit_interrupted);
 	} else {
 		show_decorations(decorations_);
-
+        if (!title_.empty()) {
+            set_title(title_);
+        }
 		show_window();
 		move_window({geometry_.x, geometry_.y});
 		set_on_top(on_top_);
         set_fullscreen(fullscreen_);
-        if (!title_.empty()) {
-            set_title(title_);
-        }
 		// Let's keep local converter until MultiIOThread supports this behaviour.
 		converter_.reset(new core::Convert(log, get_this_ptr(), core::Convert::configure()));
 		add_child(converter_);
