@@ -13,6 +13,7 @@
 #include "yuri/core/frame/raw_frame_params.h"
 #include "yuri/core/thread/ConverterRegister.h"
 #include "yuri/core/utils/irange.h"
+#include <array>
 namespace yuri {
 namespace convert_planar {
 
