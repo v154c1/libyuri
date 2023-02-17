@@ -49,7 +49,7 @@ std::vector<core::pFrame> SyncFrames::do_single_step(std::vector<core::pFrame> f
 	if (frames.empty()) return {};
 	if (frames.size() == 1) return frames;
 	const auto base = frames[0]->get_timestamp();
-	for (const auto f: frames)
+	for (const auto& f: frames)
 	{
 		const auto diff = abs(base - f->get_timestamp());
 		if (diff > tolerance_) {

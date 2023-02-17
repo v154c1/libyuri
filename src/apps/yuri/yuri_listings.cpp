@@ -353,7 +353,7 @@ void list_input_class(yuri::log::Log& l_, const std::string& name, int /*verbosi
 		auto enumerate = conv.find_value(name);
 		auto devices = enumerate();
 		l_[log::info] << "Found " << devices.size() << " devices";
-		for (const auto d: devices) {
+		for (const auto& d: devices) {
 			l_[log::info] << "\tDevice " << d.device_name << " with " << d.configurations.size() << " configurations";
 			print_cfgs(l_, log::info, d);
 		}
