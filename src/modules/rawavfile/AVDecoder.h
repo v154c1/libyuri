@@ -44,7 +44,7 @@ private:
     core::utils::managed_resource<AVCodecContext> ctx_;
     AVCodec*                                      codec_;
     AVFrame*                                      avframe;
-    AVPacket                                      avpkt_;
+    std::unique_ptr<AVPacket, AVPacketDeleter>    avpkt_;
 };
 }
 }

@@ -19,6 +19,12 @@ enum class thread_type_t { any, slice, frame };
 int libav_thread_type(thread_type_t type) ;
 thread_type_t parse_thread_type(const std::string& type_string);
 }
+    struct AVPacketDeleter {
+        void operator()(AVPacket*p) {
+            av_packet_unref(p);
+            av_packet_free(&p);
+        }
+    };
 }
 
 #endif /* MODULES_RAWAVFILE_AVCOMMON_H_ */

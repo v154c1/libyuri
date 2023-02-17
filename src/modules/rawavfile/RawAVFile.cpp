@@ -602,13 +602,19 @@ int find_in_stream_group(int index, const std::vector<RawAVFile::stream_detail_t
     }
     return -1;
 }
+
 }
 void RawAVFile::run()
 {
-    AVPacket packet;
-    av_init_packet(&packet);
-    AVPacket empty_packet;
-    av_init_packet(&empty_packet);
+
+    auto p_packet = std::unique_ptr<AVPacket, AVPacketDeleter>(av_packet_alloc());
+    auto p_empty_packet = std::unique_ptr<AVPacket, AVPacketDeleter>(av_packet_alloc());
+
+    auto& packet = *p_packet;
+    auto& empty_packet = *p_empty_packet;
+
+//    AVPacket empty_packet;
+//    av_init_packet(&empty_packet);
     empty_packet.data    = nullptr;
     empty_packet.size    = 0;
     bool     keep_packet = false;

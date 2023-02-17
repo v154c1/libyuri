@@ -39,12 +39,12 @@ AVDecoder::AVDecoder(const log::Log& _log, core::pwThreadBase parent, const core
     IOTHREAD_INIT(parameters)
     set_latency(10_us);
     avframe = av_frame_alloc();
-    av_init_packet(&avpkt_);
+    avpkt_.reset(av_packet_alloc());
 }
 
 AVDecoder::~AVDecoder() noexcept
 {
-    av_packet_unref(&avpkt_);
+//    av_packet_unref(&avpkt_);
     av_frame_free(&avframe);
 }
 
@@ -106,17 +106,18 @@ bool AVDecoder::step()
             return true;
     }
 
-    avpkt_.data   = &(*frame)[0];
-    avpkt_.size   = frame->size();
-    int got_frame = 0;
-    while (avpkt_.size > 0) {
-        const auto ret = avcodec_decode_video2(ctx_.get(), avframe, &got_frame, &avpkt_);
-        if (ret < 0) {
-            log[log::info] << "Failed to decode frame";
-            return true;
-        }
-        if (got_frame) {
-            log[log::verbose_debug] << "Got frame " << ret << "/" << avpkt_.size;
+    avpkt_->data   = &(*frame)[0];
+    avpkt_->size   = frame->size();
+    avcodec_send_packet(ctx_.get(), avpkt_.get());
+
+//    int got_frame = 0;
+    while (true) {
+        const auto ret = avcodec_receive_frame(ctx_.get(), avframe);
+        if (ret == AVERROR_EOF) {
+            // Everything OK, quitting
+            break;
+        } else if (ret == 0) {
+            log[log::verbose_debug] << "Got frame " << ret << "/" << avpkt_->size;
             auto fmt = libav::yuri_pixelformat_from_av(ctx_->pix_fmt);
             if (!fmt) {
                 log[log::warning] << "Frame decoded into an unsupported format";
@@ -124,13 +125,15 @@ bool AVDecoder::step()
                 auto out_frame = libav::yuri_frame_from_av(*avframe);
                 push_frame(0, std::move(out_frame));
             }
-        }
-        if (avpkt_.data) {
-            avpkt_.data += ret;
-            avpkt_.size -= ret;
+        } else if (ret == AVERROR(EAGAIN)){
+            break;
+        } else {
+                log[log::info] << "Failed to decode frame";
+                break;
         }
     }
-
+    avpkt_->size = 0;
+    avpkt_->data = nullptr;
     return true;
 }
 
