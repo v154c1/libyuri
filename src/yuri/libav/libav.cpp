@@ -126,7 +126,10 @@ void init_libav()
 	if (libav_initialized) return;
 //	lock_t _(libav_initialization_mutex);
 	auto _ = get_libav_lock();
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(58,9,100)
+    // av_register_all() is deprecated starting with version 58.9.100
 	av_register_all();
+#endif
 	libav_initialized = true;
 }
 
