@@ -254,7 +254,7 @@ std::vector<fraction_t> v4l2_device::enum_fps(uint32_t fmt, resolution_t res)
 					k_fps.first >= frmvalen.stepwise.max.denominator &&
 					k_fps.second >= frmvalen.stepwise.min.numerator &&
 					k_fps.second <= frmvalen.stepwise.max.numerator) {
-						fps_list.push_back({k_fps.first, k_fps.second});
+						fps_list.push_back({static_cast<int64_t>(k_fps.first), static_cast<int64_t>(k_fps.second)});
 					}
 			}
 			break;
@@ -270,7 +270,7 @@ std::vector<fraction_t> v4l2_device::enum_fps(uint32_t fmt, resolution_t res)
 					k_fps.second <= frmvalen.stepwise.max.numerator &&
 					(k_fps.first-frmvalen.stepwise.min.denominator)%frmvalen.stepwise.step.denominator == 0 &&
 					(k_fps.second-frmvalen.stepwise.min.numerator)%frmvalen.stepwise.step.numerator == 0) {
-						fps_list.push_back({k_fps.first, k_fps.second});
+                    fps_list.push_back({static_cast<int64_t>(k_fps.first), static_cast<int64_t>(k_fps.second)});
 					}
 			}
 			break;

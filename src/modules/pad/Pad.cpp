@@ -39,7 +39,7 @@ namespace {
 std::vector<format_t> query_supported_formats()
 {
 	std::vector<format_t> fmts;
-	for (const auto f: core::raw_format::formats()) {
+	for (const auto& f: core::raw_format::formats()) {
 		const auto& info = f.second;
 		if (info.planes.size() != 1) {
 			continue;

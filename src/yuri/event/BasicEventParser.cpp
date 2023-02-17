@@ -640,7 +640,7 @@ namespace {
 					if (token->init) {
 						spec->init = process_tree(token->init);
 					}
-					return std::move(spec);
+					return spec;
 				}
 				case parser::token_type_t::func_name: {
 //					std::cout << "Processing func\n";
@@ -649,7 +649,7 @@ namespace {
 					for (const auto& arg: token->args) {
 						func->inputs.push_back(process_tree(arg));
 					}
-					return std::move(func);
+					return func;
 				}
 				case parser::token_type_t::vector_const: {
 //					std::cout << "New vector const\n";
@@ -658,7 +658,7 @@ namespace {
 					for (const auto& arg: token->members) {
 						vec->inputs.push_back(process_tree(arg));
 					}
-					return std::move(vec);
+					return vec;
 				}
 				case parser::token_type_t::dict_const: {
 					const auto& token = std::dynamic_pointer_cast<parser::dict_const_token>(ast);
@@ -666,12 +666,12 @@ namespace {
 					for (const auto& arg: token->members) {
 						dict->inputs[arg.first] = process_tree(arg.second);
 					}
-					return std::move(dict);
+					return dict;
 				}
 				case parser::token_type_t::null_const: {
 					std::unique_ptr<null_value> n (new null_value{});
 					assert(n);
-					return std::move(n);
+					return n;
 				}
 				default: break;
 			}
