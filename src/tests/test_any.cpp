@@ -24,7 +24,7 @@ TEST_CASE("any", "" ) {
 		utils::any any_int(5);
 		REQUIRE(!any_int.empty());
 		REQUIRE(any_int.get<int>() == 5);
-		REQUIRE_THROWS_AS(any_int.get<float>(), std::bad_cast&);
+		REQUIRE_THROWS_AS(any_int.get<float>(), std::bad_cast);
 		any_int = utils::any{18};
 		REQUIRE(any_int.get<int>() == 18);
 	}
@@ -34,7 +34,7 @@ TEST_CASE("any", "" ) {
 		utils::any any_str{str};
 		REQUIRE(!any_str.empty());
 		REQUIRE(any_str.get<std::string>() == str);
-		REQUIRE_THROWS_AS(any_str.get<int>(), std::bad_cast&);
+		REQUIRE_THROWS_AS(any_str.get<int>(), std::bad_cast);
 		auto any_str2 = any_str;
 		REQUIRE(!any_str2.empty());
 		REQUIRE(any_str2.get<std::string>() == str);
@@ -56,7 +56,7 @@ TEST_CASE("any", "" ) {
 		REQUIRE(!any_value.empty());
 		REQUIRE(any_value.get<int>() == 5);
 		any_value = str;
-		REQUIRE_THROWS_AS(any_value.get<int>(), std::bad_cast&);
+		REQUIRE_THROWS_AS(any_value.get<int>(), std::bad_cast);
 		REQUIRE(any_value.get<std::string>() == str);
 	}
 
