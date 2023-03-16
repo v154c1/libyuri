@@ -19,7 +19,7 @@
 #include "yuri/core/frame/VideoFrame.h"
 #include "yuri/core/utils/wall_time.h"
 #endif
-
+#include <sstream>
 namespace yuri {
 namespace core {
 namespace utils {
