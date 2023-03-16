@@ -53,7 +53,8 @@ void RawAudioFrame::set_data(uvector<uint8_t>&& data)
 // TODO implement
 pFrame RawAudioFrame::do_get_copy() const
 {
-	return {};
+    auto f = RawAudioFrame::create_empty(get_format(), get_channel_count(), get_sampling_frequency(), data(), size());
+	return f;
 }
 size_t RawAudioFrame::do_get_size() const noexcept
 {
