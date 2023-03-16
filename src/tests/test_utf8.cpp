@@ -54,13 +54,13 @@ TEST_CASE("utf8", "")
                 const auto  needed_bytes = utils::utf8_char_len(unicode);
                 REQUIRE(str.size() == needed_bytes);
                 scratch.resize(needed_bytes);
-                const auto used_bytes = utils::unicode_to_utf8(unicode, &scratch[0]);
+                const size_t used_bytes = utils::unicode_to_utf8(unicode, &scratch[0]);
                 REQUIRE(used_bytes == needed_bytes);
                 REQUIRE(scratch == str);
 
                 const auto unicode2 = utils::utf8_to_unicode(&str[0], str.size());
                 REQUIRE(std::get<0>(unicode2) == unicode);
-                REQUIRE(std::get<1>(unicode2) == needed_bytes);
+                REQUIRE(static_cast<size_t>(std::get<1>(unicode2)) == needed_bytes);
             }
         }
     }

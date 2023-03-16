@@ -16,13 +16,13 @@ namespace yuri{
 TEST_CASE( "irange", "[irange]" ) {
 
 	int i = 0;
-	for (auto idx: irange(0,0)) { ++i; }
+	for ([[maybe_unused]] auto idx: irange(0,0)) { ++i; }
 	REQUIRE( i == 0);
-	for (auto idx: irange(0,10)) { ++i; }
+	for ([[maybe_unused]] auto idx: irange(0,10)) { ++i; }
 	REQUIRE( i == 10);
 
 	i = 0;
-	for (auto idx: irange(100,110)) { ++i; }
+	for ([[maybe_unused]] auto idx: irange(100,110)) { ++i; }
 	REQUIRE( i == 10);
 
 	auto r = irange(10, 20);
