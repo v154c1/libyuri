@@ -158,6 +158,7 @@ const format_t yuv422p		= 0x501;	// YUV 4:2:2 (planar)
 const format_t yuv420p		= 0x502;	// YUV 4:2:0 (planar)
 const format_t yuv411p		= 0x503;	// YUV 4:1:1 (planar)
 
+const format_t nv12         = 0x600;    // NV12 4:2:0 (planar, two planes)
 
 // Custom formats (application specific formats)
 
