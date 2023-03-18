@@ -142,6 +142,7 @@ const std::vector<format_t> gl_supported_formats = {
 		raw_format::yuv444p,
 		raw_format::yuv420p,
 		raw_format::yuv411p,
+        raw_format::nv12,
 		raw_format::r8,
 		raw_format::g8,
 		raw_format::b8,
@@ -334,6 +335,22 @@ void GL::generate_texture(index_t tid, const format_t frame_format, const resolu
 			fs_color_get = shaders::fs_get_yuv_planar;
 
 		}break;
+        case raw_format::nv12:{
+            if (tex_res != textures[tid].tex_res) {
+                prepare_texture(tid,0,nullptr, 0, {tex_res.width/fi.planes[0].sub_x, tex_res.height/fi.planes[0].sub_y} ,GL_LUMINANCE8,GL_LUMINANCE,false);
+                prepare_texture(tid,1,nullptr, 0, {tex_res.width/fi.planes[1].sub_x, tex_res.height/fi.planes[1].sub_y} ,GL_LUMINANCE8_ALPHA8, GL_LUMINANCE_ALPHA,false);
+
+                textures[tid].tex_res = tex_res;
+            }
+            if (frame) {
+                prepare_texture(tid,0,PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0),{w/fi.planes[0].sub_x,
+                                                                                    h/fi.planes[0].sub_y},GL_LUMINANCE8,GL_LUMINANCE,true);
+                prepare_texture(tid,1,PLANE_RAW_DATA(frame,1), PLANE_SIZE(frame,1),{w/fi.planes[1].sub_x,
+                                                                                    h/fi.planes[1].sub_y},GL_LUMINANCE8_ALPHA8, GL_LUMINANCE_ALPHA,true);
+            }
+            fs_color_get = shaders::fs_get_nv12;
+
+        }break;
 
 /*
 		case YURI_FMT_DXT1:

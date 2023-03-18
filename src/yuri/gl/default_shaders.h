@@ -175,6 +175,20 @@ vec4 get_color(vec2 coord) {
 }
 )XXX";
 
+    const std::string fs_get_nv12 =
+            yuv_to_rgb + R"XXX(
+uniform sampler2D tex0;
+uniform sampler2D tex1;
+vec4 get_color(vec2 coord) {
+vec4 col = vec4(
+        texture2D(tex0, coord).r,
+        texture2D(tex1, coord).r-0.5,
+        texture2D(tex1, coord).a-0.5,
+        1.0);
+return convert_yuv_rgb(col);
+}
+)XXX";
+
 }
 }
 }
