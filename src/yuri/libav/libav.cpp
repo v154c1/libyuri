@@ -88,6 +88,8 @@ std::unordered_map<format_t, AVPixelFormat> yuri_pixel_map = {
 		{yuv411p,					AV_PIX_FMT_YUV411P},
 
 		{yuv422_v210,				AV_PIX_FMT_YUV422P10LE},
+
+        {nv12,				        AV_PIX_FMT_NV12},
 };
 
 using namespace yuri::core::raw_audio_format;
