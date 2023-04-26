@@ -66,6 +66,8 @@ private:
 	double              fps_;
 	int                 audio_bitrate_;
     int                 video_bitrate_;
+    format_t            video_codec_;
+    pix_fmt_t           video_format_;
     bool                audio_;
 
     AVFormatContext*    fmt_ctx_;

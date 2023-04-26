@@ -11,9 +11,13 @@
 #include "yuri/core/frame/RawVideoFrame.h"
 #include "yuri/core/frame/RawAudioFrame.h"
 #include "yuri/core/frame/compressed_frame_types.h"
+#include "yuri/core/frame/compressed_frame_params.h"
+#include "yuri/core/frame/raw_frame_types.h"
 #include "yuri/core/utils/global_time.h"
 
 #include <cassert>
+
+using namespace std::chrono;
 
 namespace yuri {
 namespace avoutput {
@@ -21,20 +25,21 @@ namespace avoutput {
 IOTHREAD_GENERATOR(AVOutput)
 
 core::Parameters AVOutput::configure() {
-	core::Parameters p = IOThread::configure();
-	p["url"]["URL address, can be RTMP or path to file."] = std::string("");
-	p["fps"]["Specify framerate."] = 30;
-	p["audio_bitrate"]["Specify audio bitrate."] = 128000;
+    core::Parameters p = IOThread::configure();
+    p["url"]["URL address, can be RTMP or path to file."] = std::string("");
+    p["fps"]["Specify framerate."] = 30;
+    p["audio_bitrate"]["Specify audio bitrate."] = 128000;
     p["video_bitrate"]["Specify video bitrate."] = 3584000;
-    p["video_codec"]["Specify codec for video output."] = std::string("");
+    p["video_codec"]["Specify codec for video output."] = std::string("H264");
     p["audio_codec"]["Specify codec for audio output."] = std::string("");
-	p["audio"]["Allow audio in stream."] = true;
-	return p;
+    p["video_format"]["Specify pixel format for video output."] = std::string("YUV422");
+    p["audio"]["Allow audio in stream."] = true;
+    return p;
 }
 
 namespace {
 
-void add_stream(StreamDescription *output_stream, AVFormatContext *fmt_ctx, AVCodec **codec, enum AVCodecID codec_id) {
+void add_stream(StreamDescription *output_stream, AVFormatContext *fmt_ctx, AVCodec **codec, enum AVCodecID codec_id, AVPixelFormat pixel_format = AV_PIX_FMT_NONE) {
     #if defined(__arm__) || defined(__aarch64__)
     // Should be Raspberry specific, not all arm, uses HW encoders for video
     if (codec_id == AV_CODEC_ID_H264) {
@@ -90,8 +95,8 @@ void add_stream(StreamDescription *output_stream, AVFormatContext *fmt_ctx, AVCo
         codec_ctx->bit_rate = output_stream->bitrate;
         codec_ctx->width    = output_stream->width;
         codec_ctx->height   = output_stream->height;
-        codec_ctx->gop_size      = 12;
-        codec_ctx->pix_fmt       = AV_PIX_FMT_YUV420P;
+        codec_ctx->gop_size = 12;
+        codec_ctx->pix_fmt  = pixel_format;
         if (codec_ctx->codec_id == AV_CODEC_ID_MPEG2VIDEO) {
             codec_ctx->max_b_frames = 2;
         }
@@ -177,6 +182,7 @@ bool write_video_frame(AVFormatContext *fmt_ctx, StreamDescription *output_strea
     }
 
     av_frame_make_writable(output_stream->frame);
+
     sws_scale(output_stream->sws_ctx, output_stream->tmp_frame->data, output_stream->tmp_frame->linesize, 0, output_stream->tmp_frame->height, output_stream->frame->data, output_stream->frame->linesize);
 
     output_stream->frame->pts = output_stream->next_pts++; 
@@ -295,16 +301,18 @@ static void close_stream(StreamDescription *output_stream) {
 
 AVOutput::AVOutput(const log::Log& _log, core::pwThreadBase parent, const core::Parameters& parameters)
     : base_type(_log, parent, 1, 1, "av_output"),
-	av_initialized_(false),
-	url_(""),
-	fps_(30),
+    av_initialized_(false),
+    url_(""),
+    fps_(30),
     audio_bitrate_(128000),
-	video_bitrate_(3584000),
-	audio_(true),
+    video_bitrate_(3584000),
+    video_codec_(core::compressed_frame::h264),
+    video_format_(core::raw_format::yuyv422),
+    audio_(true),
     yuri_audio_frame_(nullptr),
     yuri_video_frame_(nullptr) {
     IOTHREAD_INIT(parameters)
-	if (audio_) resize(2,0);
+    if (audio_) resize(2,0);
     set_latency(10_us);
 }
 
@@ -329,7 +337,7 @@ void AVOutput::initialize() {
         video_st_.fps = fps_;
         video_st_.bitrate = video_bitrate_;
         video_st_.video_format = libav::avpixelformat_from_yuri(yuri_video_frame_->get_format());
-        add_stream(&video_st_, fmt_ctx_, &video_codec, AV_CODEC_ID_H264);
+        add_stream(&video_st_, fmt_ctx_, &video_codec, libav::avcodec_from_yuri_format(video_codec_), libav::avpixelformat_from_yuri(video_format_));
     }
 	if (yuri_audio_frame_) {
         audio_st_.sample_rate = yuri_audio_frame_->get_sampling_frequency();
@@ -415,6 +423,7 @@ bool AVOutput::step() {
 				}
 			}
 		}
+
         try {
             if (!write_video_frame(fmt_ctx_, &video_st_))
                 log[log::warning] << "Temporary error in sending video frame.";
@@ -451,11 +460,13 @@ bool AVOutput::step() {
 
 bool AVOutput::set_param(const core::Parameter &parameter) {
     if (assign_parameters(parameter)
-    	(url_,           "url")
-		(fps_,           "fps")
-		(audio_bitrate_, "audio_bitrate")
+        (url_,           "url")
+        (fps_,           "fps")
+        (audio_bitrate_, "audio_bitrate")
         (video_bitrate_, "video_bitrate")
-		(audio_,         "audio")
+        (video_codec_,   "video_codec",  [](const core::Parameter&p){ return core::compressed_frame::parse_format(p.get<std::string>()); })
+        (video_format_,  "video_format", [](const core::Parameter&p){ return core::raw_format::parse_format(p.get<std::string>()); })
+        (audio_,         "audio")
         )
         return true;
     return IOThread::set_param(parameter);
