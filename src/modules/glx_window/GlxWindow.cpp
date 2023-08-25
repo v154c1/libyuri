@@ -46,6 +46,7 @@ core::Parameters GlxWindow::configure()
 	p["use_30bit"]["Use 30 bit colors"]=false;
     p["keep_aspect"]["Keep aspcet ratio"]=false;
     p["title"]["Window title"]=false;
+    p["color_shader"]["COlor mapping override"]="";
 	return p;
 }
 
@@ -639,6 +640,7 @@ bool GlxWindow::set_param(const core::Parameter& param)
             (fullscreen_, "fullscreen")
             (keep_aspect_, "keep_aspect")
             (title_, "title")
+            (gl_.color_map_shader, "color_shader")
 			(stereo_mode_, "stereo", [](const core::Parameter& p){return get_mode(p.get<std::string>());}))
 		return true;
 
@@ -682,6 +684,12 @@ bool GlxWindow::do_process_event(const std::string& event_name, const event::pBa
 		return true;
 	}
 
+    if (assign_events(event_name, event)
+            (gl_.color_map_shader, "color_shader")    ) {
+
+        gl_.textures.clear();
+    }
+
 	return false;
 }
     bool GlxWindow::set_title(const std::string& name) {
@@ -690,3 +698,4 @@ bool GlxWindow::do_process_event(const std::string& event_name, const event::pBa
 }
 } /* namespace glx_window */
 } /* namespace yuri */
+
