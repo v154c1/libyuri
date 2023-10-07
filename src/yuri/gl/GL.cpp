@@ -12,9 +12,12 @@
 #include "yuri/core/pipe/Pipe.h"
 #include "yuri/core/thread/IOThread.h"
 #include "yuri/core/frame/RawVideoFrame.h"
+#include "yuri/core/frame/CompressedVideoFrame.h"
 #include "yuri/core/frame/raw_frame_params.h"
+#include "yuri/core/frame/compressed_frame_params.h"
 #include "yuri/core/utils.h"
 #include "default_shaders.h"
+#include "yuri/core/frame/compressed_frame_types.h"
 #include <cassert>
 
 namespace yuri {
@@ -160,7 +163,24 @@ const std::vector<format_t> gl_supported_formats = {
 		raw_format::rgb8,
 		raw_format::rgb16,
         raw_format::rgb_r10k_le,
+
+        compressed_frame::dxt1,
+        compressed_frame::dxt5,
+
 };
+
+GLenum  dxt_format(format_t fmt) {
+    switch (fmt) {
+        case core::compressed_frame::dxt1:
+            return GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
+        case core::compressed_frame::dxt5:
+            return GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+        default:
+            return 0;
+    }
+
+
+}
 
 }
 
@@ -186,17 +206,19 @@ GL::~GL() noexcept {
 
 void GL::generate_texture(index_t tid, const core::pFrame& gframe, bool flip_x, bool flip_y)
 {
-	core::pRawVideoFrame frame = std::dynamic_pointer_cast<RawVideoFrame>(gframe);
-	if (!frame) return;
-	const format_t frame_format = frame->get_format();
-	const resolution_t res = frame->get_resolution();
-	generate_texture(tid, frame_format, res, gframe, flip_x, flip_y);
+	core::pVideoFrame frame = std::dynamic_pointer_cast<VideoFrame>(gframe);
+	if (frame) {
+        const format_t frame_format = frame->get_format();
+        const resolution_t res = frame->get_resolution();
+        generate_texture(tid, frame_format, res, gframe, flip_x, flip_y);
+    }
 }
 
 void GL::generate_texture(index_t tid, const format_t frame_format, const resolution_t res, const core::pFrame& gframe, bool flip_x, bool flip_y, bool force_pow2)
 {
 	using namespace yuri::core;
 	core::pRawVideoFrame frame = std::dynamic_pointer_cast<RawVideoFrame>(gframe);
+    core::pCompressedVideoFrame cframe = std::dynamic_pointer_cast<CompressedVideoFrame>(gframe);
 	std::string fs_color_get;
 
 	textures[tid].flip_x = flip_x;
@@ -208,10 +230,7 @@ void GL::generate_texture(index_t tid, const format_t frame_format, const resolu
 	const yuri::size_t w = res.width;
 	const yuri::size_t h = res.height;
 
-	const auto tex_res = resolution_t{force_pow2?next_power_2(w):w, force_pow2?next_power_2(h):h};
-//	log[log::info] << "Textuire res: " << tex_res;
-	tx = static_cast<float>(w) / static_cast<float>(tex_res.width);
-	ty = static_cast<float>(h) / static_cast<float>(tex_res.height);
+
 
 
 	if (textures[tid].tid[0]==static_cast<GLuint>(-1)) {
@@ -246,111 +265,134 @@ void GL::generate_texture(index_t tid, const format_t frame_format, const resolu
 	glSampleCoverage(0.1f, GL_TRUE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	const raw_format::raw_format_t& fi = raw_format::get_format_info(frame_format);
-	switch (frame_format) {
-		case raw_format::rgb24:
-		case raw_format::rgba32:
-		case raw_format::bgr24:
-		case raw_format::bgra32:
-		case raw_format::r8:
-		case raw_format::g8:
-		case raw_format::b8:
-		case raw_format::y8:
-		case raw_format::u8:
-		case raw_format::v8:
-		case raw_format::depth8:
-		case raw_format::r16:
-		case raw_format::g16:
-		case raw_format::b16:
-		case raw_format::y16:
-		case raw_format::u16:
-		case raw_format::v16:
-		case raw_format::depth16:
-		case raw_format::rgb8:
-		case raw_format::rgb16:
-		case raw_format::rgb_r10k_le:
-		{
-			GLenum fmt_in = GL_RGB;
-			GLenum fmt_out = GL_RGB;
-			GLenum data_type = GL_UNSIGNED_BYTE;
-			std::tie(fmt_in, fmt_out, data_type) = get_rgb_format(frame_format);
-			if (tex_res != textures[tid].tex_res) {
-				prepare_texture(tid, 0, nullptr, 0, tex_res,fmt_out, fmt_in,false, data_type);
-				textures[tid].tex_res = tex_res;
-			}
-			if (frame) {
-				prepare_texture(tid, 0, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w, h}, fmt_out, fmt_in, true, data_type);
-			}
-			fs_color_get = shaders::fs_get_rgb;
-		}break;
-
-		case raw_format::yuv444:
-		case raw_format::yuva4444:
-		case raw_format::yuyv422:
-		case raw_format::yvyu422:
-		case raw_format::uyvy422:
-		case raw_format::vyuy422:
-		{
-			if (tex_res != textures[tid].tex_res) {
-				if (frame_format==raw_format::yuv444) {
-					prepare_texture(tid, 0, nullptr, 0, tex_res, GL_RGB, GL_RGB, false);
-				} else if (frame_format==raw_format::yuva4444) {
-					prepare_texture(tid, 0, nullptr, 0, tex_res, GL_RGB, GL_RGBA, false);
-				} else {
-					prepare_texture(tid, 0, nullptr, 0, {tex_res.width/2, tex_res.height}, GL_RGBA, GL_RGBA, false);
-					prepare_texture(tid, 1, nullptr, 0, tex_res, GL_LUMINANCE8_ALPHA8, GL_LUMINANCE_ALPHA, false);
-				}
-				textures[tid].tex_res =tex_res;
-			}
-			if (frame) {
-				if (frame_format ==raw_format::yuv444) {
-					prepare_texture(tid, 0, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w, h},GL_RGB,GL_RGB,true);
-				} else if (frame_format ==raw_format::yuva4444) {
-					prepare_texture(tid, 0, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w, h},GL_RGBA,GL_RGBA,true);
-				} else {
-					prepare_texture(tid, 0, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w/2, h}, GL_RGBA, GL_RGBA, true);
-					prepare_texture(tid, 1, PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0), {w, h}, GL_LUMINANCE8_ALPHA8, GL_LUMINANCE_ALPHA, true);
-				}
-			}
-			fs_color_get = get_yuv_shader(frame_format);
-		}break;
-
-
-		case raw_format::yuv420p:
-		case raw_format::yuv411p:
-		case raw_format::yuv422p:
-		case raw_format::yuv444p:{
-			if (tex_res != textures[tid].tex_res) {
-				for (int i=0;i<3;++i) {
-					prepare_texture(tid,i,nullptr, 0, {tex_res.width/fi.planes[i].sub_x, tex_res.height/fi.planes[i].sub_y} ,GL_LUMINANCE8,GL_LUMINANCE,false);
-				}
-				textures[tid].tex_res = tex_res;
-			}
-			if (frame) {
-				for (int i=0;i<3;++i) {
-					prepare_texture(tid,i,PLANE_RAW_DATA(frame,i), PLANE_SIZE(frame,i),{w/fi.planes[i].sub_x,
-							h/fi.planes[i].sub_y},GL_LUMINANCE8,GL_LUMINANCE,true);
-				}
-			}
-			fs_color_get = shaders::fs_get_yuv_planar;
-
-		}break;
-        case raw_format::nv12:{
-            if (tex_res != textures[tid].tex_res) {
-                prepare_texture(tid,0,nullptr, 0, {tex_res.width/fi.planes[0].sub_x, tex_res.height/fi.planes[0].sub_y} ,GL_LUMINANCE8,GL_LUMINANCE,false);
-                prepare_texture(tid,1,nullptr, 0, {tex_res.width/fi.planes[1].sub_x, tex_res.height/fi.planes[1].sub_y} ,GL_LUMINANCE8_ALPHA8, GL_LUMINANCE_ALPHA,false);
-
-                textures[tid].tex_res = tex_res;
+    if (frame) {
+        const auto tex_res = resolution_t{force_pow2?next_power_2(w):w, force_pow2?next_power_2(h):h};
+//	log[log::info] << "Textuire res: " << tex_res;
+        tx = static_cast<float>(w) / static_cast<float>(tex_res.width);
+        ty = static_cast<float>(h) / static_cast<float>(tex_res.height);
+        const raw_format::raw_format_t &fi = raw_format::get_format_info(frame_format);
+        switch (frame_format) {
+            case raw_format::rgb24:
+            case raw_format::rgba32:
+            case raw_format::bgr24:
+            case raw_format::bgra32:
+            case raw_format::r8:
+            case raw_format::g8:
+            case raw_format::b8:
+            case raw_format::y8:
+            case raw_format::u8:
+            case raw_format::v8:
+            case raw_format::depth8:
+            case raw_format::r16:
+            case raw_format::g16:
+            case raw_format::b16:
+            case raw_format::y16:
+            case raw_format::u16:
+            case raw_format::v16:
+            case raw_format::depth16:
+            case raw_format::rgb8:
+            case raw_format::rgb16:
+            case raw_format::rgb_r10k_le: {
+                GLenum fmt_in = GL_RGB;
+                GLenum fmt_out = GL_RGB;
+                GLenum data_type = GL_UNSIGNED_BYTE;
+                std::tie(fmt_in, fmt_out, data_type) = get_rgb_format(frame_format);
+                if (tex_res != textures[tid].tex_res) {
+                    prepare_texture(tid, 0, nullptr, 0, tex_res, fmt_out, fmt_in, false, data_type);
+                    textures[tid].tex_res = tex_res;
+                }
+                if (frame) {
+                    prepare_texture(tid, 0, PLANE_RAW_DATA(frame, 0), PLANE_SIZE(frame, 0), {w, h}, fmt_out, fmt_in,
+                                    true, data_type);
+                }
+                fs_color_get = shaders::fs_get_rgb;
             }
-            if (frame) {
-                prepare_texture(tid,0,PLANE_RAW_DATA(frame,0), PLANE_SIZE(frame,0),{w/fi.planes[0].sub_x,
-                                                                                    h/fi.planes[0].sub_y},GL_LUMINANCE8,GL_LUMINANCE,true);
-                prepare_texture(tid,1,PLANE_RAW_DATA(frame,1), PLANE_SIZE(frame,1),{w/fi.planes[1].sub_x,
-                                                                                    h/fi.planes[1].sub_y},GL_LUMINANCE8_ALPHA8, GL_LUMINANCE_ALPHA,true);
-            }
-            fs_color_get = shaders::fs_get_nv12;
+                break;
 
-        }break;
+            case raw_format::yuv444:
+            case raw_format::yuva4444:
+            case raw_format::yuyv422:
+            case raw_format::yvyu422:
+            case raw_format::uyvy422:
+            case raw_format::vyuy422: {
+                if (tex_res != textures[tid].tex_res) {
+                    if (frame_format == raw_format::yuv444) {
+                        prepare_texture(tid, 0, nullptr, 0, tex_res, GL_RGB, GL_RGB, false);
+                    } else if (frame_format == raw_format::yuva4444) {
+                        prepare_texture(tid, 0, nullptr, 0, tex_res, GL_RGB, GL_RGBA, false);
+                    } else {
+                        prepare_texture(tid, 0, nullptr, 0, {tex_res.width / 2, tex_res.height}, GL_RGBA, GL_RGBA,
+                                        false);
+                        prepare_texture(tid, 1, nullptr, 0, tex_res, GL_LUMINANCE8_ALPHA8, GL_LUMINANCE_ALPHA, false);
+                    }
+                    textures[tid].tex_res = tex_res;
+                }
+                if (frame) {
+                    if (frame_format == raw_format::yuv444) {
+                        prepare_texture(tid, 0, PLANE_RAW_DATA(frame, 0), PLANE_SIZE(frame, 0), {w, h}, GL_RGB, GL_RGB,
+                                        true);
+                    } else if (frame_format == raw_format::yuva4444) {
+                        prepare_texture(tid, 0, PLANE_RAW_DATA(frame, 0), PLANE_SIZE(frame, 0), {w, h}, GL_RGBA,
+                                        GL_RGBA, true);
+                    } else {
+                        prepare_texture(tid, 0, PLANE_RAW_DATA(frame, 0), PLANE_SIZE(frame, 0), {w / 2, h}, GL_RGBA,
+                                        GL_RGBA, true);
+                        prepare_texture(tid, 1, PLANE_RAW_DATA(frame, 0), PLANE_SIZE(frame, 0), {w, h},
+                                        GL_LUMINANCE8_ALPHA8, GL_LUMINANCE_ALPHA, true);
+                    }
+                }
+                fs_color_get = get_yuv_shader(frame_format);
+            }
+                break;
+
+
+            case raw_format::yuv420p:
+            case raw_format::yuv411p:
+            case raw_format::yuv422p:
+            case raw_format::yuv444p: {
+                if (tex_res != textures[tid].tex_res) {
+                    for (int i = 0; i < 3; ++i) {
+                        prepare_texture(tid, i, nullptr, 0,
+                                        {tex_res.width / fi.planes[i].sub_x, tex_res.height / fi.planes[i].sub_y},
+                                        GL_LUMINANCE8, GL_LUMINANCE, false);
+                    }
+                    textures[tid].tex_res = tex_res;
+                }
+                if (frame) {
+                    for (int i = 0; i < 3; ++i) {
+                        prepare_texture(tid, i, PLANE_RAW_DATA(frame, i), PLANE_SIZE(frame, i), {w / fi.planes[i].sub_x,
+                                                                                                 h /
+                                                                                                 fi.planes[i].sub_y},
+                                        GL_LUMINANCE8, GL_LUMINANCE, true);
+                    }
+                }
+                fs_color_get = shaders::fs_get_yuv_planar;
+
+            }
+                break;
+            case raw_format::nv12: {
+                if (tex_res != textures[tid].tex_res) {
+                    prepare_texture(tid, 0, nullptr, 0,
+                                    {tex_res.width / fi.planes[0].sub_x, tex_res.height / fi.planes[0].sub_y},
+                                    GL_LUMINANCE8, GL_LUMINANCE, false);
+                    prepare_texture(tid, 1, nullptr, 0,
+                                    {tex_res.width / fi.planes[1].sub_x, tex_res.height / fi.planes[1].sub_y},
+                                    GL_LUMINANCE8_ALPHA8, GL_LUMINANCE_ALPHA, false);
+
+                    textures[tid].tex_res = tex_res;
+                }
+                if (frame) {
+                    prepare_texture(tid, 0, PLANE_RAW_DATA(frame, 0), PLANE_SIZE(frame, 0), {w / fi.planes[0].sub_x,
+                                                                                             h / fi.planes[0].sub_y},
+                                    GL_LUMINANCE8, GL_LUMINANCE, true);
+                    prepare_texture(tid, 1, PLANE_RAW_DATA(frame, 1), PLANE_SIZE(frame, 1), {w / fi.planes[1].sub_x,
+                                                                                             h / fi.planes[1].sub_y},
+                                    GL_LUMINANCE8_ALPHA8, GL_LUMINANCE_ALPHA, true);
+                }
+                fs_color_get = shaders::fs_get_nv12;
+
+            }
+                break;
 
 /*
 		case YURI_FMT_DXT1:
@@ -421,10 +463,38 @@ void GL::generate_texture(index_t tid, const format_t frame_format, const resolu
 		} break;
 
 		*/
-		default:
-			log[log::warning] << "Frame with unsupported format! (" << fi.name << ")";
-			break;
-	}
+            default:
+                log[log::warning] << "Frame with unsupported format! (" << fi.name << ")";
+                break;
+        }
+    } else if (cframe) {
+        const auto tex_res = res;
+        tx = static_cast<float>(w) / static_cast<float>(tex_res.width);
+        ty = static_cast<float>(h) / static_cast<float>(tex_res.height);
+
+        const auto& fi = compressed_frame::get_format_info(frame_format);
+        switch(frame_format) {
+            case compressed_frame::dxt1:
+            case compressed_frame::dxt5: {
+                const auto gl_format= dxt_format(frame_format);
+
+                if (tex_res != textures[tid].tex_res) {
+                    prepare_texture(tid, 0, &cframe->data()[0], cframe->size(), tex_res, gl_format, 0, false, 0, true);
+
+                    textures[tid].tex_res = tex_res;
+                }
+                if (cframe) {
+                    prepare_texture(tid, 0, &cframe->data()[0], cframe->size(), tex_res, gl_format, 0, true,0,true);
+                }
+                fs_color_get = shaders::fs_get_rgb;
+
+            }
+                break;
+            default:
+                log[log::info] << "Unsupported format " << fi.name;
+                break;
+        }
+    }
 	/*
 	log[log::debug] << "Generated texture " << wh << "x" << wh << " from image " <<
 			w << "x" << h << " (" << tx << ", " << ty << ")";
@@ -614,7 +684,7 @@ void GL::clear()
  */
 bool GL::prepare_texture(index_t tid, unsigned texid, const uint8_t *data, size_t data_size,
 		resolution_t resolution, GLenum tex_mode, GLenum data_mode, bool update,
-		GLenum data_type)
+		GLenum data_type, bool compressed)
 {
 	GLenum err;
 	glGetError();
@@ -631,7 +701,7 @@ bool GL::prepare_texture(index_t tid, unsigned texid, const uint8_t *data, size_
 		log[log::error]<< "Error " << err << " while binding texture";
 		return false;
 	}
-	if (data) {
+	if (data && !compressed) {
 		size_t min_image_size = resolution.width*resolution.height*get_pixel_size(data_mode, data_type);
 		if (min_image_size && (data_size < min_image_size)) {
 			log[log::error] << "Not enough data to update texture";
@@ -651,12 +721,23 @@ bool GL::prepare_texture(index_t tid, unsigned texid, const uint8_t *data, size_
 		}
 
 	}
-	if (!update) {
-		glTexImage2D(GL_TEXTURE_2D, 0, tex_mode, resolution.width, resolution.height, 0, data_mode, data_type, nullptr);
-	} else {
-		if (!use_pbo || textures[tid].pbo_valid[texid])
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, resolution.width, resolution.height, data_mode, data_type, use_pbo?nullptr:data);
-	}
+    if (!compressed) {
+        if (!update) {
+            glTexImage2D(GL_TEXTURE_2D, 0, tex_mode, resolution.width, resolution.height, 0, data_mode, data_type,
+                         nullptr);
+        } else {
+            if (!use_pbo || textures[tid].pbo_valid[texid])
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, resolution.width, resolution.height, data_mode, data_type,
+                                use_pbo ? nullptr : data);
+        }
+    } else {
+        if (!update) {
+            glCompressedTexImage2D(GL_TEXTURE_2D, 0, tex_mode, resolution.width, resolution.height, 0, data_size, data);
+        } else {
+            if (!use_pbo || textures[tid].pbo_valid[texid])
+                glCompressedTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, resolution.width, resolution.height, tex_mode, data_size, data);
+        }
+    }
 	err = glGetError();
 	if (err) {
 		log[log::error] << "Error " << err /*<< ":" << glGetString(err) */<< " uploading tex. data";
