@@ -366,23 +366,56 @@ namespace yuri {
         bool JackOutput::do_process_event(const std::string &event_name, const event::pBasicEvent &event) {
             log[log::info] << "event " << event_name;
             if (event_name == "gains") {
-                // Directly specifies gains
-                if (!process_vector_event(event, gains_, [](const event::pBasicEvent &event) {
-                    return event::lex_cast_value<float>(event);
-                })) {
-                    log[log::warning] << "gains event has to receive a vector";
-                    return false;
+                switch (event->get_type()) {
+                    case event::event_type_t::vector_event:
+
+                        // Directly specifies gains
+                        if (!process_vector_event(event, gains_, [](const event::pBasicEvent &event) {
+                            return event::lex_cast_value<float>(event);
+                        })) {
+                            log[log::warning] << "gains event has to receive a vector";
+                            return false;
+                        }
+                        break;
+                    case event::event_type_t::double_event:
+                    case event::event_type_t::integer_event: {
+                        gains_.resize(channels_, 1.0f);
+                        const auto value = event::lex_cast_value<float>(event);
+                        std::fill(gains_.begin(), gains_.end(), value);
+                        log[log::info] << "Setting all gains to " << value;
+                    }
+
+                        break;
+                    default:
+                        return false;
                 }
+                return true;
             }
             if (event_name == "volume") {
-                // Receives a vector of gains specified in dB.
-                if (!process_vector_event(event, gains_, [](const event::pBasicEvent &event) {
-                    return db_to_gain(event::lex_cast_value<float>(event));
-                })) {
-                    log[log::warning] << "volume event has to receive a vector";
-                    return false;
+                switch (event->get_type()) {
+                    case event::event_type_t::vector_event: {
+                        // Receives a vector of gains specified in dB.
+                        if (!process_vector_event(event, gains_, [](const event::pBasicEvent &event) {
+                            return db_to_gain(event::lex_cast_value<float>(event));
+                        })) {
+                            log[log::warning] << "volume event has to receive a vector";
+                            return false;
+                        }
+                        log[log::info] << "Gain for channel 0: " << gains_[0] << " (" << gain_to_db(gains_[0])
+                                       << " dB)";
+                    }
+                        break;
+                    case event::event_type_t::double_event:
+                    case event::event_type_t::integer_event: {
+                        gains_.resize(channels_, 1.0f);
+                        const auto value = db_to_gain(event::lex_cast_value<float>(event));
+                        std::fill(gains_.begin(), gains_.end(), value);
+                        log[log::info] << "Setting all gains to " << value;
+                    }
+                        break;
+                    default:
+                        return false;
                 }
-                log[log::info] << "Gain for channel 0: " << gains_[0] << " (" << gain_to_db(gains_[0]) << " dB)";
                 return true;
             }
             return false;
