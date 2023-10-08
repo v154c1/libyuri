@@ -263,6 +263,7 @@ FuncInitHelper fhelper_ {
 		 {"append", std::vector<event_type_t>({event_type_t::vector_event, event_type_t::undetermined_event}),event_type_t::vector_event, functions::append},
 		 {"slice", std::vector<event_type_t>({event_type_t::vector_event, event_type_t::integer_event}),event_type_t::vector_event, functions::slice},
 		 {"slice", std::vector<event_type_t>({event_type_t::vector_event, event_type_t::integer_event, event_type_t::integer_event}),event_type_t::vector_event, functions::slice},
+         {"len", std::vector<event_type_t>({event_type_t::vector_event}),event_type_t::integer_event, functions::len},
 
 
 
