@@ -111,6 +111,9 @@ namespace yuri {
                     case 0x0E:
                         info.format = core::compressed_frame::dxt5;
                         break;
+                    case 0x0F:
+                        info.format = core::compressed_frame::ycocg_dxt5;
+                        break;
                     default:
                         log[log::warning] << "Unsupported color type";
                         return {};
@@ -124,6 +127,7 @@ namespace yuri {
                     case core::compressed_frame::dxt1:
                         return resolution.width * resolution.height / 2;
                     case core::compressed_frame::dxt5:
+                    case core::compressed_frame::ycocg_dxt5:
                         return resolution.width * resolution.height;
                     default:
                         return 0;
@@ -183,7 +187,8 @@ namespace yuri {
         HapDecoder::process_uncompressed_frame(const core::pCompressedVideoFrame &cframe, hap_info_t info) {
             switch (info.format) {
                 case core::compressed_frame::dxt1:
-                case core::compressed_frame::dxt5: {
+                case core::compressed_frame::dxt5:
+                case core::compressed_frame::ycocg_dxt5: {
                     const auto expected_size = dxt_size(info.format, cframe->get_resolution());
                     if (info.size != expected_size) {
                         log[log::warning] << "Wrong size! Expected " << expected_size << ", got " << info.size;
@@ -222,7 +227,8 @@ namespace yuri {
             snappy::ByteArraySource src(reinterpret_cast<const char *>(info.data_start), info.size);
             switch (info.format) {
                 case core::compressed_frame::dxt1:
-                case core::compressed_frame::dxt5: {
+                case core::compressed_frame::dxt5:
+                case core::compressed_frame::ycocg_dxt5: {
 
                     auto out_frame = core::CompressedVideoFrame::create_empty(info.format, cframe->get_resolution(),
                                                                               uncompressed_size);
@@ -337,7 +343,8 @@ namespace yuri {
 
             switch (info.format) {
                 case core::compressed_frame::dxt1:
-                case core::compressed_frame::dxt5: {
+                case core::compressed_frame::dxt5:
+                case core::compressed_frame::ycocg_dxt5: {
 
                     auto out_frame = core::CompressedVideoFrame::create_empty(info.format, cframe->get_resolution(),
                                                                               uncompressed_size);
