@@ -37,6 +37,10 @@ const format_t h265			= 0x1000f;
 const format_t avc1			= 0x10010;
 
 const format_t hap			= 0x10011;
+
+// YCoCg Scaled in DXT5
+const format_t ycocg_dxt5   = 0x10020;
+
 // IntoPIX/MVTP proprietary codec
 const format_t jpegxs		= 0x10011;
 const format_t user_start 	= 0x11000;
