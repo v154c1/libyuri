@@ -166,6 +166,7 @@ const std::vector<format_t> gl_supported_formats = {
 
         compressed_frame::dxt1,
         compressed_frame::dxt5,
+        compressed_frame::ycocg_dxt5,
 
 };
 
@@ -174,6 +175,7 @@ GLenum  dxt_format(format_t fmt) {
         case core::compressed_frame::dxt1:
             return GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
         case core::compressed_frame::dxt5:
+        case core::compressed_frame::ycocg_dxt5:
             return GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
         default:
             return 0;
@@ -475,7 +477,8 @@ void GL::generate_texture(index_t tid, const format_t frame_format, const resolu
         const auto& fi = compressed_frame::get_format_info(frame_format);
         switch(frame_format) {
             case compressed_frame::dxt1:
-            case compressed_frame::dxt5: {
+            case compressed_frame::dxt5:
+            case compressed_frame::ycocg_dxt5: {
                 const auto gl_format= dxt_format(frame_format);
 
                 if (tex_res != textures[tid].tex_res) {
@@ -486,7 +489,11 @@ void GL::generate_texture(index_t tid, const format_t frame_format, const resolu
                 if (cframe) {
                     prepare_texture(tid, 0, &cframe->data()[0], cframe->size(), tex_res, gl_format, 0, true,0,true);
                 }
-                fs_color_get = shaders::fs_get_rgb;
+                if (frame_format == compressed_frame::ycocg_dxt5) {
+                    fs_color_get = shaders::fs_get_ycocg_scaled;
+                } else {
+                    fs_color_get = shaders::fs_get_rgb;
+                }
 
             }
                 break;

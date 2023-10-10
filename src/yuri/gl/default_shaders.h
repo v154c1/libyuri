@@ -189,6 +189,22 @@ return convert_yuv_rgb(col);
 }
 )XXX";
 
+    const std::string fs_get_ycocg_scaled = R"XXX(
+uniform sampler2D tex0;
+vec4 get_color(vec2 coord) {
+    vec4 color = texture2D(tex0, coord);
+    float Co = color.x - ( 0.5 * 256.0 / 255.0 );
+    float Cg = color.y - ( 0.5 * 256.0 / 255.0 );
+    float Y = color.w;
+    return vec4 (
+        Y + Co - Cg,
+        Y + Cg,
+        Y - Co - Cg,
+        1.0);
+}
+)XXX";
+
+
 }
 }
 }
