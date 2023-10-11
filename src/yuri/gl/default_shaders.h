@@ -193,8 +193,9 @@ return convert_yuv_rgb(col);
 uniform sampler2D tex0;
 vec4 get_color(vec2 coord) {
     vec4 color = texture2D(tex0, coord);
-    float Co = color.x - ( 0.5 * 256.0 / 255.0 );
-    float Cg = color.y - ( 0.5 * 256.0 / 255.0 );
+    float scale = ( color.z * ( 255.0 / 8.0 ) ) + 1.0;
+    float Co = (color.x - ( 0.5 * 256.0 / 255.0 )) / scale;
+    float Cg = (color.y - ( 0.5 * 256.0 / 255.0 )) / scale;
     float Y = color.w;
     return vec4 (
         Y + Co - Cg,
