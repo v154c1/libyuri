@@ -36,7 +36,8 @@ namespace yuri {
             p["allow_unconnected"]["Allow the module start without an active connection to jackd, Forces reconnect"] = false;
             p["report_max_missing"]["Number of missing frames to report, when no data are present to a longer time"] =
                     5 * 48000;
-            p["send_only_full_buffers"]["Send either full buffer or nothing"]=false;
+            p["send_only_full_buffers"]["Send either full buffer or nothing"] = false;
+            p["emit_buffer_size"]["Emit used buffer size on change"] = false;
             return p;
         }
 
@@ -175,7 +176,8 @@ namespace yuri {
 
 
         JackOutput::JackOutput(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters) :
-                base_type(log_, parent, std::string("jack_output")), event::BasicEventConsumer(log), handle_(nullptr),
+                base_type(log_, parent, std::string("jack_output")), event::BasicEventConsumer(log),
+                event::BasicEventProducer(log), handle_(nullptr),
                 client_name_("yuri_jack"), channels_(2), allow_different_frequencies_(false), buffer_size_(1048576),
                 start_server_(false), blocking_(false), report_max_(32768), current_missing_(0) {
             IOTHREAD_INIT(parameters)
@@ -302,6 +304,9 @@ namespace yuri {
                         break;
                 }
             }
+            if (emit_buffer_size_) {
+                emit_event("buffer_size", buffers_[0].size(), 0, buffer_size_);
+            }
             return {};
         }
 
@@ -309,7 +314,7 @@ namespace yuri {
             std::unique_lock<std::mutex> lock(data_mutex_);
             const size_t copy_count =
                     send_only_full_buffers_ ?
-                    (buffers_[0].size()>= nframes? nframes:0):
+                    (buffers_[0].size() >= nframes ? nframes : 0) :
                     std::min<size_t>(buffers_[0].size(), nframes);
             for (size_t i = 0; i < buffers_.size(); ++i) {
                 if (!ports_[i]) continue;
@@ -330,6 +335,9 @@ namespace yuri {
                     current_missing_ = 0;
                 }
             }
+            if (emit_buffer_size_) {
+                emit_event("buffer_size", buffers_[0].size(), 0, buffer_size_);
+            }
             return 0;
         }
 
@@ -347,6 +355,7 @@ namespace yuri {
                     (allow_unconnected_, "allow_unconnected")
                     (report_max_, "report_max_missing")
                     (send_only_full_buffers_, "send_only_full_buffers")
+                    (emit_buffer_size_, "emit_buffer_size")
                     ) {
                 return true;
             } else return base_type::set_param(param);

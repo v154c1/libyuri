@@ -14,6 +14,7 @@
 #include "yuri/core/frame/RawAudioFrame.h"
 #include <jack/jack.h>
 #include "yuri/event/BasicEventConsumer.h"
+#include "yuri/event/BasicEventProducer.h"
 
 namespace yuri {
 namespace jack {
@@ -65,7 +66,7 @@ struct buffer_t {
 	}
 };
 
-class JackOutput: public core::SpecializedIOFilter<core::RawAudioFrame>, public event::BasicEventConsumer
+class JackOutput: public core::SpecializedIOFilter<core::RawAudioFrame>, public event::BasicEventConsumer, public event::BasicEventProducer
 {
 	using base_type = core::SpecializedIOFilter<core::RawAudioFrame>;
 	using handle_t = std::unique_ptr<jack_client_t, std::function<void(jack_client_t*)>>;
@@ -107,6 +108,7 @@ private:
     bool reconnect_;
     bool allow_unconnected_;
     bool send_only_full_buffers_ = false;
+    bool emit_buffer_size_ = false;
 
 	std::condition_variable buffer_cv_;
 	bool jackd_down_ = false;
