@@ -20,13 +20,17 @@
 #include <type_traits>
 #include <utility>
 namespace yuri {
-template<class T> struct unique_if {
-      typedef std::unique_ptr<T> single_object;
-  };
+    template<class T> struct unique_if {
+        typedef std::unique_ptr<T> single_object;
+    };
+    template<class T> struct unique_if<T[]> {
+        typedef std::unique_ptr<T[]> unknown_bound;
+    };
 
-  template<class T> struct unique_if<T[]> {
-      typedef std::unique_ptr<T[]> unknown_bound;
-  };
+#if __cplusplus >= 201402L
+    using std::make_unique;
+#else
+
 
   template<class T, size_t N> struct unique_if<T[N]> {
       typedef void known_bound;
@@ -48,7 +52,7 @@ template<class T> struct unique_if {
   template<class T, class... Args>
       typename unique_if<T>::known_bound
       make_unique(Args&&...) = delete;
-
+#endif
   template<class T>
 	typename unique_if<T>::unknown_bound
 	make_unique_uninitialized(size_t n) {
