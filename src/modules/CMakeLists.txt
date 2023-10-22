@@ -200,13 +200,20 @@ IF(${X264_FOUND})
     add_subdirectory(x264)
 ENDIF()
 
-find_package( Boost 1.46 COMPONENTS regex)
+find_package( Boost 1.46 COMPONENTS regex python)
 IF (Boost_REGEX_FOUND)
     include_directories( ${Boost_INCLUDE_DIRS})
     link_directories (${Boost_LIBRARY_DIRS})
 
 	add_subdirectory(rawfilesource)
 ENDIF()
+
+IF(Boost_PYTHON_FOUND)
+       find_package(Python3 COMPONENTS Development)
+       if (Python3_FOUND)
+               add_subdirectory(python_module)
+       endif()
+ENDIF ()
 
 find_package(VIDEOMASTER)
 IF (VIDEOMASTER_FOUND)
