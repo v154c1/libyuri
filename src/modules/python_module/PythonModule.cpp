@@ -17,6 +17,8 @@
 namespace yuri {
     namespace python_module {
 
+        std::mutex PythonModule::instance_mutex_;
+
 
         IOTHREAD_GENERATOR(PythonModule)
 
@@ -108,6 +110,18 @@ namespace yuri {
             define_basic_event<event::EventString>("EventString");
         }
 
+        namespace {
+            void init_python() {
+                static bool first = true;
+                if (first) {
+                    PyImport_AppendInittab("yuri", &PyInit_yuri);
+                    Py_Initialize();
+                }
+                first = false;
+
+            }
+        }
+
         PythonModule::PythonModule(
                 const log::Log &log_, core::pwThreadBase
         parent,
@@ -133,13 +147,13 @@ namespace yuri {
 
         void PythonModule::run() {
             namespace python = boost::python;
-            PyImport_AppendInittab("yuri", &PyInit_yuri);
             try {
-                Py_Initialize();
+                std::unique_lock<std::mutex> lock(instance_mutex_);
+                init_python();
                 events_ = std::make_shared<boost::python::dict>();
-                auto main_module = python::import("__main__");
-                auto main_ns = main_module.attr("__dict__");
-                python::import("yuri");
+                python::dict main_ns;
+                main_ns["__builtins__"] = python::import("builtins");
+                main_ns["yuri"] = python::import("yuri");
 
                 python::exec("def onchange(args=[]):\n"
                              "    def wrapper(func):\n"

@@ -70,6 +70,8 @@ namespace yuri {
             std::string script_file_;
             std::string script_text_;
 
+            static std::mutex instance_mutex_;
+
             void handle_python_error();
         };
 
