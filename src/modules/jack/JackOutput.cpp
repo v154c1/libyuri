@@ -36,6 +36,7 @@ namespace yuri {
             p["allow_unconnected"]["Allow the module start without an active connection to jackd, Forces reconnect"] = false;
             p["report_max_missing"]["Number of missing frames to report, when no data are present to a longer time"] =
                     5 * 48000;
+            p["send_only_full_buffers"]["Send either full buffer or nothing"]=false;
             return p;
         }
 
@@ -306,7 +307,10 @@ namespace yuri {
 
         int JackOutput::process_audio(jack_nframes_t nframes) {
             std::unique_lock<std::mutex> lock(data_mutex_);
-            const size_t copy_count = std::min<size_t>(buffers_[0].size(), nframes);
+            const size_t copy_count =
+                    send_only_full_buffers_ ?
+                    (buffers_[0].size()>= nframes? nframes:0):
+                    std::min<size_t>(buffers_[0].size(), nframes);
             for (size_t i = 0; i < buffers_.size(); ++i) {
                 if (!ports_[i]) continue;
                 jack_default_audio_sample_t *data = reinterpret_cast<jack_default_audio_sample_t *>(jack_port_get_buffer(
@@ -321,7 +325,7 @@ namespace yuri {
                 current_missing_ = 0;
             } else {
                 current_missing_ += missing;
-                if (current_missing_ >= report_max_) {
+                if (current_missing_ >= report_max_ || (current_missing_ != 0 && missing == 0)) {
                     log[log::warning] << "Missing " << current_missing_ << " frames, filled with zeros";
                     current_missing_ = 0;
                 }
@@ -342,6 +346,7 @@ namespace yuri {
                     (reconnect_, "reconnect")
                     (allow_unconnected_, "allow_unconnected")
                     (report_max_, "report_max_missing")
+                    (send_only_full_buffers_, "send_only_full_buffers")
                     ) {
                 return true;
             } else return base_type::set_param(param);
@@ -366,23 +371,56 @@ namespace yuri {
         bool JackOutput::do_process_event(const std::string &event_name, const event::pBasicEvent &event) {
             log[log::info] << "event " << event_name;
             if (event_name == "gains") {
-                // Directly specifies gains
-                if (!process_vector_event(event, gains_, [](const event::pBasicEvent &event) {
-                    return event::lex_cast_value<float>(event);
-                })) {
-                    log[log::warning] << "gains event has to receive a vector";
-                    return false;
+                switch (event->get_type()) {
+                    case event::event_type_t::vector_event:
+
+                        // Directly specifies gains
+                        if (!process_vector_event(event, gains_, [](const event::pBasicEvent &event) {
+                            return event::lex_cast_value<float>(event);
+                        })) {
+                            log[log::warning] << "gains event has to receive a vector";
+                            return false;
+                        }
+                        break;
+                    case event::event_type_t::double_event:
+                    case event::event_type_t::integer_event: {
+                        gains_.resize(channels_, 1.0f);
+                        const auto value = event::lex_cast_value<float>(event);
+                        std::fill(gains_.begin(), gains_.end(), value);
+                        log[log::info] << "Setting all gains to " << value;
+                    }
+
+                        break;
+                    default:
+                        return false;
                 }
+                return true;
             }
             if (event_name == "volume") {
-                // Receives a vector of gains specified in dB.
-                if (!process_vector_event(event, gains_, [](const event::pBasicEvent &event) {
-                    return db_to_gain(event::lex_cast_value<float>(event));
-                })) {
-                    log[log::warning] << "volume event has to receive a vector";
-                    return false;
+                switch (event->get_type()) {
+                    case event::event_type_t::vector_event: {
+                        // Receives a vector of gains specified in dB.
+                        if (!process_vector_event(event, gains_, [](const event::pBasicEvent &event) {
+                            return db_to_gain(event::lex_cast_value<float>(event));
+                        })) {
+                            log[log::warning] << "volume event has to receive a vector";
+                            return false;
+                        }
+                        log[log::info] << "Gain for channel 0: " << gains_[0] << " (" << gain_to_db(gains_[0])
+                                       << " dB)";
+                    }
+                        break;
+                    case event::event_type_t::double_event:
+                    case event::event_type_t::integer_event: {
+                        gains_.resize(channels_, 1.0f);
+                        const auto value = db_to_gain(event::lex_cast_value<float>(event));
+                        std::fill(gains_.begin(), gains_.end(), value);
+                        log[log::info] << "Setting all gains to " << value;
+                    }
+                        break;
+                    default:
+                        return false;
                 }
-                log[log::info] << "Gain for channel 0: " << gains_[0] << " (" << gain_to_db(gains_[0]) << " dB)";
                 return true;
             }
             return false;

@@ -473,7 +473,20 @@ pBasicEvent slice(const std::vector<pBasicEvent>& events)
 	return new_vec;
 }
 
-
+pBasicEvent len(const std::vector<pBasicEvent>& events)
+{
+    if (events.size() != 1) throw bad_event_cast("append supports only one parameters");
+    const auto& event = events[0];
+    switch (event->get_type()) {
+        case event_type_t::vector_event: {
+            auto vec = std::dynamic_pointer_cast<EventVector>(events[0]->get_copy());
+            return std::make_shared<EventInt>(vec->size());
+        } break;
+            //return std::make_shared<EventString>(core::utils::generate_string(get_value<EventString>(event)));
+        default: break;
+    }
+    throw bad_event_cast("Unsupported type of parameter in append()");
+}
 }
 
 }

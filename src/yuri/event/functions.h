@@ -68,6 +68,8 @@ pBasicEvent 					generate(const std::vector<pBasicEvent>& events);
 
 pBasicEvent 					append(const std::vector<pBasicEvent>& events);
 pBasicEvent 					slice(const std::vector<pBasicEvent>& events);
+pBasicEvent 					len(const std::vector<pBasicEvent>& events);
+
 
 }
 

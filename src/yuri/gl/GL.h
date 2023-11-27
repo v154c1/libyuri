@@ -197,7 +197,7 @@ public:
 	void enable_depth();
 	bool prepare_texture(index_t tid, unsigned texid, const uint8_t *data, size_t data_size,
 			resolution_t resolution, GLenum tex_mode, GLenum data_mode, bool update,
-			GLenum data_type = GL_UNSIGNED_BYTE);
+			GLenum data_type = GL_UNSIGNED_BYTE, bool compressed = false);
 	bool finish_frame();
 	static core::pVideoFrame read_window(geometry_t geometry, format_t format = core::raw_format::rgb24);
 

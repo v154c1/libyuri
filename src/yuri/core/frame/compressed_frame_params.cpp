@@ -37,6 +37,8 @@ namespace {
 			{theora,{theora,"THEORA", {"THEORA"}, {"video/theora"}}},
 			{h265,	{h265,	"H.265", {"H265","H.265"}, {"video/h265"}}},
 			{avc1, 	{avc1,	"H.264 (AVC1)", {"AVC1"}, {"video/avc1"} }},
+            {hap,{hap,"HAP", {"HAP"}, {"video/hap"} }},
+            {ycocg_dxt5,{ycocg_dxt5,"YCoCg DXT5", {"YCoCg_DXT"}, {"video/ycocg_dxt5"} }},
 			{jpegxs,{jpegxs,"JPEGXS", {"JPEGXS"}, {"video/jpegxs"} }},
 	};
 

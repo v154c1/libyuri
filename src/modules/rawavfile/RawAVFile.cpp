@@ -288,7 +288,7 @@ bool RawAVFile::open_file(const std::string& filename)
                            << video_streams_[i].resolution << ". Decoding to " << get_format_name_no_throw(video_streams_[i].format_out);
         }
     }
-    if (decode_) {
+//    if (decode_) {
         for (auto& stream: audio_streams_) {
             stream.codec = avcodec_find_decoder(stream.ctx->codec_id);
             if (!stream.codec) {
@@ -309,7 +309,7 @@ bool RawAVFile::open_file(const std::string& filename)
                            << get_format_name_no_throw(stream.format_out);
             log[log::debug] << "Orig fmt: " << stream.ctx->sample_fmt;
         }
-    }
+  //  }
 
     for (auto i : irange(video_streams_.size())) {
         if (fps_ > 0)

@@ -106,6 +106,7 @@ private:
     bool clamp_;
     bool reconnect_;
     bool allow_unconnected_;
+    bool send_only_full_buffers_ = false;
 
 	std::condition_variable buffer_cv_;
 	bool jackd_down_ = false;
