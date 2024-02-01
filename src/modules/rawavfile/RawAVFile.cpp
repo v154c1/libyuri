@@ -102,7 +102,7 @@ struct RawAVFile::stream_detail_t {
     AVStream*       stream;
     std::unique_ptr<AVCodecContext, AVCodecContextDeleter>
                     ctx;
-    AVCodec*        codec;
+    const AVCodec*        codec;
     std::unique_ptr<SwrContext, SwrContextDeleter>
                     swr_ctx;
     format_t        format;
