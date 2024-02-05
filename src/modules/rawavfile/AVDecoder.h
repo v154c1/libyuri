@@ -42,7 +42,7 @@ private:
     int                                           threads_;
     libav::thread_type_t                          thread_type_;
     core::utils::managed_resource<AVCodecContext> ctx_;
-    AVCodec*                                      codec_;
+    const AVCodec*                                      codec_;
     AVFrame*                                      avframe;
     std::unique_ptr<AVPacket, AVPacketDeleter>    avpkt_;
 };

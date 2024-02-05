@@ -34,7 +34,7 @@ core::Parameters AVOutput::configure() {
 
 namespace {
 
-void add_stream(StreamDescription *output_stream, AVFormatContext *fmt_ctx, AVCodec **codec, enum AVCodecID codec_id) {
+void add_stream(StreamDescription *output_stream, AVFormatContext *fmt_ctx, const AVCodec **codec, enum AVCodecID codec_id) {
     #if defined(__arm__) || defined(__aarch64__)
     // Should be Raspberry specific, not all arm, uses HW encoders for video
     if (codec_id == AV_CODEC_ID_H264) {
@@ -206,7 +206,7 @@ bool write_audio_frame(AVFormatContext *fmt_ctx, StreamDescription *output_strea
     return write_frame(fmt_ctx, codec_ctx, output_stream->stream, output_stream->tmp_frame, output_stream->tmp_pkt);
 }
 
-void open_video(AVCodec *codec, StreamDescription *output_stream, AVDictionary *opt_arg) {
+void open_video(const AVCodec *codec, StreamDescription *output_stream, AVDictionary *opt_arg) {
     int ret;
     AVCodecContext *codec_ctx = output_stream->enc;
     AVDictionary *opt = nullptr;
@@ -230,7 +230,7 @@ void open_video(AVCodec *codec, StreamDescription *output_stream, AVDictionary *
         throw(std::runtime_error("Could not copy the stream parameters."));
 }
 
-void open_audio(AVCodec *codec, StreamDescription *output_stream, AVDictionary *opt_arg) {
+void open_audio(const AVCodec *codec, StreamDescription *output_stream, AVDictionary *opt_arg) {
     AVCodecContext *codec_ctx = output_stream->enc;
     AVDictionary *opt = nullptr;
     av_dict_copy(&opt, opt_arg, 0);
@@ -315,7 +315,7 @@ AVOutput::~AVOutput() noexcept {
 void AVOutput::initialize() {
 	video_st_ = {};
 	audio_st_ = {};
-    AVCodec *audio_codec, *video_codec;
+    const AVCodec *audio_codec, *video_codec;
     AVDictionary *opt = nullptr;
 
     memset(&fmt_ctx_, 0, sizeof(fmt_ctx_));

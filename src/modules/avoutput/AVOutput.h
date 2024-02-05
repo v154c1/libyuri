@@ -14,6 +14,7 @@
 #include "yuri/core/utils/managed_resource.h"
 
 extern "C" {
+#include <libavcodec/avcodec.h>
 #include <libavutil/opt.h>
 #include <libavutil/mathematics.h>
 #include <libavutil/timestamp.h>
