@@ -52,14 +52,18 @@ WaveDump::~WaveDump() noexcept
 
 core::pFrame WaveDump::do_special_single_step(core::pRawAudioFrame frame)
 {
-	if (frame->get_format() != core::raw_audio_format::signed_16bit) {
+	const auto fmt = frame->get_format();
+	if (
+		fmt != core::raw_audio_format::signed_16bit && 
+		fmt != core::raw_audio_format::signed_24bit) {
 		log[log::warning] << "Unsupported format!";
 		return {};
 	}
-	const auto chan = frame->get_channel_count();
+	const auto chan  = frame->get_channel_count();
 	const auto sampl = frame->get_sampling_frequency();
+	const auto bps   = frame->get_sample_size();
 	if (!format_set_) {
-		header_ = wav_header_t(chan, sampl);
+		header_ = wav_header_t(chan, sampl, bps/2);
 		format_set_ = true;
 	} else {
 		// Check for format change...
