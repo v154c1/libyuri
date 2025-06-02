@@ -104,6 +104,12 @@ IF(ALSA_FOUND)
 	add_subdirectory(alsa)
 ENDIF()
 
+pkg_check_modules(PIPEWIRE IMPORTED_TARGET libpipewire-0.3)
+pkg_check_modules(SPA IMPORTED_TARGET libspa-0.2)
+IF(PIPEWIRE_FOUND AND SPA_FOUND)
+	add_subdirectory(pipewire)
+ENDIF()
+
 find_package(PULSEAUDIO)
 IF(PULSEAUDIO_FOUND)
 	add_subdirectory(pulse)
