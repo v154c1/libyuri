@@ -2,7 +2,9 @@
 SET (MODULE pipewire)
 
 # Set all source files module uses
-SET (SRC PipewireOutput.cpp
+SET (SRC PipewireInput.cpp
+         PipewireInput.h
+         PipewireOutput.cpp
 		 PipewireOutput.h
 		 register.cpp)
 
