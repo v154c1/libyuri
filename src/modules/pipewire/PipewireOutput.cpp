@@ -209,11 +209,11 @@ core::pFrame PipewireOutput::do_special_single_step(core::pRawAudioFrame frame) 
 
 bool PipewireOutput::init_pipewire() {
     std::vector<uint8_t> buffer(samples_);
-    struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer.data(), static_cast<uint32_t>(buffer.size()));
+    struct spa_pod_builder spa_builder = SPA_POD_BUILDER_INIT(buffer.data(), static_cast<uint32_t>(buffer.size()));
 
-    pw_init(0, nullptr);
+    pw_init(nullptr, nullptr);
 
-    pipewire_data_.thread_loop = pw_thread_loop_new("audio-src", nullptr);
+    pipewire_data_.thread_loop = pw_thread_loop_new("audio-dst", nullptr);
     if (!pipewire_data_.thread_loop) return false;
 
     pipewire_data_.loop = pw_thread_loop_get_loop(pipewire_data_.thread_loop);
@@ -251,10 +251,10 @@ bool PipewireOutput::init_pipewire() {
     auto props = pw_properties_new(
         PW_KEY_MEDIA_TYPE, "Audio",
         PW_KEY_MEDIA_CATEGORY, "Playback",
-        PW_KEY_MEDIA_ROLE, "Music",
+        PW_KEY_MEDIA_ROLE, "Production",
         nullptr);
 
-    pipewire_data_.stream = pw_stream_new_simple(pipewire_data_.loop, "audio-src", props, &stream_events, &pipewire_data_);
+    pipewire_data_.stream = pw_stream_new_simple(pipewire_data_.loop, "audio-dst", props, &stream_events, &pipewire_data_);
     if (!pipewire_data_.stream) {
         pw_properties_free(props);
         destroy_pipewire();
@@ -266,8 +266,8 @@ bool PipewireOutput::init_pipewire() {
         .rate = static_cast<uint32_t>(sample_rate_),
         .channels = static_cast<uint32_t>(channels_));
     const struct spa_pod *params[2];
-    params[0] = spa_format_audio_raw_build(&b, SPA_PARAM_EnumFormat, &info);
-    params[1] = (const struct spa_pod *) spa_pod_builder_add_object(&b,
+    params[0] = spa_format_audio_raw_build(&spa_builder, SPA_PARAM_EnumFormat, &info);
+    params[1] = (const struct spa_pod *) spa_pod_builder_add_object(&spa_builder,
         SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
         SPA_PARAM_BUFFERS_buffers, SPA_POD_CHOICE_RANGE_Int(2, 2, 4),
         SPA_PARAM_BUFFERS_size, SPA_POD_Int(samples_ * sizeof(int16_t) * 2),
