@@ -197,6 +197,7 @@ bool PulseInput::set_param(const core::Parameter& param) {
 			(device_name_, "device")
 			(channels_, "channels")
 			(sample_rate_, "sample_rate")
+			(frames_, "frames")
 			.parsed<std::string>(format_, "format", core::raw_audio_format::parse_format)) {
 		return true;
 	} else return core::IOThread::set_param(param);
