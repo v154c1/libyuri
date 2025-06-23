@@ -7,10 +7,9 @@
 #ifndef PIPEWIREINPUT_H_
 #define PIPEWIREINPUT_H_
 
+#include "pipewire_common.h"
 #include "yuri/core/thread/IOThread.h"
 #include "yuri/core/frame/RawAudioFrame.h"
-#include <pipewire/pipewire.h>
-#include <spa/param/audio/raw.h>
 
 namespace yuri {
 namespace pipewire {
@@ -19,13 +18,7 @@ class PipewireInput;
 
 struct PipewireInputContext {
     PipewireInput *parent;
-    struct pw_thread_loop *thread_loop;
-    struct pw_loop *loop;
-    struct pw_context *context;
-    struct pw_core *core;
-    struct pw_registry *registry;
-    struct spa_hook registry_listener;
-    struct pw_stream *stream;
+    PipewireContext context;
 };
 
 class PipewireInput : public core::IOThread {
@@ -42,8 +35,8 @@ private:
     virtual void run() override;
     virtual bool set_param(const core::Parameter &param) override;
 
-    bool init_pipewire();
-    void destroy_pipewire();
+    bool init();
+    void destroy();
 
     PipewireInputContext pipewire_data_;
     size_t sink_;

@@ -1,3 +1,5 @@
+
+#include "pipewire_common.h"
 #include "PipewireInput.h"
 #include "yuri/core/Module.h"
 #include "yuri/core/frame/raw_audio_frame_types.h"
@@ -9,8 +11,6 @@
 #include <spa/utils/result.h>
 
 #include <unistd.h>
-
-#include "pipewire_common.cpp"
 
 namespace yuri {
 namespace pipewire {
@@ -27,7 +27,7 @@ PipewireInput::PipewireInput(const log::Log &log_, core::pwThreadBase parent, co
     : core::IOThread(log_, parent, 0, 1, "pipewire_input"), sink_(0), samples_(1024), sample_rate_(48000), channels_(2), format_(core::raw_audio_format::signed_16bit), pipewire_ready_(false) {
     IOTHREAD_INIT(parameters)
     pipewire_data_.parent = this;
-    if (init_pipewire()) {
+    if (init()) {
         pipewire_ready_ = true;
         log[log::info] << "PipewireInput initialized successfully.";
     } else {
@@ -36,7 +36,7 @@ PipewireInput::PipewireInput(const log::Log &log_, core::pwThreadBase parent, co
 }
 
 PipewireInput::~PipewireInput() noexcept {
-    destroy_pipewire();
+    destroy();
 }
 
 namespace {
@@ -92,44 +92,21 @@ unsigned int get_yuri_format_bytes(format_t fmt) {
 
 }
 
-bool PipewireInput::init_pipewire() {
+bool PipewireInput::init() {
     std::vector<uint8_t> buffer(samples_);
     struct spa_pod_builder spa_builder = SPA_POD_BUILDER_INIT(buffer.data(), static_cast<uint32_t>(buffer.size()));
 
-    pw_init(nullptr, nullptr);
-
-    pipewire_data_.thread_loop = pw_thread_loop_new("audio-src", nullptr);
-    if (!pipewire_data_.thread_loop) return false;
-
-    pipewire_data_.loop = pw_thread_loop_get_loop(pipewire_data_.thread_loop);
-    if (!pipewire_data_.loop) {
-        destroy_pipewire();
+    if (!init_pipewire(pipewire_data_.context, "audio-src")) {
+        log[log::error] << "Failed to initialize Pipewire context.";
+        destroy();
         return false;
     }
 
-    pipewire_data_.context = pw_context_new(pipewire_data_.loop, nullptr, 0);
-    if (!pipewire_data_.context) {
-        destroy_pipewire();
-        return false;
-    }
+    pw_registry_add_listener(pipewire_data_.context.registry, &pipewire_data_.context.registry_listener, &registry_events, &pipewire_data_);
 
-    pipewire_data_.core = pw_context_connect(pipewire_data_.context, nullptr, 0);
-    if (!pipewire_data_.core) {
-        destroy_pipewire();
-        return false;
-    }
-
-    pipewire_data_.registry = pw_core_get_registry(pipewire_data_.core, PW_VERSION_REGISTRY, 0);
-    if (!pipewire_data_.registry) {
-        destroy_pipewire();
-        return false;
-    }
-
-    pw_registry_add_listener(pipewire_data_.registry, &pipewire_data_.registry_listener, &registry_events, &pipewire_data_);
-
-    pw_thread_loop_lock(pipewire_data_.thread_loop); 
-    if (pw_thread_loop_start(pipewire_data_.thread_loop) < 0) {
-        destroy_pipewire();
+    pw_thread_loop_lock(pipewire_data_.context.thread_loop); 
+    if (pw_thread_loop_start(pipewire_data_.context.thread_loop) < 0) {
+        destroy();
         return false;
     }
 
@@ -139,10 +116,10 @@ bool PipewireInput::init_pipewire() {
         PW_KEY_MEDIA_ROLE, "Production",
         nullptr);
 
-    pipewire_data_.stream = pw_stream_new_simple(pipewire_data_.loop, "audio-src", props, &stream_events, &pipewire_data_);
-    if (!pipewire_data_.stream) {
+    pipewire_data_.context.stream = pw_stream_new_simple(pipewire_data_.context.loop, "audio-src", props, &stream_events, &pipewire_data_);
+    if (!pipewire_data_.context.stream) {
         pw_properties_free(props);
-        destroy_pipewire();
+        destroy();
         return false;
     }
 
@@ -160,7 +137,7 @@ bool PipewireInput::init_pipewire() {
         SPA_PARAM_BUFFERS_size, SPA_POD_Int(samples_ * sizeof(int16_t) * 2),
         SPA_PARAM_BUFFERS_stride, SPA_POD_Int(sizeof(int16_t) * 2));
 
-    pw_stream_connect(pipewire_data_.stream,
+    pw_stream_connect(pipewire_data_.context.stream,
         PW_DIRECTION_INPUT,
         !sink_ ? PW_ID_ANY : sink_,
         static_cast<pw_stream_flags>(
@@ -169,26 +146,14 @@ bool PipewireInput::init_pipewire() {
             PW_STREAM_FLAG_RT_PROCESS),
         params, 2);
 
-    pw_thread_loop_start(pipewire_data_.thread_loop);
-    pw_thread_loop_unlock(pipewire_data_.thread_loop);
+    pw_thread_loop_start(pipewire_data_.context.thread_loop);
+    pw_thread_loop_unlock(pipewire_data_.context.thread_loop);
 
     return true;
 }
 
-void PipewireInput::destroy_pipewire() {
-    if (pipewire_data_.thread_loop)
-        pw_thread_loop_lock(pipewire_data_.thread_loop);
-    if (pipewire_data_.stream)
-        pw_stream_destroy(pipewire_data_.stream);
-    if (pipewire_data_.core)
-        pw_core_disconnect(pipewire_data_.core);
-    if (pipewire_data_.context)
-        pw_context_destroy(pipewire_data_.context);
-    if (pipewire_data_.thread_loop)
-        pw_thread_loop_unlock(pipewire_data_.thread_loop);
-    if (pipewire_data_.thread_loop)
-        pw_thread_loop_destroy(pipewire_data_.thread_loop);
-    pw_deinit();
+void PipewireInput::destroy() {
+    destroy_pipewire(pipewire_data_.context);
     pipewire_ready_ = false;
 }
 
@@ -205,10 +170,10 @@ void PipewireInput::on_process() {
 
     struct pw_buffer *b;
     struct spa_buffer *buf;
-    if ((b = pw_stream_dequeue_buffer(pipewire_data_.stream)) == nullptr) return;
+    if ((b = pw_stream_dequeue_buffer(pipewire_data_.context.stream)) == nullptr) return;
     buf = b->buffer;
     if (!buf->datas[0].data || buf->datas[0].chunk->size == 0) {
-        pw_stream_queue_buffer(pipewire_data_.stream, b);
+        pw_stream_queue_buffer(pipewire_data_.context.stream, b);
         return;
     }
 
@@ -221,7 +186,7 @@ void PipewireInput::on_process() {
     memcpy(frame->data(), data, size);
     push_frame(0, frame);
 
-    pw_stream_queue_buffer(pipewire_data_.stream, b);
+    pw_stream_queue_buffer(pipewire_data_.context.stream, b);
 }
 
 void PipewireInput::run() {

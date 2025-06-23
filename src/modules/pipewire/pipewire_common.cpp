@@ -1,22 +1,18 @@
 /*!
  * @file        pipewire_common.cpp
  * @author      Jiri Melnikov <jiri@melnikoff.org>
- * @date        1.6.2025
- * @copyright
- *              Distributed under modified BSD Licence, details in file doc/LICENSE
- *
+ * @date        23.6.2025
  */
 
+#include "pipewire_common.h"
 #include <map>
-#include <pipewire/pipewire.h>
-#include <spa/param/audio/format-utils.h>
-#include "yuri/core/frame/raw_audio_frame_params.h"
 
-namespace {
+namespace yuri {
+namespace pipewire {
 
-using namespace yuri::core::raw_audio_format;
+using namespace core::raw_audio_format;
 
-std::map<yuri::format_t, spa_audio_format> yuri_to_pipewire_formats = {
+std::map<format_t, spa_audio_format> yuri_to_pipewire_formats = {
     {unsigned_8bit,        SPA_AUDIO_FORMAT_U8    },
     {signed_16bit,         SPA_AUDIO_FORMAT_S16_LE},
     {unsigned_16bit,       SPA_AUDIO_FORMAT_U16_LE},
@@ -47,5 +43,50 @@ spa_audio_format get_pulse_format(yuri::format_t fmt) {
     return it->second;
 }
 
-} // namespace
+bool init_pipewire(PipewireContext &ctx, const char *name) {
+    pw_init(nullptr, nullptr);
 
+    ctx.thread_loop = pw_thread_loop_new(name, nullptr);
+    if (!ctx.thread_loop) return false;
+
+    ctx.loop = pw_thread_loop_get_loop(ctx.thread_loop);
+    if (!ctx.loop) {
+        return false;
+    }
+
+    ctx.context = pw_context_new(ctx.loop, nullptr, 0);
+    if (!ctx.context) {
+        return false;
+    }
+
+    ctx.core = pw_context_connect(ctx.context, nullptr, 0);
+    if (!ctx.core) {
+        return false;
+    }
+
+    ctx.registry = pw_core_get_registry(ctx.core, PW_VERSION_REGISTRY, 0);
+    if (!ctx.registry) {
+        return false;
+    }
+
+    return true;
+}
+
+void destroy_pipewire(PipewireContext &ctx) {
+    if (ctx.thread_loop)
+        pw_thread_loop_lock(ctx.thread_loop);
+    if (ctx.stream)
+        pw_stream_destroy(ctx.stream);
+    if (ctx.core)
+        pw_core_disconnect(ctx.core);
+    if (ctx.context)
+        pw_context_destroy(ctx.context);
+    if (ctx.thread_loop)
+        pw_thread_loop_unlock(ctx.thread_loop);
+    if (ctx.thread_loop)
+        pw_thread_loop_destroy(ctx.thread_loop);
+    pw_deinit();
+}
+
+} // namespace pipewire
+} // namespace yuri
