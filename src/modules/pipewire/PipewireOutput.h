@@ -10,11 +10,11 @@
 #ifndef PIPEWIREOUTPUT_H_
 #define PIPEWIREOUTPUT_H_
 
+#include "pipewire_common.h"
 #include "yuri/core/thread/SpecializedIOFilter.h"
 #include "yuri/event/BasicEventProducer.h"
 #include "yuri/core/frame/RawAudioFrame.h"
 #include <spa/param/audio/format-utils.h>
-#include <pipewire/pipewire.h>
 
 #include <map>
 #include <math.h>
@@ -28,13 +28,7 @@ class PipewireOutput;
 
 struct PipewireOutputContext {
     PipewireOutput *parent;
-    struct pw_thread_loop *thread_loop;
-    struct pw_loop *loop;
-    struct pw_stream *stream;
-    struct pw_context *context;
-    struct pw_core *core;
-    struct pw_registry *registry;
-    struct spa_hook registry_listener;
+    PipewireContext context;
     std::queue<core::pRawAudioFrame> frames;
     std::mutex frames_mutex;
 };
@@ -60,8 +54,8 @@ private:
     virtual core::pFrame do_special_single_step(core::pRawAudioFrame frame) override;
     virtual bool set_param(const core::Parameter& param) override;
 
-    bool init_pipewire();
-    void destroy_pipewire();
+    bool init();
+    void destroy();
 
     PipewireOutputContext pipewire_data_;
     size_t sink_;
