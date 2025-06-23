@@ -237,13 +237,14 @@ bool PipewireOutput::init() {
         .format = get_pulse_format(format_),
         .rate = static_cast<uint32_t>(sample_rate_),
         .channels = static_cast<uint32_t>(channels_));
+
     const struct spa_pod *params[2];
     params[0] = spa_format_audio_raw_build(&spa_builder, SPA_PARAM_EnumFormat, &info);
     params[1] = (const struct spa_pod *) spa_pod_builder_add_object(&spa_builder,
         SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
         SPA_PARAM_BUFFERS_buffers, SPA_POD_CHOICE_RANGE_Int(2, 2, 4),
-        SPA_PARAM_BUFFERS_size, SPA_POD_Int(samples_ * sizeof(int16_t) * 2),
-        SPA_PARAM_BUFFERS_stride, SPA_POD_Int(sizeof(int16_t) * 2));
+        SPA_PARAM_BUFFERS_size, SPA_POD_Int(samples_ * get_yuri_format_bytes(format_) * 2),
+        SPA_PARAM_BUFFERS_stride, SPA_POD_Int(get_yuri_format_bytes(format_) * 2));
  
     pw_stream_connect(pipewire_data_.context.stream,
         PW_DIRECTION_OUTPUT,
@@ -266,10 +267,10 @@ void PipewireOutput::destroy() {
     pipewire_ready_ = false;
 }
 
-bool PipewireOutput::set_param(const core::Parameter& param)
-{
+bool PipewireOutput::set_param(const core::Parameter& param) {
     if (assign_parameters(param) //
-        (sink_, "sink")) {
+        (sink_, "sink")
+        (samples_, "samples")) {
         return true;
     }
     return core::SpecializedIOFilter<core::RawAudioFrame>::set_param(param);
