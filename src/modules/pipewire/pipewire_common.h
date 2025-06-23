@@ -26,6 +26,7 @@ struct PipewireContext {
 };
 
 spa_audio_format get_pulse_format(yuri::format_t fmt);
+unsigned int get_yuri_format_bytes(format_t fmt);
 
 bool init_pipewire(PipewireContext &ctx, const char *name);
 void destroy_pipewire(PipewireContext &ctx);

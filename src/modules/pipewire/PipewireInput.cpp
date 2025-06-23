@@ -79,17 +79,6 @@ static const struct pw_stream_events stream_events = {
     .trigger_done = nullptr
 };
 
-unsigned int get_yuri_format_bytes(format_t fmt) {
-	try {
-		const auto& fi = core::raw_audio_format::get_format_info(fmt);
-		return fi.bits_per_sample / 8;
-	}
-	catch (std::runtime_error&) {
-		// This should never happen, but let's return a safe value'
-		return 4;
-	}
-}
-
 }
 
 bool PipewireInput::init() {
@@ -129,13 +118,13 @@ bool PipewireInput::init() {
         .channels = static_cast<uint32_t>(channels_));
     // for (uint32_t i = 0; i < channels_; ++i) info.position[i] = SPA_AUDIO_CHANNEL_MONO;
 
-    const struct spa_pod *params[1];
+    const struct spa_pod *params[2];
     params[0] = spa_format_audio_raw_build(&spa_builder, SPA_PARAM_EnumFormat, &info);
     params[1] = (const struct spa_pod *) spa_pod_builder_add_object(&spa_builder,
         SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
         SPA_PARAM_BUFFERS_buffers, SPA_POD_CHOICE_RANGE_Int(2, 2, 4),
-        SPA_PARAM_BUFFERS_size, SPA_POD_Int(samples_ * sizeof(int16_t) * 2),
-        SPA_PARAM_BUFFERS_stride, SPA_POD_Int(sizeof(int16_t) * 2));
+        SPA_PARAM_BUFFERS_size, SPA_POD_Int(samples_ * get_yuri_format_bytes(format_) * 2),
+        SPA_PARAM_BUFFERS_stride, SPA_POD_Int(get_yuri_format_bytes(format_) * 2));
 
     pw_stream_connect(pipewire_data_.context.stream,
         PW_DIRECTION_INPUT,
@@ -196,6 +185,10 @@ void PipewireInput::run() {
 }
 
 bool PipewireInput::set_param(const core::Parameter &param) {
+    if (assign_parameters(param) //
+        (samples_, "samples")) {
+        return true;
+    }
     return core::IOThread::set_param(param);
 }
 

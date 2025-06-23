@@ -43,6 +43,16 @@ spa_audio_format get_pulse_format(yuri::format_t fmt) {
     return it->second;
 }
 
+unsigned int get_yuri_format_bytes(format_t fmt) {
+    try {
+        const auto& fi = core::raw_audio_format::get_format_info(fmt);
+        return fi.bits_per_sample / 8;
+    } catch (std::runtime_error&) {
+        // This should never happen, but let's return a safe value'
+        return 4;
+    }
+}
+
 bool init_pipewire(PipewireContext &ctx, const char *name) {
     pw_init(nullptr, nullptr);
 
