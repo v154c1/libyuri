@@ -29,7 +29,7 @@ core::Parameters PipewireOutput::configure() {
 
 PipewireOutput::PipewireOutput(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters):
 core::SpecializedIOFilter<core::RawAudioFrame>(log_,parent, std::string("pipewire_output")),event::BasicEventProducer(log),
-sink_(0),format_(0),samples_(0),sample_rate_(0),channels_(0),pipewire_ready_(false) {
+sink_(0),pipewire_ready_(false) {
     IOTHREAD_INIT(parameters)
     pipewire_data_.parent = this;
 }
@@ -115,6 +115,17 @@ void PipewireOutput::on_event(uint32_t id, const char *type, const struct spa_di
                 .nick = nick
             };
             emit_event("pipewire_sink_added", prepare_yuri_event(id, name, desc, nick));
+        } else if (media_class && strcmp(media_class, "Audio/Source") == 0) {
+            const char *name = spa_dict_lookup(props, "node.name") ? spa_dict_lookup(props, "node.name") : "unknown";
+            const char *desc = spa_dict_lookup(props, "node.description") ? spa_dict_lookup(props, "node.description") : "unknown";
+            const char *nick = spa_dict_lookup(props, "node.nick") ? spa_dict_lookup(props, "node.nick") : "unknown";
+            log[log::info] << "Source node added: id=" << id << ", name=" << name << ", desc=" << desc << ", nick=" << nick;
+            devices_[id] = PipewireDevice {
+                .name = name,
+                .description = desc,
+                .nick = nick
+            };
+            emit_event("pipewire_source_added", prepare_yuri_event(id, name, desc, nick));
         } else {
             log[log::debug] << "Other node added: id=" << id << ", type=" << type;
             log[log::debug] << std::endl << print_props(props);
@@ -175,13 +186,18 @@ void PipewireOutput::on_process() {
 }
 
 core::pFrame PipewireOutput::do_special_single_step(core::pRawAudioFrame frame) {
-    if (frame->get_format() != format_) {
-        format_ = frame->get_format();
-        channels_ = frame->get_channel_count();
+    if (frame->get_format() != pipewire_data_.context.format) {
+        pipewire_data_.context.format = frame->get_format();
+        pipewire_data_.context.channels = frame->get_channel_count();
         sample_size_ = frame->get_sample_size();
-        samples_ = frame->get_size() / (sample_size_ / 8);
-        sample_rate_ = frame->get_sampling_frequency();
-        log[log::info] << "PipewireOutput: Received new format: " << core::raw_audio_format::get_format_name(format_) << ", sample size: " << sample_size_ << ", samples: " << samples_ << ", channels: " << channels_ << ", rate: " << sample_rate_ << ". Will reinitialize Pipewire.";
+        pipewire_data_.context.samples = frame->get_size() / (sample_size_ / 8);
+        pipewire_data_.context.sample_rate = frame->get_sampling_frequency();
+        log[log::info] << "PipewireOutput: Received new format: " << core::raw_audio_format::get_format_name(pipewire_data_.context.format)
+                       << ", sample size: " << sample_size_ 
+                       << ", samples: " << pipewire_data_.context.samples 
+                       << ", channels: " << pipewire_data_.context.channels 
+                       << ", rate: " << pipewire_data_.context.sample_rate 
+                       << ". Will reinitialize Pipewire.";
         if (pipewire_ready_) {
             destroy();
         }
@@ -204,9 +220,6 @@ core::pFrame PipewireOutput::do_special_single_step(core::pRawAudioFrame frame) 
 }
 
 bool PipewireOutput::init() {
-    std::vector<uint8_t> buffer(samples_);
-    struct spa_pod_builder spa_builder = SPA_POD_BUILDER_INIT(buffer.data(), static_cast<uint32_t>(buffer.size()));
-
     if (!init_pipewire(pipewire_data_.context, "audio-dst")) {
         log[log::error] << "Failed to initialize Pipewire context.";
         destroy();
@@ -232,28 +245,8 @@ bool PipewireOutput::init() {
         destroy();
         return false;
     }
- 
-    struct spa_audio_info_raw info = SPA_AUDIO_INFO_RAW_INIT(
-        .format = get_pulse_format(format_),
-        .rate = static_cast<uint32_t>(sample_rate_),
-        .channels = static_cast<uint32_t>(channels_));
 
-    const struct spa_pod *params[2];
-    params[0] = spa_format_audio_raw_build(&spa_builder, SPA_PARAM_EnumFormat, &info);
-    params[1] = (const struct spa_pod *) spa_pod_builder_add_object(&spa_builder,
-        SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
-        SPA_PARAM_BUFFERS_buffers, SPA_POD_CHOICE_RANGE_Int(2, 2, 4),
-        SPA_PARAM_BUFFERS_size, SPA_POD_Int(samples_ * get_yuri_format_bytes(format_) * 2),
-        SPA_PARAM_BUFFERS_stride, SPA_POD_Int(get_yuri_format_bytes(format_) * 2));
- 
-    pw_stream_connect(pipewire_data_.context.stream,
-        PW_DIRECTION_OUTPUT,
-        !sink_ ? PW_ID_ANY : sink_,
-        static_cast<pw_stream_flags>(
-            PW_STREAM_FLAG_AUTOCONNECT |
-            PW_STREAM_FLAG_MAP_BUFFERS |
-            PW_STREAM_FLAG_RT_PROCESS),
-        params, 2);
+    connect_pipewire(pipewire_data_.context, default_buffers, SPA_DIRECTION_OUTPUT, sink_ ? sink_ : PW_ID_ANY);
 
 
     pw_thread_loop_start(pipewire_data_.context.thread_loop);
@@ -269,8 +262,7 @@ void PipewireOutput::destroy() {
 
 bool PipewireOutput::set_param(const core::Parameter& param) {
     if (assign_parameters(param) //
-        (sink_, "sink")
-        (samples_, "samples")) {
+        (sink_, "sink")) {
         return true;
     }
     return core::SpecializedIOFilter<core::RawAudioFrame>::set_param(param);

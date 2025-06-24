@@ -39,11 +39,7 @@ private:
     void destroy();
 
     PipewireInputContext pipewire_data_;
-    size_t sink_;
-    size_t samples_;
-    uint32_t sample_rate_;
-    uint32_t channels_;
-    format_t format_;
+    size_t source_;
     bool pipewire_ready_;
 };
 

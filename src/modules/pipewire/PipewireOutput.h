@@ -59,11 +59,11 @@ private:
 
     PipewireOutputContext pipewire_data_;
     size_t sink_;
-    format_t format_;
-    size_t samples_;
+    // format_t format_;
+    // size_t samples_;
     size_t sample_size_;
-    size_t sample_rate_;
-    size_t channels_;
+    // size_t sample_rate_;
+    // size_t channels_;
     bool pipewire_ready_;
 
     std::map<size_t, PipewireDevice> devices_;
