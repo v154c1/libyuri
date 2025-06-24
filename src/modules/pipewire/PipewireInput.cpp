@@ -20,19 +20,24 @@ IOTHREAD_GENERATOR(PipewireInput)
 core::Parameters PipewireInput::configure() {
     core::Parameters p = core::IOThread::configure();
     p.set_description("PipewireInput");
+	std::string formats;
+	for (const auto& fmt: core::raw_audio_format::formats()) {
+		for (const auto& name: fmt.second.short_names) {
+			formats += name + ", ";
+		}
+	}
+	p["source"]["Pipewire device to use"]="";
+	p["channels"]["Channel to capture"]=2;
+	p["sample_rate"]["Sample rate to capture"]=48000;
+	p["samples"]["Count of samples captured in one run"]=1024;
+	p["format"]["Capture format. Valid values: (" + formats + ")"]="s16";
     return p;
 }
 
 PipewireInput::PipewireInput(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters)
-    : core::IOThread(log_, parent, 0, 1, "pipewire_input"), sink_(0), samples_(1024), sample_rate_(48000), channels_(2), format_(core::raw_audio_format::signed_16bit), pipewire_ready_(false) {
+    : core::IOThread(log_, parent, 0, 1, "pipewire_input"), source_(0), pipewire_ready_(false) {
     IOTHREAD_INIT(parameters)
     pipewire_data_.parent = this;
-    if (init()) {
-        pipewire_ready_ = true;
-        log[log::info] << "PipewireInput initialized successfully.";
-    } else {
-        log[log::error] << "Failed to initialize PipewireInput.";
-    }
 }
 
 PipewireInput::~PipewireInput() noexcept {
@@ -82,9 +87,6 @@ static const struct pw_stream_events stream_events = {
 }
 
 bool PipewireInput::init() {
-    std::vector<uint8_t> buffer(samples_);
-    struct spa_pod_builder spa_builder = SPA_POD_BUILDER_INIT(buffer.data(), static_cast<uint32_t>(buffer.size()));
-
     if (!init_pipewire(pipewire_data_.context, "audio-src")) {
         log[log::error] << "Failed to initialize Pipewire context.";
         destroy();
@@ -112,28 +114,8 @@ bool PipewireInput::init() {
         return false;
     }
 
-    struct spa_audio_info_raw info = SPA_AUDIO_INFO_RAW_INIT(
-        .format = get_pulse_format(format_),
-        .rate = static_cast<uint32_t>(sample_rate_),
-        .channels = static_cast<uint32_t>(channels_));
-    // for (uint32_t i = 0; i < channels_; ++i) info.position[i] = SPA_AUDIO_CHANNEL_MONO;
-
-    const struct spa_pod *params[2];
-    params[0] = spa_format_audio_raw_build(&spa_builder, SPA_PARAM_EnumFormat, &info);
-    params[1] = (const struct spa_pod *) spa_pod_builder_add_object(&spa_builder,
-        SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
-        SPA_PARAM_BUFFERS_buffers, SPA_POD_CHOICE_RANGE_Int(2, 2, 4),
-        SPA_PARAM_BUFFERS_size, SPA_POD_Int(samples_ * get_yuri_format_bytes(format_) * 2),
-        SPA_PARAM_BUFFERS_stride, SPA_POD_Int(get_yuri_format_bytes(format_) * 2));
-
-    pw_stream_connect(pipewire_data_.context.stream,
-        PW_DIRECTION_INPUT,
-        !sink_ ? PW_ID_ANY : sink_,
-        static_cast<pw_stream_flags>(
-            PW_STREAM_FLAG_AUTOCONNECT |
-            PW_STREAM_FLAG_MAP_BUFFERS |
-            PW_STREAM_FLAG_RT_PROCESS),
-        params, 2);
+    log[log::info] << "Pipewire stream created successfully, samples: " << pipewire_data_.context.samples;
+    connect_pipewire(pipewire_data_.context, default_buffers, SPA_DIRECTION_INPUT, source_ ? source_ : PW_ID_ANY);
 
     pw_thread_loop_start(pipewire_data_.context.thread_loop);
     pw_thread_loop_unlock(pipewire_data_.context.thread_loop);
@@ -147,10 +129,14 @@ void PipewireInput::destroy() {
 }
 
 void PipewireInput::on_event(uint32_t id, const char *type, const struct spa_dict *props) {
+    (void) id; // Unused parameter
+    (void) type; // Unused parameter
+    (void) props; // Unused parameter
     // Will be moved to common
 }
 
 void PipewireInput::on_event_removed(uint32_t id) {
+    (void) id; // Unused parameter
     // Will be moved to common
 }
 
@@ -168,10 +154,10 @@ void PipewireInput::on_process() {
 
     auto *data = static_cast<uint8_t *>(buf->datas[0].data);
     auto size = buf->datas[0].chunk->size;
-    auto samples = size / get_yuri_format_bytes(format_) / channels_;
+    auto received_samples = size / get_yuri_format_bytes(pipewire_data_.context.format) / pipewire_data_.context.channels;
 
-    auto frame = core::RawAudioFrame::create_empty(format_, channels_, sample_rate_, samples);
-    log[log::debug] << "Dequeue buffer of samples: " << samples << ", channels: " << channels_ << ", sample rate: " << sample_rate_;
+    auto frame = core::RawAudioFrame::create_empty(pipewire_data_.context.format, pipewire_data_.context.channels, pipewire_data_.context.sample_rate, received_samples);
+    log[log::debug] << "Dequeue buffer of samples: " << received_samples << ", channels: " << pipewire_data_.context.channels << ", sample rate: " << pipewire_data_.context.sample_rate;
     memcpy(frame->data(), data, size);
     push_frame(0, frame);
 
@@ -179,14 +165,25 @@ void PipewireInput::on_process() {
 }
 
 void PipewireInput::run() {
+    if (init()) {
+        pipewire_ready_ = true;
+        log[log::info] << "PipewireInput initialized successfully.";
+    } else {
+        log[log::error] << "Failed to initialize PipewireInput.";
+    }
     while (still_running()) {
         sleep(get_latency());
     }
 }
 
 bool PipewireInput::set_param(const core::Parameter &param) {
-    if (assign_parameters(param) //
-        (samples_, "samples")) {
+    log[log::info] << "PipewireInput: Setting parameter: " << param.get_name() << " = " << param.get<std::string>();
+    if (assign_parameters(param)
+        (source_, "source")
+        (pipewire_data_.context.channels, "channels")
+        (pipewire_data_.context.sample_rate, "sample_rate")
+        (pipewire_data_.context.samples, "samples")
+        .parsed<std::string>(pipewire_data_.context.format, "format", core::raw_audio_format::parse_format)) {
         return true;
     }
     return core::IOThread::set_param(param);

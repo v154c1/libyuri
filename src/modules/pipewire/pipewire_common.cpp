@@ -98,5 +98,33 @@ void destroy_pipewire(PipewireContext &ctx) {
     pw_deinit();
 }
 
+void connect_pipewire(PipewireContext &ctx, PipewireBuffers buffers, spa_direction direction, uint32_t target_id) {
+    std::vector<uint8_t> buffer(ctx.samples);
+    struct spa_pod_builder spa_builder = SPA_POD_BUILDER_INIT(buffer.data(), static_cast<uint32_t>(buffer.size()));
+
+    struct spa_audio_info_raw info = SPA_AUDIO_INFO_RAW_INIT(
+        .format = get_pulse_format(ctx.format),
+        .rate = ctx.sample_rate,
+        .channels = ctx.channels);
+    for (uint32_t i = 0; i < ctx.channels; ++i) info.position[i] = SPA_AUDIO_CHANNEL_AUX0 + i;
+
+    const struct spa_pod *params[2];
+    params[0] = spa_format_audio_raw_build(&spa_builder, SPA_PARAM_EnumFormat, &info);
+    params[1] = (const struct spa_pod *) spa_pod_builder_add_object(&spa_builder,
+        SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
+        SPA_PARAM_BUFFERS_buffers, SPA_POD_CHOICE_RANGE_Int(buffers.def, buffers.min, buffers.max),
+        SPA_PARAM_BUFFERS_size, SPA_POD_Int(ctx.samples * get_yuri_format_bytes(ctx.format) * ctx.channels),
+        SPA_PARAM_BUFFERS_stride, SPA_POD_Int(get_yuri_format_bytes(ctx.format) * ctx.channels));
+
+    pw_stream_connect(ctx.stream,
+        direction,
+        target_id,
+        static_cast<pw_stream_flags>(
+            PW_STREAM_FLAG_AUTOCONNECT |
+            PW_STREAM_FLAG_MAP_BUFFERS |
+            PW_STREAM_FLAG_RT_PROCESS),
+        params, 2);
+}
+
 } // namespace pipewire
 } // namespace yuri

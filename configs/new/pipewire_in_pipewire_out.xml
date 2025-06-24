@@ -1,5 +1,6 @@
 <?xml version="1.0" ?>
 <app name="pipewire" xmlns="urn:library:yuri:xmlschema:2001" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <variable name="source" description="Audio card for record">0</variable>
     <variable name="sink" description="Audio card for playback">0</variable>
 
     <general>
@@ -7,7 +8,12 @@
         <parameter name="debug">0</parameter>
     </general>
 
-    <node class="pipewire_input" name="input" />
+    <node class="pipewire_input" name="input">
+        <parameter name="source">@source</parameter>
+        <parameter name="samples">1024</parameter>
+        <parameter name="sample_rate">48000</parameter>
+        <parameter name="format">f32</parameter>
+    </node>
     <node class="frame_info" name="finfo" />
     <node class="pipewire_output" name="output">
         <parameter name="sink">@sink</parameter>
