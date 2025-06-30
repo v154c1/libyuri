@@ -54,15 +54,14 @@ std::string print_props(const struct spa_dict *props) {
 static void on_event_c(void *userdata, uint32_t id, uint32_t permissions, const char *type, uint32_t version, const struct spa_dict *props) {
     (void)permissions; // Unused parameter
     (void)version;     // Unused parameter
-    struct yuri::pipewire::PipewireOutputContext *data = static_cast<struct yuri::pipewire::PipewireOutputContext *>(userdata);
+    struct PipewireOutputContext *data = static_cast<struct PipewireOutputContext *>(userdata);
     if (data->parent) data->parent->on_event(id, type, props);
 }
 
 static void on_event_removed_c(void *userdata, uint32_t id) {
-    struct yuri::pipewire::PipewireOutputContext *data = static_cast<struct yuri::pipewire::PipewireOutputContext *>(userdata);
+    struct PipewireOutputContext *data = static_cast<struct PipewireOutputContext *>(userdata);
     if (data->parent) data->parent->on_event_removed(id);
 }
-
 
 static void on_process_c(void *userdata) {
     struct yuri::pipewire::PipewireOutputContext *data = static_cast<struct yuri::pipewire::PipewireOutputContext *>(userdata);
@@ -99,6 +98,10 @@ inline event::pBasicEvent prepare_yuri_event(const uint32_t id, const char *name
     return std::make_shared<event::EventVector>(std::move(vec));
 }
 
+}
+
+std::vector<core::InputDeviceInfo> PipewireOutput::enumerate() {
+    return enumerate_pipewire("Audio/Sink");
 }
 
 void PipewireOutput::on_event(uint32_t id, const char *type, const struct spa_dict *props) {

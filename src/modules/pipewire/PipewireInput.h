@@ -9,6 +9,7 @@
 
 #include "pipewire_common.h"
 #include "yuri/core/thread/IOThread.h"
+#include "yuri/core/thread/InputThread.h"
 #include "yuri/core/frame/RawAudioFrame.h"
 
 namespace yuri {
@@ -27,6 +28,7 @@ public:
     PipewireInput(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters);
     virtual ~PipewireInput() noexcept;
     static core::Parameters configure();
+    static std::vector<core::InputDeviceInfo> enumerate();
     void on_event(uint32_t id, const char *type, const struct spa_dict *props);
     void on_event_removed(uint32_t id);
     void on_process();

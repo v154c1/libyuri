@@ -85,8 +85,6 @@ bool init_pipewire(PipewireContext &ctx, const char *name) {
 void destroy_pipewire(PipewireContext &ctx) {
     if (ctx.thread_loop)
         pw_thread_loop_lock(ctx.thread_loop);
-    if (ctx.stream)
-        pw_stream_destroy(ctx.stream);
     if (ctx.core)
         pw_core_disconnect(ctx.core);
     if (ctx.context)
@@ -125,6 +123,70 @@ void connect_pipewire(PipewireContext &ctx, PipewireBuffers buffers, spa_directi
             PW_STREAM_FLAG_RT_PROCESS),
         params, 2);
 }
+
+void on_event(void *userdata, uint32_t id, uint32_t permissions, const char *type, uint32_t version, const struct spa_dict *props) {
+    (void)permissions; // Unused parameter
+    (void)version;     // Unused parameter
+    auto tmp_devices = static_cast<PipewireDevicesEnum *>(userdata);
+    if (strcmp(type, PW_TYPE_INTERFACE_Node) == 0) {
+        const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
+        if (media_class && strcmp(media_class, tmp_devices->filter) == 0) {
+            const char *name = spa_dict_lookup(props, "node.name") ? spa_dict_lookup(props, "node.name") : "unknown";
+            const char *desc = spa_dict_lookup(props, "node.description") ? spa_dict_lookup(props, "node.description") : "unknown";
+            const char *nick = spa_dict_lookup(props, "node.nick") ? spa_dict_lookup(props, "node.nick") : "unknown";
+            tmp_devices->devices.insert({id, PipewireDevice {
+                .name = name,
+                .description = desc,
+                .nick = nick
+            }});
+        }
+    }
+}
+
+static const struct pw_registry_events registry_events = {
+    .version = PW_VERSION_REGISTRY_EVENTS,
+    .global = on_event,
+};
+
+std::vector<core::InputDeviceInfo> enumerate_pipewire(const char *filter) {
+    std::vector<core::InputDeviceInfo> devices;
+	std::vector<std::string> main_param_order = {"index","name","description","nick"};
+
+    PipewireContext context;
+    if (!init_pipewire(context, "pipewire-enum")) return devices;
+
+    PipewireDevicesEnum tmp_devices;
+    tmp_devices.filter = filter; // Filter for audio sinks
+
+    pw_registry_add_listener(context.registry, &context.registry_listener,
+        &registry_events,
+        &tmp_devices);
+
+    pw_thread_loop_lock(context.thread_loop);
+    pw_thread_loop_start(context.thread_loop);
+    pw_thread_loop_unlock(context.thread_loop);
+
+    yuri::core::ThreadBase::sleep(enumerate_timeout);
+
+    pw_thread_loop_stop(context.thread_loop);
+    destroy_pipewire(context);
+
+    for (const auto& [id, dev] : tmp_devices.devices) {
+        core::InputDeviceInfo device;
+        device.main_param_order = main_param_order;
+        device.device_name = dev.name;
+        core::InputDeviceConfig cfg_base;
+        cfg_base.params["index"]=std::to_string(id);
+		cfg_base.params["name"]=dev.name;
+        cfg_base.params["description"]=dev.description;
+        cfg_base.params["nick"]=dev.nick;
+        device.configurations.push_back(std::move(cfg_base));
+		devices.push_back(std::move(device));
+    }
+
+    return devices;
+}
+
 
 } // namespace pipewire
 } // namespace yuri
