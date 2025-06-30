@@ -148,7 +148,7 @@ void PipewireOutput::on_event_removed(uint32_t id) {
 }
 
 void PipewireOutput::on_process() {
-    if (pipewire_data_.frames.empty()) {
+    if (pipewire_data_.frames.empty() && !pipewire_data_.last_frame) {
         log[log::warning] << "PipewireOutput: no frames to process, skipping";
         return;
     }
@@ -171,15 +171,24 @@ void PipewireOutput::on_process() {
     if (buffer_contatiner->requested)
         frames_to_copy = std::min(static_cast<size_t>(buffer_contatiner->requested), frames_to_copy);
 
-    pipewire_data_.frames_mutex.lock();
-    auto frame = pipewire_data_.frames.front();
-    pipewire_data_.frames.pop();
-    pipewire_data_.frames_mutex.unlock();
+    if (pipewire_data_.last_frame == nullptr) {
+        pipewire_data_.frames_mutex.lock();
+        pipewire_data_.last_frame = pipewire_data_.frames.front();
+        pipewire_data_.last_frame_offset = 0;
+        pipewire_data_.frames.pop();
+        pipewire_data_.frames_mutex.unlock();
+    }
 
-    auto frame_data = frame->data();
-    auto frame_size = frame->get_size();
+    auto frame_data = pipewire_data_.last_frame->data() + pipewire_data_.last_frame_offset;
+    auto frame_size = pipewire_data_.last_frame->get_size() - pipewire_data_.last_frame_offset;
     size_t bytes_to_copy = std::min(frame_size, frames_to_copy * stride_size);
     memcpy(buffer_pointer, frame_data, bytes_to_copy);
+
+    if (bytes_to_copy < frame_size) {
+        pipewire_data_.last_frame_offset += bytes_to_copy;
+    } else {
+        pipewire_data_.last_frame = nullptr;
+    }
 
     buffer->datas[0].chunk->offset = 0;
     buffer->datas[0].chunk->stride = stride_size;

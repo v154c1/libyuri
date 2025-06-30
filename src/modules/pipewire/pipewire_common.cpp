@@ -97,7 +97,7 @@ void destroy_pipewire(PipewireContext &ctx) {
 }
 
 void connect_pipewire(PipewireContext &ctx, PipewireBuffers buffers, spa_direction direction, uint32_t target_id) {
-    std::vector<uint8_t> buffer(ctx.samples);
+    std::vector<uint8_t> buffer(ctx.samples * get_yuri_format_bytes(ctx.format) * ctx.channels);
     struct spa_pod_builder spa_builder = SPA_POD_BUILDER_INIT(buffer.data(), static_cast<uint32_t>(buffer.size()));
 
     struct spa_audio_info_raw info = SPA_AUDIO_INFO_RAW_INIT(
@@ -146,6 +146,7 @@ void on_event(void *userdata, uint32_t id, uint32_t permissions, const char *typ
 static const struct pw_registry_events registry_events = {
     .version = PW_VERSION_REGISTRY_EVENTS,
     .global = on_event,
+    .global_remove = nullptr,
 };
 
 std::vector<core::InputDeviceInfo> enumerate_pipewire(const char *filter) {
