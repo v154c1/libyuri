@@ -101,10 +101,12 @@ bool PipewireInput::init() {
         return false;
     }
 
+    auto node_latency = (std::to_string(pipewire_data_.context.samples)+"/"+std::to_string(pipewire_data_.context.sample_rate)).c_str();
     auto props = pw_properties_new(
         PW_KEY_MEDIA_TYPE, "Audio",
         PW_KEY_MEDIA_CATEGORY, "Capture",
         PW_KEY_MEDIA_ROLE, "Production",
+        PW_KEY_NODE_LATENCY, node_latency,
         nullptr);
 
     pipewire_data_.context.stream = pw_stream_new_simple(pipewire_data_.context.loop, "audio-src", props, &stream_events, &pipewire_data_);
@@ -147,17 +149,17 @@ void PipewireInput::on_event_removed(uint32_t id) {
 void PipewireInput::on_process() {
     if (!pipewire_ready_) return;
 
-    struct pw_buffer *b;
-    struct spa_buffer *buf;
-    if ((b = pw_stream_dequeue_buffer(pipewire_data_.context.stream)) == nullptr) return;
-    buf = b->buffer;
-    if (!buf->datas[0].data || buf->datas[0].chunk->size == 0) {
-        pw_stream_queue_buffer(pipewire_data_.context.stream, b);
+    struct pw_buffer *pw_buff;
+    struct spa_buffer *simple_buff;
+    if ((pw_buff = pw_stream_dequeue_buffer(pipewire_data_.context.stream)) == nullptr) return;
+    simple_buff = pw_buff->buffer;
+    if (!simple_buff->datas[0].data || simple_buff->datas[0].chunk->size == 0) {
+        pw_stream_queue_buffer(pipewire_data_.context.stream, pw_buff);
         return;
     }
 
-    auto *data = static_cast<uint8_t *>(buf->datas[0].data);
-    auto size = buf->datas[0].chunk->size;
+    auto *data = static_cast<uint8_t *>(simple_buff->datas[0].data);
+    auto size = simple_buff->datas[0].chunk->size;
     auto received_samples = size / get_yuri_format_bytes(pipewire_data_.context.format) / pipewire_data_.context.channels;
 
     auto frame = core::RawAudioFrame::create_empty(pipewire_data_.context.format, pipewire_data_.context.channels, pipewire_data_.context.sample_rate, received_samples);
@@ -165,7 +167,7 @@ void PipewireInput::on_process() {
     memcpy(frame->data(), data, size);
     push_frame(0, frame);
 
-    pw_stream_queue_buffer(pipewire_data_.context.stream, b);
+    pw_stream_queue_buffer(pipewire_data_.context.stream, pw_buff);
 }
 
 void PipewireInput::run() {
@@ -181,7 +183,7 @@ void PipewireInput::run() {
 }
 
 bool PipewireInput::set_param(const core::Parameter &param) {
-    log[log::info] << "PipewireInput: Setting parameter: " << param.get_name() << " = " << param.get<std::string>();
+    log[log::info] << "Setting parameter: " << param.get_name() << " = " << param.get<std::string>();
     if (assign_parameters(param)
         (source_, "source")
         (pipewire_data_.context.channels, "channels")

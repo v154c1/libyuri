@@ -31,6 +31,8 @@ struct PipewireOutputContext {
     PipewireOutput *parent;
     PipewireContext context;
     std::queue<core::pRawAudioFrame> frames;
+    core::pRawAudioFrame last_frame;
+    size_t last_frame_offset;
     std::mutex frames_mutex;
 };
 
