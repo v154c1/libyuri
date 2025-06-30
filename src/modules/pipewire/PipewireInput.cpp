@@ -128,6 +128,10 @@ void PipewireInput::destroy() {
     pipewire_ready_ = false;
 }
 
+std::vector<core::InputDeviceInfo> PipewireInput::enumerate() {
+    return enumerate_pipewire("Audio/Source");
+}
+
 void PipewireInput::on_event(uint32_t id, const char *type, const struct spa_dict *props) {
     (void) id; // Unused parameter
     (void) type; // Unused parameter
