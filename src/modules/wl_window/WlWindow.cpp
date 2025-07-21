@@ -16,6 +16,7 @@
 #include <EGL/egl.h>
 #include <cstring>
 #include "xdg-shell-client-protocol.h"
+#include "yuri/core/thread/Convert.h"
 
 namespace yuri {
     namespace wl_window {
@@ -336,6 +337,7 @@ namespace yuri {
             gl_.use_lq = true;
             pimpl_ = yuri::make_unique<pimpl_t>(log, *this, geometry_);
 
+            supported_formats_ = gl_.get_supported_formats();
 
             set_latency(1_ms);
         }
@@ -396,6 +398,8 @@ namespace yuri {
             pimpl_->init();
             pimpl_->set_title(title_);
             pimpl_->set_fullscreen(fullscreen_);
+            converter_.reset(new core::Convert(log, get_this_ptr(), core::Convert::configure()));
+            add_child(converter_);
             counter_ = 0;
             counter_start_ = timestamp_t{};
             while (still_running()) {
@@ -403,7 +407,7 @@ namespace yuri {
                 auto frame = pop_frame(0);
                 bool redraw = pimpl_->resized_ || frame;
                 if (frame) {
-                    last_frame_ = std::move(frame);
+                    last_frame_ = converter_->convert_to_cheapest(std::move(frame), supported_formats_);
                 }
                 if (redraw) {
                     draw();
