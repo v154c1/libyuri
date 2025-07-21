@@ -254,6 +254,12 @@ IF (${REALSENSE2_FOUND})
 	add_subdirectory(realsense)
 ENDIF()
 
+
+pkg_check_modules(WAYLAND wayland-client wayland-egl wayland-scanner)
+if(WAYLAND_FOUND)
+	add_subdirectory(wl_window)
+endif ()
+
 #################################################################
 # Experimental modules
 #################################################################
