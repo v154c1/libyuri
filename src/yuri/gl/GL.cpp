@@ -264,10 +264,17 @@ void GL::generate_texture(index_t tid, const format_t frame_format, const resolu
 
 
 	glBindTexture(GL_TEXTURE_2D, tex);
-	glEnable(GL_MULTISAMPLE);
-	glSampleCoverage(0.1f, GL_TRUE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    if (use_lq) {
+        glDisable(GL_MULTISAMPLE);
+//        glSampleCoverage(1.0f, GL_TRUE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    } else {
+        glEnable(GL_MULTISAMPLE);
+        glSampleCoverage(0.1f, GL_TRUE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    }
     if (frame) {
         const auto tex_res = resolution_t{force_pow2?next_power_2(w):w, force_pow2?next_power_2(h):h};
 //	log[log::info] << "Textuire res: " << tex_res;
@@ -530,8 +537,8 @@ void GL::generate_texture(index_t tid, const format_t frame_format, const resolu
 	if (!fs_color_get.empty()) {
 		if (textures[tid].shader_update_needed(frame_format)) {
 			textures[tid].finish_update(log, frame_format,
-								shaders::prepare_vs(shader_version_),
-								shaders::prepare_fs(fs_color_get, transform_shader, color_map_shader, shader_version_));
+								shaders::prepare_vs(use_core, shader_version_, shader_suffix_),
+								shaders::prepare_fs(use_core, fs_color_get, transform_shader, color_map_shader, shader_version_, shader_suffix_));
 		}
 	}
 
@@ -593,7 +600,7 @@ void GL::draw_texture(index_t tid)
 	texture.bind_texture_units();
 
 	glActiveTexture(GL_TEXTURE0);
-	glBegin(GL_QUADS);
+
 	double tex_coords[][4]={	{0.0f, 1.0f, 0.0f, 1.0f},
 								{1.0f, 1.0f, 0.0f, 1.0f},
 								{1.0f, 0.f, 0.0f, 1.0f},
@@ -642,24 +649,46 @@ void GL::draw_texture(index_t tid)
 		}
 	}
 
+    if (!use_core) {
+        glBegin(GL_QUADS);
+        texture.set_tex_coords(tex_coords[0]);
+        glVertex2fv(&corners[0]);
 
+        texture.set_tex_coords(tex_coords[1]);
+        glVertex2fv(&corners[2]);
 
-	texture.set_tex_coords(tex_coords[0]);
-	glVertex2fv(&corners[0]);
+        texture.set_tex_coords(tex_coords[2]);
+        glVertex2fv(&corners[4]);
 
-	texture.set_tex_coords(tex_coords[1]);
-	glVertex2fv(&corners[2]);
+        texture.set_tex_coords(tex_coords[3]);
+        glVertex2fv(&corners[6]);
+        glEnd();
 
-	texture.set_tex_coords(tex_coords[2]);
-	glVertex2fv(&corners[4]);
+    } else {
+        if (!texture.vertex_array) {
+            log[log::info] << "Creating vertex array";
+            texture.vertex_array = std::make_shared<GLVertexArray>(log);
+        }
+        texture.vertex_array->update_coords(corners.data(), corners.size());
+        std::array<float, 16> tex;
+        for (int i=0;i<4;++i) {
+            std::transform(tex_coords[i], tex_coords[i] + 4, &tex[4 * i],
+                           [](double v) { return static_cast<float>(v); });
+        }
+        texture.vertex_array->update_tex(tex.data(), tex.size());
 
-	texture.set_tex_coords(tex_coords[3]);
-	glVertex2fv(&corners[6]);
-	glEnd();
-	if (texture.shader) texture.shader->stop();
-	glBindTexture(GL_TEXTURE_2D,0);
-	glPopAttrib();
+        texture.vertex_array->bind();
+        glGetError();
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        const auto err = glGetError();
+        if (err) {
+            log[log::info] << "Failed to draw: " << err;
+        }
 
+    }
+    if (texture.shader) texture.shader->stop();
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glPopAttrib();
 }
 void GL::enable_smoothing()
 {

@@ -5,6 +5,10 @@ SET(SRC
 	gl/GLProgram.h
 	gl/GLShader.cpp
 	gl/GLShader.h
+	gl/GLArrayBuffer.cpp
+	gl/GLArrayBuffer.h
+	gl/GLVertexArray.cpp
+	gl/GLVertexArray.h
 	gl/default_shaders.h	
 	)
 	

@@ -15,6 +15,7 @@
 #include <array>
 #define GL_GLEXT_PROTOTYPES
 #include "GLProgram.h"
+#include "GLVertexArray.h"
 #include <GL/gl.h>
 
 #include <GL/glext.h>
@@ -66,6 +67,8 @@ struct texture_info_t {
 
 	/// Instance of shader used to render this texture
 	std::shared_ptr<GLProgram> shader;
+
+    std::shared_ptr<GLVertexArray> vertex_array;
 
 	/// Uniform addresses for texture units
 	GLint texture_units[8];
@@ -208,10 +211,13 @@ public:
 	std::string transform_shader;
 	std::string color_map_shader;
 	int shader_version_;
+    std::string shader_suffix_;
 	std::array<float,8> corners;
 	static mutex big_gpu_lock;
 	static std::vector<format_t> get_supported_formats();
 	bool use_pbo;
+    bool use_core = false;
+    bool use_lq = false;
 };
 
 }

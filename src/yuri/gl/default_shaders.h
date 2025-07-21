@@ -16,6 +16,11 @@ namespace gl {
 
 namespace shaders {
 namespace {
+    const std::string low_precision = R"XXX(
+    precision lowp float;
+)XXX";
+
+
 const std::string vs_default = R"XXX(
 void main()
 {
@@ -23,6 +28,20 @@ void main()
 	gl_TexCoord[0] = gl_MultiTexCoord0;
 }
 )XXX";
+
+const std::string vs_default2 = R"XXX(
+
+in vec2 in_Position;
+in vec4 in_TexCoord;
+
+out vec4 texCoord;
+void main()
+{
+	gl_Position = vec4(in_Position.xy, 0.0, 1.0);
+	texCoord = in_TexCoord;
+}
+)XXX";
+
 
 const std::string fs_head = R"XXX(
 
@@ -39,9 +58,24 @@ void main()
 	vec2 mapped_coords = transform_coords(gl_TexCoord[0].st / gl_TexCoord[0].w);
 	vec2 coord = mapped_coords *vec2(tw, th) + vec2(tx0, ty0);
 	vec4 color = get_color(coord);
-	gl_FragColor = map_color(color, coord);
+	gl_FragColor = map_color(color, mapped_coords);
 }
 )XXX";
+
+const std::string fs_main2 = R"XXX(
+
+
+in vec4 texCoord;
+out vec4 outColor;
+void main()
+{
+	vec2 mapped_coords = transform_coords(texCoord.st / texCoord.w);
+	vec2 coord = mapped_coords *vec2(tw, th) + vec2(tx0, ty0);
+	vec4 color = get_color(coord);
+	outColor = map_color(color, coord);
+}
+)XXX";
+
 
 const std::string fs_default_transform = R"XXX(
 vec2 transform_coords(vec2 coord) {
@@ -55,25 +89,26 @@ vec4 map_color(vec4 color, vec2 coord) {
 }
 )XXX";
 
-std::string get_version_string(int version)
+std::string get_version_string(int version, const std::string& suffix)
 {
-	return "#version " + std::to_string(version) + "\n";
+	return "#version " + std::to_string(version) + suffix + "\n";
 }
-std::string prepare_vs(int version = 120)
+std::string prepare_vs(bool use_core, int version = 120, const std::string & suffix = "")
 {
-	return get_version_string(version) +
-		   vs_default;
+	return get_version_string(version, suffix) +
+            (use_core?(low_precision+vs_default2):vs_default);
 }
-std::string prepare_fs(const std::string& get_color, const std::string& transform, const std::string& color_map, int version = 120)
+std::string prepare_fs(bool use_core, const std::string& get_color, const std::string& transform, const std::string& color_map, int version = 120, const std::string & suffix = "")
 {
-	return	get_version_string(version) +
+	return	get_version_string(version, suffix) +
+            (use_core?low_precision:"")+
 			fs_head +
 			get_color +
 			(transform.empty()?fs_default_transform:transform) +
 			"\n" +
 			(color_map.empty()?fs_default_map:color_map) +
 			"\n" +
-			fs_main;
+            (use_core?fs_main2:fs_main);
 
 }
 
