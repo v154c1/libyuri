@@ -61,8 +61,8 @@ bool GLShader::compile()
 	glShaderSource(shader_object,1,(const GLchar**)&shader_text,&shader_size);
 	glCompileShader(shader_object);
 	GLint compiled;
-	glGetObjectParameterivARB(shader_object, GL_COMPILE_STATUS, &compiled);
-	if (compiled) {
+    glGetShaderiv(shader_object, GL_COMPILE_STATUS, &compiled);
+	if (compiled == GL_TRUE) {
 		log[log::debug] << "Shader " << shader_object << " compiled without problems.";
 		return true;
 	}
@@ -72,7 +72,7 @@ bool GLShader::compile()
 	if (blen > 1)
 	{
 	 GLchar* compiler_log = new GLchar[blen];
-	 glGetInfoLogARB(shader_object, blen, &slen, compiler_log);
+    glGetShaderInfoLog(shader_object, blen, &slen, compiler_log);
 	 log[log::error] << "compiler_log:" <<  compiler_log;
 	 delete [] compiler_log;
 	}

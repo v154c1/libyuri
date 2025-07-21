@@ -28,6 +28,12 @@ GLProgram::~GLProgram()
 
 bool GLProgram::attach_shader(GLShader &shader)
 {
+    if (!glIsShader(shader.get_shader())) {
+        log[log::error] << "Invalid shader " << shader.get_shader();
+    }
+    if (!glIsProgram(program)) {
+        log[log::error] << "Invalid programs " << program;
+    }
 	glAttachShader(program,shader.get_shader());
 	GLenum err = glGetError();
 	if (err) {
@@ -57,7 +63,7 @@ bool GLProgram::link()
 	if (blen > 1)
 	{
 		GLchar* compiler_log = new GLchar[blen];
-		glGetInfoLogARB(program, blen, &slen, compiler_log);
+        glGetProgramInfoLog(program, blen, &slen, compiler_log);
 		log[log::error] << "compiler_log:" <<  compiler_log;
 		delete [] compiler_log;
 	}
