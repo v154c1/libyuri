@@ -71,6 +71,11 @@ namespace {
             {rgb_r12k_be, {rgb_r12k_be, "RGB R12k 32 bit (BE)",    {"R12K"},                "", {{"RGB",    {288, 8}, {12, 12, 12}}} }},
             {rgb_r12k_le, {rgb_r12k_le, "RGB R12k 32 bit (LE)",    {"R12K_LE"},                "", {{"RGB",    {288, 8}, {12, 12, 12}}} }},
 
+            {y8_depth16, {y8_depth16, "Y 8it with 16b depth",      {"YD"},                 "", {{"YD", {24, 1}, {8,16}}}}},
+            {rgb24_depth16, {rgb24_depth16, "RGB24 with 16b depth",{"RGBD"},                "", {{"RGBD", {40, 1}, {8,8,8,16}}}}},
+
+            {y8_depth16_planar, {y8_depth16_planar, "Y 8it with 16b depth, planar", {"YDP"},"", {{"Y", {8, 1}, {8}}, {"D", {16,1}, {16}}}}},
+
             {yuv411,      {yuv411,      "YUV 4:1:1 packed",        {"YUV411"},              "", {{"YYUYYV", {48, 4}, {8,  8,  8,8,8,8}}} }},
 			{yvu411,      {yvu411,      "YVU 4:1:1 packed",        {"YVU411"},              "", {{"YYVYYU", {48, 4}, {8,  8,  8,8,8,8}}} }},
 

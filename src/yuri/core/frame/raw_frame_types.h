@@ -119,6 +119,11 @@ const format_t rgb_r12k_be		= 0x140;	// xRGB 2:10:10:10
 const format_t rgb_r12k_le		= 0x141;	// xRGB 2:10:10:10
 
 
+// RGB formats with depth
+const format_t y8_depth16   = 0x160; // YD 8:16  (3B per pixel)
+const format_t rgb24_depth16= 0x161; // RGBD 8:8:8:16  (5B per pixel)
+
+const format_t y8_depth16_planar   = 0x170; // YD 8:16  (3B per pixel in two planes)
 
 const format_t yuv411		= 0x200;	// YYUYYV	4pixels, 8bit
 const format_t yvu411		= 0x201;	// YYVYYU	4pixels, 8bit
