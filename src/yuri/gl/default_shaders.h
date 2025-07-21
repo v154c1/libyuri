@@ -85,6 +85,20 @@ vec4 get_color(vec2 coord) {
 }
 )XXX";
 
+const std::string fs_get_rgb_planar = R"XXX(
+uniform sampler2D tex0;
+uniform sampler2D tex1;
+uniform sampler2D tex2;
+vec4 get_color(vec2 coord) {
+	return vec4(
+        texture2D(tex0, coord).r,
+        texture2D(tex1, coord).r,
+        texture2D(tex2, coord).r,
+        1.0);;
+}
+)XXX";
+
+
 /*
 mat4 y2rt = mat4(1, 0, 1.371, 0,
 	                 1, -.337, -0.698, 0,

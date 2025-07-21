@@ -163,6 +163,7 @@ const std::vector<format_t> gl_supported_formats = {
 		raw_format::rgb8,
 		raw_format::rgb16,
         raw_format::rgb_r10k_le,
+        raw_format::gbr24p,
 
         compressed_frame::dxt1,
         compressed_frame::dxt5,
@@ -310,7 +311,26 @@ void GL::generate_texture(index_t tid, const format_t frame_format, const resolu
                 fs_color_get = shaders::fs_get_rgb;
             }
                 break;
+            case raw_format::gbr24p:
+                if (tex_res != textures[tid].tex_res) {
+                    for (int i = 0; i < 3; ++i) {
+                        prepare_texture(tid, i, nullptr, 0, {tex_res.width, tex_res.height}, GL_LUMINANCE8,
+                                        GL_LUMINANCE, false);
+                    }
+                    textures[tid].tex_res = tex_res;
+                }
+                if (frame) {
 
+                    prepare_texture(tid, 0, PLANE_RAW_DATA(frame, 2), PLANE_SIZE(frame, 2), {w, h},
+                                    GL_LUMINANCE8, GL_LUMINANCE, true);
+                    prepare_texture(tid, 1, PLANE_RAW_DATA(frame, 0), PLANE_SIZE(frame, 0), {w, h},
+                                    GL_LUMINANCE8, GL_LUMINANCE, true);
+                    prepare_texture(tid, 2, PLANE_RAW_DATA(frame, 1), PLANE_SIZE(frame, 1), {w, h},
+                                    GL_LUMINANCE8, GL_LUMINANCE, true);
+
+                }
+                fs_color_get = shaders::fs_get_rgb_planar;
+                break;
             case raw_format::yuv444:
             case raw_format::yuva4444:
             case raw_format::yuyv422:
