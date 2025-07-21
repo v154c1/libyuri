@@ -20,8 +20,6 @@
 
 namespace yuri {
     namespace wl_window {
-
-
         IOTHREAD_GENERATOR(WlWindow)
 
         MODULE_REGISTRATION_BEGIN("wl_window")
@@ -32,15 +30,15 @@ namespace yuri {
             core::Parameters p = core::IOThread::configure();
             p.set_description("WlWindow");
             p["geometry"]["Geometry (overrides resolution and position)"] = "1920x1080+0+0";
-            p["title"]["WIndow title"]="[Yuri] WL Window";
-            p["fullscreen"]["Start fullscreen"]=false;
+            p["title"]["WIndow title"] = "[Yuri] WL Window";
+            p["fullscreen"]["Start fullscreen"] = false;
             return p;
         }
 
 
         struct WlWindow::pimpl_t {
-
-            pimpl_t(log::Log &log, WlWindow &win, geometry_t geometry) : log(log), win(win), geometry(geometry) {}
+            pimpl_t(log::Log &log, WlWindow &win, geometry_t geometry) : log(log), win(win), geometry(geometry) {
+            }
 
             void init();
 
@@ -53,9 +51,9 @@ namespace yuri {
             geometry_t geometry;
             wl_display *display = nullptr;
             struct wl_compositor *compositor = nullptr;
-//            struct wl_shm *shm = nullptr;
-//            struct wl_shm_pool *pool = nullptr;
-//            struct wl_output *output = nullptr;
+            //            struct wl_shm *shm = nullptr;
+            //            struct wl_shm_pool *pool = nullptr;
+            //            struct wl_output *output = nullptr;
             wl_region *region = nullptr;
 
             struct xdg_wm_base *xdg_wm_base = nullptr;
@@ -81,14 +79,12 @@ namespace yuri {
 
             void swap_buffers();
 
-            void set_title(const std::string& name);
+            void set_title(const std::string &name);
 
             void set_fullscreen(bool state);
-
         };
 
         namespace {
-
             void
             xdg_wm_base_ping(void *data, struct xdg_wm_base *xdg_wm_base, uint32_t serial) {
                 xdg_wm_base_pong(xdg_wm_base, serial);
@@ -97,7 +93,7 @@ namespace yuri {
             }
 
             const struct xdg_wm_base_listener xdg_wm_base_listener = {
-                    .ping = xdg_wm_base_ping,
+                .ping = xdg_wm_base_ping,
             };
 
             void registry_handle_global(void *data, struct wl_registry *registry,
@@ -107,11 +103,11 @@ namespace yuri {
 
                 if (strcmp(interface, wl_compositor_interface.name) == 0) {
                     state.compositor = reinterpret_cast<wl_compositor *>(wl_registry_bind(
-                            registry, name, &wl_compositor_interface, 4));
+                        registry, name, &wl_compositor_interface, 4));
                     state.log[log::debug] << "Bound compositor";
                 } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
-                    state.xdg_wm_base = reinterpret_cast< xdg_wm_base *>(wl_registry_bind(
-                            registry, name, &xdg_wm_base_interface, 1));
+                    state.xdg_wm_base = reinterpret_cast<xdg_wm_base *>(wl_registry_bind(
+                        registry, name, &xdg_wm_base_interface, 1));
                     printf("Bound xdg shell\n");
                     xdg_wm_base_add_listener(state.xdg_wm_base,
                                              &xdg_wm_base_listener, data);
@@ -119,15 +115,15 @@ namespace yuri {
             }
 
             void
-            registry_handle_global_remove(void *data, struct wl_registry *registry,
-                                          uint32_t name) {
+            registry_handle_global_remove(void */*data*/, struct wl_registry */*registry*/,
+                                          uint32_t /*name*/) {
                 // This space deliberately left blank
             }
 
             const struct wl_registry_listener
-                    registry_listener = {
-                    .global = registry_handle_global,
-                    .global_remove = registry_handle_global_remove,
+            registry_listener = {
+                .global = registry_handle_global,
+                .global_remove = registry_handle_global_remove,
             };
 
             void
@@ -139,13 +135,12 @@ namespace yuri {
             }
 
             const struct xdg_surface_listener xdg_surface_listener = {
-                    .configure = xdg_surface_configure,
+                .configure = xdg_surface_configure,
             };
 
             void xdg_toplevel_handle_configure(void *data,
-                                               struct xdg_toplevel *xdg_toplevel, int32_t w, int32_t h,
-                                               struct wl_array *states) {
-
+                                               struct xdg_toplevel */*xdg_toplevel*/, int32_t w, int32_t h,
+                                               struct wl_array */*states*/) {
                 printf("Top level configure, w: %d, h: %d\n", w, h);
                 // no window geometry event, ignore
                 if (w == 0 && h == 0) {
@@ -153,17 +148,15 @@ namespace yuri {
                 }
                 auto &state = *reinterpret_cast<WlWindow::pimpl_t *>(data);
 
-//        // window resized
-                const auto new_res = resolution_t{static_cast<dimension_t >(w), static_cast<dimension_t >(h)};
+                //        // window resized
+                const auto new_res = resolution_t{static_cast<dimension_t>(w), static_cast<dimension_t>(h)};
                 if (state.geometry.get_resolution() != new_res) {
                     state.resize(new_res);
-
-
                 }
             }
 
             static void xdg_toplevel_handle_close(void *data,
-                                                  struct xdg_toplevel *xdg_toplevel) {
+                                                  struct xdg_toplevel */*xdg_toplevel*/) {
                 // window closed, be sure that this event gets processed
 
                 auto &state = *reinterpret_cast<WlWindow::pimpl_t *>(data);
@@ -172,8 +165,11 @@ namespace yuri {
             }
 
             struct xdg_toplevel_listener xdg_toplevel_listener = {
-                    .configure = xdg_toplevel_handle_configure,
-                    .close = xdg_toplevel_handle_close,
+                .configure = xdg_toplevel_handle_configure,
+                .close = xdg_toplevel_handle_close,
+                .configure_bounds = nullptr,
+                .wm_capabilities = nullptr,
+
             };
         }
 
@@ -181,7 +177,6 @@ namespace yuri {
             display = wl_display_connect(nullptr);
             if (!display) {
                 throw exception::InitializationFailed("Failed to connect to Wayland display");
-
             }
             log[log::info] << "Connection established!";
 
@@ -196,12 +191,12 @@ namespace yuri {
             surface = wl_compositor_create_surface(compositor);
 
             xdg_surface = xdg_wm_base_get_xdg_surface(
-                    xdg_wm_base, surface);
+                xdg_wm_base, surface);
             xdg_surface_add_listener(xdg_surface, &xdg_surface_listener, this);
             xdg_toplevel = xdg_surface_get_toplevel(xdg_surface);
             xdg_toplevel_set_title(xdg_toplevel, "WlWindow");
             xdg_toplevel_add_listener(xdg_toplevel, &xdg_toplevel_listener, this);
-//    xdg_toplevel_set_fullscreen
+            //    xdg_toplevel_set_fullscreen
             wl_surface_commit(surface);
 
             wl_display_roundtrip(display);
@@ -228,7 +223,6 @@ namespace yuri {
             egl_window = wl_egl_window_create(surface, geometry.width, geometry.height);
             if (!egl_window) {
                 throw exception::InitializationFailed("Failed to create EGL window");
-
             }
             log[log::info] << "Created EGL window";
 
@@ -242,10 +236,8 @@ namespace yuri {
             auto shader_ver = glGetString(GL_SHADING_LANGUAGE_VERSION);
             log[log::info] << "Supported shader version: " << shader_ver;
 
-//            draw();
-//            swap_buffers();
-
-
+            //            draw();
+            //            swap_buffers();
         }
 
         void WlWindow::pimpl_t::init_egl() {
@@ -254,25 +246,24 @@ namespace yuri {
 
 
             EGLint config_attribs[] = {
-                    EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-                    EGL_RED_SIZE, 8,
-                    EGL_GREEN_SIZE, 8,
-                    EGL_BLUE_SIZE, 8,
-//                    EGL_ALPHA_SIZE, 8,
-//                    EGL_DEPTH_SIZE, 24,
-//                    EGL_BUFFER_SIZE, 32,
-                    EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-                    EGL_NONE
+                EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+                EGL_RED_SIZE, 8,
+                EGL_GREEN_SIZE, 8,
+                EGL_BLUE_SIZE, 8,
+                //                    EGL_ALPHA_SIZE, 8,
+                //                    EGL_DEPTH_SIZE, 24,
+                //                    EGL_BUFFER_SIZE, 32,
+                EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+                EGL_NONE
             };
             static const EGLint context_ettirbs[] = {
-                    EGL_CONTEXT_CLIENT_VERSION, 2,
-//                    EGL_CONTEXT_OPENGL_DEBUG, EGL_TRUE,
-                    EGL_NONE
+                EGL_CONTEXT_CLIENT_VERSION, 2,
+                //                    EGL_CONTEXT_OPENGL_DEBUG, EGL_TRUE,
+                EGL_NONE
             };
 
             if ((egl_display = eglGetDisplay(display)) == EGL_NO_DISPLAY) {
                 throw exception::InitializationFailed("Can't create EGL display");
-
             }
             log[log::info] << "Created EGL display";
 
@@ -297,7 +288,6 @@ namespace yuri {
 
             egl_config = configs[0];
             egl_context = eglCreateContext(egl_display, egl_config, EGL_NO_CONTEXT, context_ettirbs);
-
         }
 
         void WlWindow::pimpl_t::draw() {
@@ -327,8 +317,9 @@ namespace yuri {
         }
 
 
-        WlWindow::WlWindow(const log::Log &log_, core::pwThreadBase parent, const core::Parameters &parameters) :
-                core::IOThread(log_, parent, 1, 0, std::string("wl_window")), gl_(log) {
+        WlWindow::WlWindow(const log::Log &log_, core::pwThreadBase parent,
+                           const core::Parameters &parameters) : core::IOThread(log_, parent, 1, 0,
+                                                                     std::string("wl_window")), gl_(log) {
             IOTHREAD_INIT(parameters)
             gl_.log.set_flags(log.get_flags());
             gl_.shader_version_ = 300;
@@ -343,19 +334,20 @@ namespace yuri {
         }
 
         WlWindow::~WlWindow() noexcept = default;
-//
-//        core::pFrame WlWindow::do_simple_single_step(core::pFrame frame) {
-//
-//            draw();
-//            pimpl_->swap_buffers();
-//        }
+
+        //
+        //        core::pFrame WlWindow::do_simple_single_step(core::pFrame frame) {
+        //
+        //            draw();
+        //            pimpl_->swap_buffers();
+        //        }
 
         bool WlWindow::set_param(const core::Parameter &param) {
             if (assign_parameters(param)
-                    (geometry_, "geometry")
-                    (title_, "title")
-                    (fullscreen_, "fullscreen")
-                    ) {
+                (geometry_, "geometry")
+                (title_, "title")
+                (fullscreen_, "fullscreen")
+            ) {
                 return true;
             }
             return core::IOThread::set_param(param);
@@ -364,12 +356,11 @@ namespace yuri {
         void WlWindow::draw() {
             gl_.clear();
             if (last_frame_) {
-//                log[log::info] << "Frame: " << last_frame_->get_index();
+                //                log[log::info] << "Frame: " << last_frame_->get_index();
                 gl_.generate_texture(0, last_frame_, false, false);
                 gl_.draw_texture(0);
-//                gl_.finish_frame();
-            }
-            {
+                //                gl_.finish_frame();
+            } {
                 timestamp_t now{};
                 auto delta = now - counter_start_;
                 ++counter_;
@@ -381,18 +372,18 @@ namespace yuri {
                 }
             }
 
-//            glClearColor(0.2, 0.3, 0.4, 1.0);
-//            glClear(GL_COLOR_BUFFER_BIT);
+            //            glClearColor(0.2, 0.3, 0.4, 1.0);
+            //            glClear(GL_COLOR_BUFFER_BIT);
         }
 
-//
-//        bool WlWindow::step() {
-//
-//            wl_display_dispatch_pending(pimpl_->display);
-////            draw();
-////            pimpl_->swap_buffers();
-//            return MultiIOFilter::step();
-//        }
+        //
+        //        bool WlWindow::step() {
+        //
+        //            wl_display_dispatch_pending(pimpl_->display);
+        ////            draw();
+        ////            pimpl_->swap_buffers();
+        //            return MultiIOFilter::step();
+        //        }
 
         void WlWindow::run() {
             pimpl_->init();
@@ -418,10 +409,7 @@ namespace yuri {
 
                 wl_display_dispatch_pending(pimpl_->display);
             }
-//            IOThread::run();
-
+            //            IOThread::run();
         }
-
     } /* namespace wl_window */
 } /* namespace yuri */
-
