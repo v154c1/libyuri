@@ -27,6 +27,8 @@
 #include "h264_helper.h"
 extern "C" {
 #include <libswresample/swresample.h>
+#include <libavutil/pixdesc.h>
+#include <libavcodec/codec_desc.h>
 }
 
 namespace yuri {
@@ -250,14 +252,17 @@ bool RawAVFile::open_file(const std::string& filename)
         // We have to initialize decoder for h264 even if decode ==false in order to distinguish h264 and avc1 later
         if (!decode_ && video_streams_[i].format != core::compressed_frame::h264) {
 
-            if (video_streams_[i].format == 0) {
-                log[log::error] << "Unknown format for video stream " << i;
-                return false;
-            }
-            video_streams_[i].resolution
-                = resolution_t{ static_cast<dimension_t>(video_streams_[i].ctx->width), static_cast<dimension_t>(video_streams_[i].ctx->height) };
-            log[log::info] << "Found video stream with format " << get_format_name_no_throw(video_streams_[i].format) << " and resolution "
-                           << video_streams_[i].ctx->width << "x" << video_streams_[i].ctx->height;
+                    if (video_streams_[i].format == 0) {
+                        log[log::error] << "Unknown format for video stream " << i << ":  "
+                                        << avcodec_get_name(video_streams_[i].ctx->codec_id);
+                        return false;
+                    }
+                    video_streams_[i].resolution
+                            = resolution_t{static_cast<dimension_t>(video_streams_[i].ctx->width),
+                                           static_cast<dimension_t>(video_streams_[i].ctx->height)};
+                    log[log::info] << "Found video stream with format "
+                                   << get_format_name_no_throw(video_streams_[i].format) << " and resolution "
+                                   << video_streams_[i].ctx->width << "x" << video_streams_[i].ctx->height;
 
                 } else {
                     video_streams_[i].codec = avcodec_find_decoder(video_streams_[i].ctx->codec_id);
@@ -513,16 +518,19 @@ bool RawAVFile::decode_video_frame(index_t idx, AVPacket& packet, AVFrame* av_fr
         return false;
     }
 
-    auto f = libav::yuri_frame_from_av(*av_frame);
-    if (!f) {
-        log[log::warning] << "Failed to convert avframe, probably unsupported pixelformat";
-        return false;
-    }
-    if (format_out_ != f->get_format()) {
-        log[log::warning] << "Unexpected frame format! Expected '" << get_format_name_no_throw(format_out_) << "', but got '"
-                          << get_format_name_no_throw(f->get_format()) << "'";
-        format_out_ = f->get_format();
-    }
+            auto f = libav::yuri_frame_from_av(*av_frame);
+
+            if (!f) {
+                log[log::warning] << "Failed to convert avframe, probably unsupported pixelformat. Format "
+                                  << av_get_pix_fmt_name(static_cast<AVPixelFormat>(av_frame->format));
+                return false;
+            }
+            if (format_out_ != f->get_format()) {
+                log[log::warning] << "Unexpected frame format! Expected '" << get_format_name_no_throw(format_out_)
+                                  << "', but got '"
+                                  << get_format_name_no_throw(f->get_format()) << "'";
+                format_out_ = f->get_format();
+            }
 
     frames_[idx] = f;
     return true;
