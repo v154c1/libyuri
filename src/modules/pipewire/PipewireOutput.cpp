@@ -261,7 +261,6 @@ bool PipewireOutput::init() {
     connect_pipewire(pipewire_data_.context, default_buffers, SPA_DIRECTION_OUTPUT, sink_ ? sink_ : PW_ID_ANY);
 
 
-    pw_thread_loop_start(pipewire_data_.context.thread_loop);
     pw_thread_loop_unlock(pipewire_data_.context.thread_loop);
 
     return true;
