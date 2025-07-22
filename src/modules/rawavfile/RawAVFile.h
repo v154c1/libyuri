@@ -91,7 +91,7 @@ private:
     bool        keep_open_;
     bool        black_on_end_;
     timestamp_t pause_start_;
-
+    bool        no_next_file_while_playing_;
     std::unique_ptr<core::Convert> blank_converter_;
 };
 
