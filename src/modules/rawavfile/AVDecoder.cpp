@@ -60,8 +60,10 @@ bool AVDecoder::reset_decoder(const core::pCompressedVideoFrame& frame)
     }
     codec_ = avcodec_find_decoder(avformat);
 
-    if (!codec_)
+    if (!codec_) {
+        log[log::debug] << "Codec " << avformat << " not found";
         return false;
+    }
     ctx_.reset(avcodec_alloc_context3(codec_));
 
     if (!ctx_) {
@@ -86,7 +88,7 @@ bool AVDecoder::reset_decoder(const core::pCompressedVideoFrame& frame)
         ctx_->thread_type  = libav::libav_thread_type(thread_type_);
         ctx_->thread_count = threads_;
     }
-    if (format == core::compressed_frame::avc1) {
+    if (format == core::compressed_frame::avc1 ) {
         ctx_->codec_tag = ('1' << 24) + ('C' << 16) + ('V' << 8) + 'A';
         libav::set_opt(ctx_->priv_data, "is_avc", 1);
         libav::set_opt(ctx_->priv_data, "nal_length_size", 4);
@@ -96,6 +98,7 @@ bool AVDecoder::reset_decoder(const core::pCompressedVideoFrame& frame)
         return false;
     }
     last_format_ = format;
+    log[log::debug] << "Codec " << codec_->name << " opened";
     return true;
 }
 
@@ -116,6 +119,7 @@ bool AVDecoder::step()
 //    int got_frame = 0;
     while (true) {
         const auto ret = avcodec_receive_frame(ctx_.get(), avframe);
+        // log[log::debug] << "Returned " << ret;
         if (ret == AVERROR_EOF) {
             // Everything OK, quitting
             break;
