@@ -192,7 +192,7 @@ private:
 	typename std::enable_if<R, void>::type
 							reserve_impl(size_type size) {
 		if (allocated_<size) {
-			std::unique_ptr<T[]> tmp = std::move(make_unique_uninitialized<T[]>(size));
+			std::unique_ptr<T[]> tmp = make_unique_uninitialized<T[]>(size);
 			if (data_) std::copy(data_.get(),data_.get()+size_,tmp.get());
 			std::swap(data_,tmp);
 			allocated_=size;
