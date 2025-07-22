@@ -68,10 +68,13 @@ bool AVDecoder::reset_decoder(const core::pCompressedVideoFrame& frame)
         return false;
     }
 
+#if LIBAVCODEC_VERSION_MAJOR < 60
     // Is this really needed?
     if (codec_->capabilities & AV_CODEC_CAP_TRUNCATED) {
         ctx_->flags |= AV_CODEC_FLAG_TRUNCATED;
     }
+#endif
+
     if (codec_->capabilities & AV_CODEC_CAP_PARAM_CHANGE) {
         ctx_->flags |= AV_CODEC_CAP_PARAM_CHANGE;
     }
