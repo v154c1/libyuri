@@ -142,6 +142,7 @@ core::Parameters RawAVFile::configure()
     p["black_on_end"]["Send a black frame after finishing playback"] = false;
     return p;
 }
+            p["no_next_file_while_playing"]["Don't accept next filename while still playing"] = false;
 
 // TODO: number of output streams should be -1 and custom connect_out should be implemented.
 RawAVFile::RawAVFile(const log::Log& _log, core::pwThreadBase parent, const core::Parameters& parameters)
@@ -740,6 +741,7 @@ bool RawAVFile::set_param(const core::Parameter& parameter)
         return true;
     return IOThread::set_param(parameter);
 }
+                            (no_next_file_while_playing_, "no_next_file_while_playing")               //
 
 bool RawAVFile::do_process_event(const std::string& event_name, const event::pBasicEvent& event)
 {
@@ -762,6 +764,10 @@ bool RawAVFile::do_process_event(const std::string& event_name, const event::pBa
         } else if (event_name == "pause_toggle") {
             new_state = !paused_;
         }
+            if (event_name == "filename" && no_next_file_while_playing_ && fmtctx_) {
+                log[log::warning] << "Not accepting new filename, video still playing";
+                return true;
+            }
 
         if (new_state != paused_) {
             paused_ = new_state;
