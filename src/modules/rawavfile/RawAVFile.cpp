@@ -259,21 +259,23 @@ bool RawAVFile::open_file(const std::string& filename)
             log[log::info] << "Found video stream with format " << get_format_name_no_throw(video_streams_[i].format) << " and resolution "
                            << video_streams_[i].ctx->width << "x" << video_streams_[i].ctx->height;
 
-        } else {
-            video_streams_[i].codec = avcodec_find_decoder(video_streams_[i].ctx->codec_id);
-            if (!video_streams_[i].codec) {
-                log[log::error] << "Failed to find decoder for video stream " << i;
-                return false;
-            }
-            if (video_streams_[i].codec->capabilities & AV_CODEC_CAP_TRUNCATED)
-                video_streams_[i].ctx->flags |= AV_CODEC_FLAG_TRUNCATED;
-            if (video_streams_[i].format_out != 0) {
-                video_streams_[i].ctx->pix_fmt = libav::avpixelformat_from_yuri(video_streams_[i].format_out);
-            }
-            if (video_streams_[i].codec->capabilities & AV_CODEC_CAP_SLICE_THREADS) {
-                video_streams_[i].ctx->thread_type  = libav::libav_thread_type(thread_type_);
-                video_streams_[i].ctx->thread_count = threads_;
-            }
+                } else {
+                    video_streams_[i].codec = avcodec_find_decoder(video_streams_[i].ctx->codec_id);
+                    if (!video_streams_[i].codec) {
+                        log[log::error] << "Failed to find decoder for video stream " << i;
+                        return false;
+                    }
+#if LIBAVCODEC_VERSION_MAJOR < 60
+                    if (video_streams_[i].codec->capabilities & AV_CODEC_CAP_TRUNCATED)
+                        video_streams_[i].ctx->flags |= AV_CODEC_FLAG_TRUNCATED;
+#endif
+                    if (video_streams_[i].format_out != 0) {
+                        video_streams_[i].ctx->pix_fmt = libav::avpixelformat_from_yuri(video_streams_[i].format_out);
+                    }
+                    if (video_streams_[i].codec->capabilities & AV_CODEC_CAP_SLICE_THREADS) {
+                        video_streams_[i].ctx->thread_type = libav::libav_thread_type(thread_type_);
+                        video_streams_[i].ctx->thread_count = threads_;
+                    }
 
             if (avcodec_open2(video_streams_[i].ctx.get(), video_streams_[i].codec, nullptr) < 0) {
                 log[log::error] << "Failed to open codec for video stream " << i;
